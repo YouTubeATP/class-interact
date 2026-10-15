@@ -104,7 +104,7 @@ export default function JoinPage() {
         )}
 
         {step.kind === 'pin' && (
-          <motion.form key="pin" onSubmit={onPin} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6">
+          <motion.form key="pin" noValidate onSubmit={onPin} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6">
             <div className="grid gap-2">
               <h1 className="display text-[2.6rem]">Join a session</h1>
               <p className="text-[1.0625rem] text-ink-2">Enter the code on the screen, or scan the QR code with your camera.</p>
@@ -114,7 +114,6 @@ export default function JoinPage() {
                 autoFocus
                 inputMode="numeric"
                 autoComplete="off"
-                pattern="[0-9]*"
                 aria-label="Session code"
                 placeholder="123 456"
                 value={pin.length > 3 ? prettyPin(pin) : pin}
@@ -131,7 +130,7 @@ export default function JoinPage() {
         )}
 
         {step.kind === 'name' && (
-          <motion.form key="name" onSubmit={onName} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6">
+          <motion.form key="name" noValidate onSubmit={onName} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6">
             <div className="grid gap-2">
               <p className="text-sm font-semibold text-ink-3">{step.title}</p>
               <h1 className="display text-[2.6rem]">What should we call you?</h1>

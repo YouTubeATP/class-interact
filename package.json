@@ -2,9 +2,15 @@
   "name": "class-interact",
   "version": "1.0.0",
   "private": true,
-  "description": "ClassInteract — real-time interactive presentations: quizzes, polls, word clouds and more, in one session.",
-  "workspaces": ["shared", "server", "web"],
-  "engines": { "node": ">=20.11" },
+  "description": "ClassInteract \u2014 real-time interactive presentations: quizzes, polls, word clouds and more, in one session.",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
     "build": "npm run build -w web && npm run build -w server",
@@ -17,7 +23,8 @@
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w web",
     "test": "npm run test -w shared && npm run test -w server && npm run test -w web",
     "test:e2e": "npm run build && playwright test",
-    "postinstall": "npm run db:generate"
+    "postinstall": "npm run db:generate",
+    "test:e2e:only": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

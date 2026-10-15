@@ -31,7 +31,7 @@ export function PreviewPane({ doc, index, onIndexChange, large = false }: { doc:
 
   const model = useMemo(() => previewStageModel(doc, index, view, { url: join.url || 'https://example.com/join/123456', host: join.host || 'example.com' }), [doc, index, view, join.url, join.host]);
   const snap = useMemo(() => previewParticipantSnapshot(doc, index, view), [doc, index, view]);
-  const phoneKey = `${slide?.id}:${view}:${JSON.stringify(slide).length}`;
+  const phoneKey = `${slide?.id ?? 'none'}:${view}:${slide ? JSON.stringify(slide).length : 0}`;
 
   return (
     <div className="grid gap-3">

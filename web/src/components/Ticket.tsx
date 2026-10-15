@@ -23,7 +23,7 @@ export function Ticket({ pin, url, host, variant = 'hero', className, style, ani
         <p className="text-ink-2" style={{ fontSize: big ? '1.05em' : '0.72em', lineHeight: 1.25 }}>
           Scan, or go to <strong className="font-semibold text-ink">{host}</strong>
         </p>
-        <p className="display tabular whitespace-nowrap text-ink" style={{ fontSize: big ? '3.3em' : variant === 'card' ? '2.35em' : '2.3em', letterSpacing: '-0.02em', lineHeight: 1 }} aria-label={`Session code ${pin.split('').join(' ')}`}>
+        <p data-testid="ticket-pin" data-pin={pin} className="display tabular whitespace-nowrap text-ink" style={{ fontSize: big ? '3.3em' : variant === 'card' ? '2.35em' : '2.3em', letterSpacing: '-0.02em', lineHeight: 1 }} aria-label={`Session code ${pin.split('').join(' ')}`}>
           {digits.map((d, i) =>
             d === ' ' ? (
               <span key={i} className="inline-block w-[0.32em]" />
