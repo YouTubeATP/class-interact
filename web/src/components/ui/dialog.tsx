@@ -32,7 +32,7 @@ export function DialogContent({ open, onOpenChange, title, description, children
                   {description ? <DialogPrimitive.Description className="text-sm text-ink-2">{description}</DialogPrimitive.Description> : <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>}
                 </div>
                 {children}
-                <DialogPrimitive.Close className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-ink-3 transition-colors hover:bg-ink/6 hover:text-ink" aria-label="Close">
+                <DialogPrimitive.Close className="absolute right-4 top-4 grid size-8 pointer-coarse:size-11 place-items-center rounded-full text-ink-3 transition-colors hover:bg-ink/6 hover:text-ink" aria-label="Close">
                   <X className="size-4" />
                 </DialogPrimitive.Close>
               </motion.div>

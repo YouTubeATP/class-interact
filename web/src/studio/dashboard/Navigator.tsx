@@ -12,14 +12,14 @@ import { plural } from '@/lib/format';
 export function LessonFlow({ snap, onGoto }: { snap: PresenterSnapshot; onGoto: (i: number) => void }) {
   const current = snap.state.phase !== 'lobby' && snap.state.phase !== 'standby' && snap.state.phase !== 'ended' ? snap.state.activityIndex : -1;
   return (
-    <ol className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Lesson flow" data-testid="lesson-flow">
+    <ol className="grid max-h-[22rem] grid-cols-[minmax(0,1fr)] gap-1.5 overflow-y-auto overscroll-contain max-lg:-mr-1 max-lg:pr-1 lg:max-h-none lg:overflow-visible" aria-label="Lesson flow" data-testid="lesson-flow">
       {snap.outline.map((o) => {
         const m = typeMeta[o.type];
         const active = o.index === current;
         return (
           <li key={o.key} className="min-w-0">
             <button type="button" onClick={() => onGoto(o.index)} disabled={!snap.available.includes('goto') || active} data-tone={o.type} data-testid="flow-item" aria-current={active}
-              className={cn('flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors disabled:cursor-default', active ? 'border-accent bg-accent-soft' : 'border-transparent hover:bg-ink/5')}>
+              className={cn('flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors pointer-coarse:min-h-12 disabled:cursor-default', active ? 'border-accent bg-accent-soft' : 'border-transparent hover:bg-ink/5')}>
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-tone text-tone-ink"><m.icon className="size-4" aria-label={m.label} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.8125rem] font-semibold leading-tight">{o.title || m.label}</span>

@@ -21,7 +21,7 @@ function Row({ slide, index, selected, hasIssues, onSelect, onDuplicate, onDelet
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={cn('relative', isDragging && 'z-20')} data-testid="slide-row">
       <div data-tone={slide.type} className={cn('group flex items-center gap-1.5 rounded-2xl border bg-surface py-1.5 pl-1 pr-1.5 transition-[border-color,box-shadow]', selected ? 'border-accent shadow-[0_0_0_3px_var(--accent-soft)]' : 'border-line hover:border-line-2', isDragging && 'shadow-xl')}>
-        <button type="button" className="grid h-9 w-6 shrink-0 cursor-grab touch-none place-items-center text-ink-3 hover:text-ink active:cursor-grabbing" aria-label={`Reorder slide ${index + 1}. Press space, then use arrow keys.`} {...attributes} {...listeners}>
+        <button type="button" className="grid h-9 w-6 shrink-0 cursor-grab touch-none place-items-center pointer-coarse:h-11 pointer-coarse:w-9 text-ink-3 hover:text-ink active:cursor-grabbing" aria-label={`Reorder slide ${index + 1}. Press space, then use arrow keys.`} {...attributes} {...listeners}>
           <GripVertical className="size-4" />
         </button>
         <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 text-left" aria-current={selected} data-testid="slide-select">

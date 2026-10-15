@@ -72,7 +72,7 @@ function Live({ info }: { info: SessionControlInfo }) {
       <ConnectionBanner status={status} />
       <StudioHeader />
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
-        <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight" data-testid="session-title">{session.title}</h1>
+        <h1 className="min-w-0 basis-full truncate text-lg font-bold tracking-tight sm:flex-1 sm:basis-auto" data-testid="session-title">{session.title}</h1>
         {ended ? <Badge variant="neutral" data-testid="session-status">Ended</Badge> : <Badge variant="ok" data-testid="session-status"><Radio className="size-3" aria-hidden /> Live</Badge>}
         {!ended && (
           <div className="flex rounded-xl bg-ink/6 p-1" role="radiogroup" aria-label="Presenting mode">
@@ -106,7 +106,7 @@ function Live({ info }: { info: SessionControlInfo }) {
       )}
 
       <div className="mx-auto grid max-w-[110rem] gap-5 p-4 sm:p-6 lg:grid-cols-[20.5rem_minmax(0,1fr)] xl:grid-cols-[20.5rem_minmax(0,1fr)_25rem]">
-        <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5" aria-label="Session">
+        <aside className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5', state.phase !== 'lobby' && 'max-lg:order-2')} aria-label="Session">
           <div data-testid="join-card" className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
             <div style={{ fontSize: '0.82rem' }}><Ticket pin={session.pin} url={join.url} host={join.host} variant="card" className="ring-1 ring-line" /></div>
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -152,7 +152,7 @@ function Live({ info }: { info: SessionControlInfo }) {
           </div>
         </aside>
 
-        <main className="grid min-w-0 content-start gap-4">
+        <main className={cn('grid min-w-0 content-start gap-4', state.phase !== 'lobby' && 'max-lg:order-1')}>
           <section aria-label="On screen now" className="grid gap-2">
             <div className="flex items-center justify-between">
               <h2 className="text-[0.9375rem] font-bold">On the projector</h2>
@@ -163,7 +163,7 @@ function Live({ info }: { info: SessionControlInfo }) {
           {!ended && <Controls snap={snapshot} run={run} now={now} />}
         </main>
 
-        <aside className="grid content-start gap-3 lg:col-span-2 xl:col-span-1" aria-label="Private presenter view">
+        <aside className={cn('grid content-start gap-3 lg:col-span-2 xl:col-span-1', state.phase !== 'lobby' && 'max-lg:order-3')} aria-label="Private presenter view">
           <h2 className="text-[0.9375rem] font-bold">Presenter only</h2>
           <PrivatePanel snap={snapshot} onModerate={(c) => void send({ cmd: 'moderate', ...c })} />
         </aside>

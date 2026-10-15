@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 export const Switch = forwardRef<ElementRef<typeof SwitchPrimitive.Root>, ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>>(({ className, ...props }, ref) => (
   <SwitchPrimitive.Root
     ref={ref}
-    className={cn('peer inline-flex h-6 w-10 shrink-0 items-center rounded-full border-2 border-transparent bg-line-2 transition-colors data-[state=checked]:bg-accent disabled:opacity-45', className)}
+    className={cn('peer relative inline-flex h-6 w-10 shrink-0 before:absolute before:-inset-2 before:content-[""] items-center rounded-full border-2 border-transparent bg-line-2 transition-colors data-[state=checked]:bg-accent disabled:opacity-45', className)}
     {...props}
   >
     <SwitchPrimitive.Thumb className="pointer-events-none block size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0" />

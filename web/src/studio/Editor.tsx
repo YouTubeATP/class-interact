@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, Loader2, Play, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, ListOrdered, Loader2, PencilLine, Play, Sparkles } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -54,6 +54,8 @@ export default function EditorPage() {
   const [startOpen, setStartOpen] = useState(false);
   const [retry, setRetry] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
+  // On a phone one pane fills the screen at a time (slides, the slide's form, or the preview); wider screens show them side by side.
+  const [pane, setPane] = useState<'slides' | 'edit' | 'preview'>('edit');
   const config = useClientConfig();
   const lastSaved = useRef('');
   const docRef = useRef<PresentationDoc | null>(null);
@@ -114,7 +116,7 @@ export default function EditorPage() {
 
   // the assistant edits through the same document and autosave path as everything else
   const applyAiDoc = useCallback((d: PresentationDoc) => { docRef.current = d; setDoc(d); }, []);
-  const focusSlide = useCallback((slideId: string) => { setSelected(slideId); setTab('edit'); }, []);
+  const focusSlide = useCallback((slideId: string) => { setSelected(slideId); setTab('edit'); setPane('edit'); }, []);
 
   const update = useCallback((fn: (d: PresentationDoc) => PresentationDoc) => setDoc((d) => (d ? fn(d) : d)), []);
   const patchSlide = (slideId: string, p: Partial<Slide>) => update((d) => ({ ...d, slides: d.slides.map((s) => (s.id === slideId ? ({ ...s, ...p } as Slide) : s)) }));
@@ -127,6 +129,7 @@ export default function EditorPage() {
     update((d) => ({ ...d, slides: [...d.slides.slice(0, at), slide, ...d.slides.slice(at)] }));
     setSelected(slideId);
     setTab('edit');
+    setPane('edit');
   };
 
   const duplicate = (slideId: string) => {
@@ -163,25 +166,27 @@ export default function EditorPage() {
   };
 
   return (
-    <div className={cn('flex h-dvh flex-col bg-paper transition-[padding] duration-200', aiOpen && 'lg:pr-[26rem]')}>
+    <div className={cn('flex min-h-dvh flex-col bg-paper transition-[padding] duration-200 lg:h-dvh lg:overflow-hidden', aiOpen && 'lg:pr-[26rem]')}>
       <StudioHeader />
-      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
-        <Button asChild variant="ghost" size="sm"><Link to="/studio"><ArrowLeft className="size-4" aria-hidden /> Presentations</Link></Button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
+        <Button asChild variant="ghost" size="sm" className="-ml-2"><Link to="/studio"><ArrowLeft className="size-4" aria-hidden /> <span className="max-sm:sr-only">Presentations</span><span className="sm:hidden" aria-hidden>Back</span></Link></Button>
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight" data-testid="editor-title">{doc.title || 'Untitled'}</h1>
         <SaveBadge state={saveState} problems={errors.length} onRetry={() => setRetry((n) => n + 1)} />
-        {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
-        <Button variant="secondary" onClick={() => setPreviewOpen(true)} data-testid="preview-open"><Eye className="size-4" aria-hidden /> Preview</Button>
-        <Button variant="secondary" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'}><Download className="size-4" aria-hidden /> Export JSON</Button>
-        <Button variant="primary" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start"><Play className="size-4" aria-hidden /> Start session</Button>
+        <div className="flex w-full gap-2 lg:w-auto">
+          {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} className="max-lg:flex-1" onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
+          <Button variant="secondary" className="max-lg:hidden" onClick={() => setPreviewOpen(true)} data-testid="preview-open"><Eye className="size-4" aria-hidden /> Preview</Button>
+          <Button variant="secondary" className="max-lg:flex-1" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'}><Download className="size-4" aria-hidden /> Export<span className="max-sm:hidden"> JSON</span></Button>
+          <Button variant="primary" className="max-lg:flex-[1.3]" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start"><Play className="size-4" aria-hidden /> Start <span className="max-sm:hidden">session</span></Button>
+        </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[17.5rem_minmax(0,1fr)_minmax(24rem,31rem)]">
-        <aside className="overflow-y-auto border-r border-line p-4" aria-label="Slides">
+      <div className="grid flex-1 lg:min-h-0 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[17.5rem_minmax(0,1fr)_minmax(24rem,31rem)]">
+        <aside className={cn(pane === 'slides' ? 'block' : 'hidden', 'relative border-line p-4 lg:block lg:overflow-y-auto lg:border-r')} aria-label="Slides">
           <SlideList
             slides={doc.slides}
             selected={selected}
             issueIndexes={new Set(issuesBySlide.keys())}
-            onSelect={(s) => { setSelected(s); setTab('edit'); }}
+            onSelect={(s) => { setSelected(s); setTab('edit'); setPane('edit'); }}
             onReorder={(slides) => update((d) => ({ ...d, slides }))}
             onAdd={addSlide}
             onDuplicate={duplicate}
@@ -189,7 +194,7 @@ export default function EditorPage() {
           />
         </aside>
 
-        <main className="min-h-0 overflow-y-auto">
+        <main className={cn(pane === 'edit' ? 'block' : 'hidden', 'relative lg:block lg:min-h-0 lg:overflow-y-auto')}>
           <div className="mx-auto max-w-2xl px-5 py-6">
             <Tabs value={tab} onValueChange={(v) => setTab(v as 'edit' | 'json')}>
               <div className="mb-6 flex items-center justify-between gap-3">
@@ -232,12 +237,19 @@ export default function EditorPage() {
           </div>
         </main>
 
-        <aside className="hidden overflow-y-auto border-l border-line bg-surface/60 p-4 xl:block" aria-label="Live preview">
+        <aside className={cn(pane === 'preview' ? 'block' : 'hidden', 'relative bg-surface/60 p-4 lg:hidden xl:block xl:overflow-y-auto xl:border-l xl:border-line')} aria-label="Live preview">
           <h2 className="mb-3 text-[0.8125rem] font-bold text-ink-2">Live preview</h2>
           <PreviewPane doc={doc} index={previewIndex} onIndexChange={(i) => doc.slides[i] && setSelected(doc.slides[i].id)} />
         </aside>
       </div>
 
+      <nav className="sticky bottom-0 z-30 grid grid-cols-3 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Editor sections" data-testid="editor-nav">
+        {([['slides', 'Slides', ListOrdered], ['edit', 'Edit', PencilLine], ['preview', 'Preview', Eye]] as const).map(([id, label, Icon]) => (
+          <button key={id} type="button" onClick={() => setPane(id)} aria-current={pane === id ? 'page' : undefined} data-testid={`editor-nav-${id}`} className={cn('flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-bold transition-colors', pane === id ? 'text-accent' : 'text-ink-3')}>
+            <Icon className="size-5" aria-hidden /> {label}
+          </button>
+        ))}
+      </nav>
       <DialogContent open={previewOpen} onOpenChange={setPreviewOpen} wide title="Preview" description="Step through the presentation exactly as the room and phones will see it.">
         <div className="max-h-[75vh] overflow-y-auto pr-1"><PreviewPane doc={doc} index={previewIndex} large onIndexChange={(i) => doc.slides[i] && setSelected(doc.slides[i].id)} /></div>
       </DialogContent>

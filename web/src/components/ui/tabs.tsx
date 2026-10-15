@@ -13,7 +13,7 @@ TabsList.displayName = 'TabsList';
 export const TabsTrigger = forwardRef<ElementRef<typeof TabsPrimitive.Trigger>, ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>>(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
-    className={cn('inline-flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[0.8125rem] font-semibold text-ink-2 transition-colors hover:text-ink data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-sm', className)}
+    className={cn('inline-flex items-center justify-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 pointer-coarse:min-h-10 text-[0.8125rem] font-semibold text-ink-2 transition-colors hover:text-ink data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-sm', className)}
     {...props}
   />
 ));

@@ -149,7 +149,7 @@ function Welcome() {
 function Composer() {
   const running = useAuiState((s) => s.thread.isRunning);
   return (
-    <ComposerPrimitive.Root className="flex items-end gap-2 border-t border-line bg-surface p-3">
+    <ComposerPrimitive.Root className="flex items-end gap-2 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Input rows={1} autoFocus placeholder="Ask for slides, quizzes, changes…" aria-label="Message the assistant" data-testid="ai-input" className="max-h-36 min-h-11 flex-1 resize-none rounded-xl border border-line-2 bg-paper px-3.5 py-2.5 text-[0.9375rem] outline-none focus:border-accent focus:ring-2 focus:ring-accent/25" />
       {running ? (
         <ComposerPrimitive.Cancel asChild><button type="button" aria-label="Stop" className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink text-white" data-testid="ai-stop"><Square className="size-4 fill-current" aria-hidden /></button></ComposerPrimitive.Cancel>
@@ -239,20 +239,20 @@ export default function AiAssistant({ docRef, applyDoc, focusSlide, onClose }: A
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 40, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-      className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[26rem] flex-col border-l border-line bg-surface shadow-[-12px_0_40px_-20px_rgba(15,20,40,0.35)]"
+      className="fixed right-0 top-0 z-40 flex h-dvh w-full max-w-[26rem] flex-col border-l border-line bg-surface shadow-[-12px_0_40px_-20px_rgba(15,20,40,0.35)]"
       aria-label="AI assistant"
       data-testid="ai-panel"
     >
       <header className="flex items-center gap-2 border-b border-line px-4 py-3">
         <span className="grid size-8 place-items-center rounded-xl bg-accent-soft text-accent-ink"><Sparkles className="size-4" aria-hidden /></span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[0.9375rem] font-bold leading-tight">AI assistant</h2>
-          <p className="truncate text-xs text-ink-3">Builds and edits this presentation</p>
+          <h2 className="whitespace-nowrap text-[0.9375rem] font-bold leading-tight">AI assistant</h2>
+          <p className="truncate text-xs text-ink-3 max-sm:hidden">Builds and edits this presentation</p>
         </div>
         <AnimatePresence>
           {undoStack.length > 0 && (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
-              <Button variant="secondary" size="sm" onClick={undo} data-testid="ai-undo"><Undo2 className="size-3.5" aria-hidden /> Undo AI changes</Button>
+              <Button variant="secondary" size="sm" onClick={undo} data-testid="ai-undo"><Undo2 className="size-3.5" aria-hidden /> Undo<span className="max-sm:sr-only">&nbsp;AI changes</span></Button>
             </motion.div>
           )}
         </AnimatePresence>

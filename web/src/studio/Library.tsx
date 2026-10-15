@@ -162,7 +162,24 @@ export default function LibraryPage() {
           ) : past.length === 0 ? (
             <p className="rounded-card border border-dashed border-line-2 px-5 py-8 text-center text-ink-3">Finished sessions show up here with their results and CSV export.</p>
           ) : (
-            <div className="overflow-x-auto rounded-card border border-line bg-surface">
+            <>
+            <ul className="grid gap-2.5 sm:hidden" aria-label="Past sessions">
+              {past.map((s) => (
+                <li key={s.id} className="grid gap-2.5 rounded-card border border-line bg-surface p-4" data-testid="past-session-card">
+                  <div className="grid gap-1">
+                    <p className="font-semibold leading-snug">{s.title}</p>
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-ink-2"><Badge>{s.mode === 'companion' ? 'Companion' : 'Standalone'}</Badge> {formatDateTime(s.createdAt)}</p>
+                    <p className="tabular text-[0.8125rem] text-ink-3">{plural(s.participantCount, 'participant')} · {plural(s.responseCount, 'response')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild variant="secondary" size="sm" className="flex-1"><Link to={`/results/${s.id}`}><BarChart3 className="size-3.5" aria-hidden /> Results</Link></Button>
+                    <Button variant="secondary" size="sm" className="flex-1" onClick={() => void api.sessions.exportCsv(s.id).catch(fail)}><Download className="size-3.5" aria-hidden /> CSV</Button>
+                    <Button variant="ghost" size="icon-sm" aria-label={`Delete results for ${s.title}`} onClick={() => setDialog({ kind: 'delete-session', s })}><Trash2 className="size-4" /></Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-card border border-line bg-surface sm:block">
               <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead className="border-b border-line text-ink-3"><tr><th className="px-4 py-3 font-semibold">Session</th><th className="px-4 py-3 font-semibold">Date</th><th className="px-4 py-3 font-semibold">Participants</th><th className="px-4 py-3 font-semibold">Responses</th><th className="px-4 py-3 text-right font-semibold">Actions</th></tr></thead>
                 <tbody>
@@ -182,6 +199,7 @@ export default function LibraryPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </main>
