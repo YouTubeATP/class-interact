@@ -6,6 +6,7 @@ const cfg = (over: Partial<ClientConfig> = {}): ClientConfig => ({
   publicUrl: null,
   lanUrls: ['http://192.168.50.200:3001', 'http://10.134.240.59:3001'], // best guess first
   authRequired: false,
+  aiEnabled: false,
   version: 'test',
   ...over,
 });

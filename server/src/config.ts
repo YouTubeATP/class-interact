@@ -18,6 +18,10 @@ export interface Config {
   corsOrigins: string[];
   extraBlockedWords: string[];
   production: boolean;
+  /** AI assistant (any OpenAI-compatible endpoint). The assistant is off unless a key is set. */
+  aiApiKey: string | null;
+  aiModel: string;
+  aiBaseUrl: string;
 }
 
 function int(v: string | undefined, fallback: number): number {
@@ -45,6 +49,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     corsOrigins: (env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
     extraBlockedWords: (env.EXTRA_BLOCKED_WORDS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
     production: env.NODE_ENV === 'production',
+    aiApiKey: env.AIMLAPI_KEY?.trim() || null,
+    aiModel: env.AI_MODEL?.trim() || 'deepseek/deepseek-v4.1-flash',
+    aiBaseUrl: (env.AI_BASE_URL?.trim() || 'https://api.aimlapi.com/v1').replace(/\/+$/, ''),
     ...overrides,
   };
   mkdirSync(cfg.dataDir, { recursive: true });

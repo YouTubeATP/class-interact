@@ -202,6 +202,8 @@ export interface ClientConfig {
   publicUrl: string | null;
   lanUrls: string[];
   authRequired: boolean;
+  /** The AI presentation assistant is available (the server has an API key for it). */
+  aiEnabled: boolean;
   version: string;
 }
 

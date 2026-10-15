@@ -224,7 +224,7 @@ export function parsePresentationJson(text: string): ParseResult {
  * Resolved defaults make exports explicit, but fields that cannot apply to a question's kind are noise
  * (`correctOptionIds: []` on a single-answer question), so they are left out. Parsing puts the defaults back.
  */
-function withoutUnusedFields(slide: Slide): Slide {
+export function withoutUnusedFields(slide: Slide): Slide {
   if (slide.type !== 'quiz') return slide;
   const q: Record<string, unknown> = { ...slide };
   const kind = (q.kind as string | undefined) ?? 'single';

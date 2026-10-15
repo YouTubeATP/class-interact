@@ -12,6 +12,7 @@ import { createAuth } from './auth';
 import type { Config } from './config';
 import { AppError, badRequest, notFound } from './lib/errors';
 import { lanUrls } from './lan';
+import { aiChatHandler } from './ai/chat';
 import { createTextFilter } from './lib/moderation';
 import { attachGateway } from './realtime/gateway';
 import { PresentationService } from './services/presentations';
@@ -70,7 +71,7 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
   api.get('/config', (_req, res) => {
     // Inside a container the interface addresses are internal (172.x) and useless to phones, so only
     // offer LAN addresses when running directly on a developer machine.
-    const body: ClientConfig = { publicUrl: config.publicUrl, lanUrls: config.production ? [] : lanUrls(config.port), authRequired: auth.studioProtected, version: VERSION };
+    const body: ClientConfig = { publicUrl: config.publicUrl, lanUrls: config.production ? [] : lanUrls(config.port), authRequired: auth.studioProtected, aiEnabled: !!config.aiApiKey, version: VERSION };
     res.json(body);
   });
 
@@ -115,6 +116,9 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     if (!auth.verifyStudioToken(token)) return next(new AppError(401, 'UNAUTHORIZED', 'Sign in to use the Presenter Studio.'));
     next();
   });
+
+  // The AI assistant. Studio-only (so it needs the Studio password when one is set) and rate limited, because every call costs money.
+  studio.post('/ai/chat', limit(60_000, 30, 'The assistant is getting a lot of requests. Wait a moment and try again.'), aiChatHandler(config));
 
   studio.get('/presentations', async (_req, res) => res.json(await presentations.list()));
 

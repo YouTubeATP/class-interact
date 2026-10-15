@@ -13,14 +13,17 @@
     "db:migrate": "node scripts/prisma.mjs migrate deploy",
     "db:migrate:dev": "node scripts/prisma.mjs migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "node scripts/prisma.mjs migrate reset --force"
+    "db:reset": "node scripts/prisma.mjs migrate reset --force",
+    "ai:smoke": "tsx scripts/ai-smoke.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.69",
     "@classinteract/shared": "*",
     "@prisma/client": "^6.19.0",
+    "ai": "^7.0.141",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "obscenity": "^0.4.3",
@@ -31,9 +34,9 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "@types/supertest": "^6.0.2",
     "socket.io-client": "^4.8.1",
     "supertest": "^7.0.0",
-    "@types/supertest": "^6.0.2",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "~5.7.3",
