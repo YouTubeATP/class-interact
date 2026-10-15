@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   availableActions, cleanText, computeStandings, definitions, initialState, nameKey, redactResults, showsActivity, transition,
@@ -29,6 +29,7 @@ interface RtActivity {
   config: any;
   completed: boolean;
   answerRevealed: boolean;
+  seed: string;
 }
 interface RtParticipant {
   id: string;
@@ -115,7 +116,7 @@ export class SessionService {
       status: s.status === 'ended' ? 'ended' : 'live',
       state: JSON.parse(s.state),
       activities: s.activities.map((a) => ({
-        id: a.id, key: a.key, position: a.position, type: a.type as SlideType, config: JSON.parse(a.config), completed: a.completed, answerRevealed: a.answerRevealed,
+        id: a.id, key: a.key, position: a.position, type: a.type as SlideType, config: JSON.parse(a.config), completed: a.completed, answerRevealed: a.answerRevealed, seed: a.seed,
       })),
       participants: new Map(s.participants.map((p) => [p.id, { id: p.id, name: p.name, removed: p.removed, joinedAt: p.joinedAt.getTime() }])),
       tokens: new Map(s.participants.map((p) => [p.tokenHash, p.id])),
@@ -170,7 +171,7 @@ export class SessionService {
             pin,
             livePin: pin,
             state: JSON.stringify(initialState()),
-            activities: { create: p.activities.map((a) => ({ key: a.key, position: a.position, type: a.type, config: a.config })) },
+            activities: { create: p.activities.map((a) => ({ key: a.key, position: a.position, type: a.type, config: a.config, seed: randomBytes(12).toString('hex') })) },
           },
         });
         await this.projectorCodeFor(s.id);
@@ -432,7 +433,7 @@ export class SessionService {
       }
 
       const elapsedMs = state.openedAt ? Math.max(0, now - state.openedAt) : 0;
-      const ev = def.evaluate(act.config, v.payload, { elapsedMs }) as { correct: boolean | null; score: number };
+      const ev = def.evaluate(act.config, v.payload, { elapsedMs, seed: act.seed }) as { correct: boolean | null; score: number };
       try {
         const row = await this.prisma.submission.create({
           data: {
@@ -515,7 +516,7 @@ export class SessionService {
     const aggInput: AggSubmission[] = rows.map((r) => ({
       id: r.id, participantId: r.participantId, payload: JSON.parse(r.payload), status: r.status as SubmissionStatus, key: r.key, createdAt: r.createdAt.getTime(), correct: r.correct, score: r.score,
     }));
-    const full: Results | null = act && behavior.interactive ? (definitions[act.type] as any).aggregate(act.config, aggInput) : null;
+    const full: Results | null = act && behavior.interactive ? (definitions[act.type] as any).aggregate(act.config, aggInput, { seed: act.seed }) : null;
     const visibleRows = rows.filter((r) => r.status !== 'hidden');
     const counts: Counts = {
       participants: active.length,
@@ -530,7 +531,7 @@ export class SessionService {
     const publicActivity: PublicActivity | null = act
       ? {
           id: act.id, key: act.key, index: act.position, type: act.type, interactive: !!behavior.interactive,
-          config: (definitions[act.type] as any).publicConfig(act.config, { revealCorrect: state.correctVisible }) as AnyConfig,
+          config: (definitions[act.type] as any).publicConfig(act.config, { revealCorrect: state.correctVisible, seed: act.seed }) as AnyConfig,
         }
       : null;
 

@@ -20,8 +20,10 @@ export const CONTENT_LAYOUTS = ['title', 'text', 'image-text', 'full-image', 'in
  * How a quiz question is answered.
  *   single    pick one option (`correctOptionId`)
  *   multiple  tick every option that applies (`correctOptionIds`); optional partial credit
+ *   match     connect each left item to its right item (`pairs`)
+ *   order     put `items` in the right order (the order they are written in is the answer)
  */
-export const QUIZ_KINDS = ['single', 'multiple'] as const;
+export const QUIZ_KINDS = ['single', 'multiple', 'match', 'order'] as const;
 export type QuizKind = (typeof QUIZ_KINDS)[number];
 
 export const SLIDE_TYPES = ['content', 'quiz', 'poll', 'wordcloud', 'open', 'rating', 'survey'] as const;
@@ -91,6 +93,19 @@ const optionSchema = z
   .object({ id: itemId, text: text(1, 160, 'Option text') })
   .strict();
 
+const pairSchema = z
+  .object({ id: itemId, left: text(1, 120, 'Left item'), right: text(1, 120, 'Right item') })
+  .strict();
+
+/** What an audience sees of a match or order question: shuffled, opaque ids, and the answer only once revealed. */
+const quizViewSchema = z.object({
+  lefts: z.array(z.object({ id: z.string(), text: z.string() })),
+  rights: z.array(z.object({ id: z.string(), text: z.string() })),
+  items: z.array(z.object({ id: z.string(), text: z.string() })),
+  answerMap: z.record(z.string()).optional(),
+  answerOrder: z.array(z.string()).optional(),
+});
+
 const base = {
   notes: optionalText(4000, 'Speaker notes'),
   image: imageSchema.optional(),
@@ -126,7 +141,11 @@ export const quizShape = {
   options: z.array(optionSchema).max(6, 'A quiz can have at most 6 options').default([]),
   correctOptionId: itemId.optional(),
   correctOptionIds: z.array(itemId).max(6).default([]),
+  pairs: z.array(pairSchema).max(6, 'A matching question can have at most 6 pairs').default([]),
+  items: z.array(optionSchema).max(6, 'An ordering question can have at most 6 items').default([]),
   partialCredit: z.boolean().default(true),
+  /** Generated for the audience; never authored. */
+  view: quizViewSchema.optional(),
   explanation: optionalText(500, 'Explanation'),
   scored: z.boolean().default(true),
   points: z.number().int().min(10, 'Points must be at least 10').max(10000, 'Points can be at most 10000').default(1000),
@@ -271,17 +290,28 @@ export const refiners: Record<SlideType, (c: any, ctx: Ctx) => void> = {
   },
   quiz(c, ctx) {
     const kind: QuizKind = c.kind ?? 'single';
+    const choice = kind === 'single' || kind === 'multiple';
     const ids = new Set<string>(c.options.map((o: { id: string }) => o.id));
     const valid = () => `Valid ids: ${c.options.map((o: { id: string }) => o.id).join(', ')}`;
-    uniqueIds(ctx, c.options, ['options'], 'option');
-    if (c.options.length < 2) fail(ctx, ['options'], 'A quiz needs 2–6 options');
+    const unused = (field: string, used: string) => fail(ctx, [field], `"${field}" is not used by kind "${kind}"${used ? `. It belongs to kind ${used}` : ''}`);
 
+    if (c.view !== undefined) fail(ctx, ['view'], '"view" is generated for the audience and cannot be set');
+    uniqueIds(ctx, c.options, ['options'], 'option');
+    uniqueIds(ctx, c.pairs, ['pairs'], 'pair');
+    uniqueIds(ctx, c.items, ['items'], 'item');
+
+    // fields that belong to other kinds are errors, so a typo in "kind" never silently drops an answer key
+    if (!choice && c.options.length > 0) unused('options', '"single" or "multiple"');
+    if (kind !== 'match' && c.pairs.length > 0) unused('pairs', '"match"');
+    if (kind !== 'order' && c.items.length > 0) unused('items', '"order"');
+    if (kind !== 'single' && c.correctOptionId !== undefined) unused('correctOptionId', '"single"');
+    if (kind !== 'multiple' && c.correctOptionIds.length > 0) unused('correctOptionIds', '"multiple"');
+
+    if (choice && c.options.length < 2) fail(ctx, ['options'], 'A quiz needs 2–6 options');
     if (kind === 'single') {
       if (!c.correctOptionId) fail(ctx, ['correctOptionId'], 'A single-answer quiz needs "correctOptionId"');
       else if (!ids.has(c.correctOptionId)) fail(ctx, ['correctOptionId'], `"correctOptionId" ("${c.correctOptionId}") does not match any option. ${valid()}`);
-      if (c.correctOptionIds.length > 0) fail(ctx, ['correctOptionIds'], '"correctOptionIds" is for kind "multiple". A single-answer quiz uses "correctOptionId"');
     } else if (kind === 'multiple') {
-      if (c.correctOptionId !== undefined) fail(ctx, ['correctOptionId'], '"correctOptionId" is for kind "single". A multiple-answer quiz uses "correctOptionIds"');
       if (c.correctOptionIds.length === 0) fail(ctx, ['correctOptionIds'], 'Mark at least one correct answer in "correctOptionIds"');
       const seen = new Set<string>();
       c.correctOptionIds.forEach((id: string, i: number) => {
@@ -289,6 +319,16 @@ export const refiners: Record<SlideType, (c: any, ctx: Ctx) => void> = {
         else if (seen.has(id)) fail(ctx, ['correctOptionIds', i], `"${id}" is listed twice`);
         seen.add(id);
       });
+    } else if (kind === 'match') {
+      if (c.pairs.length < 2) fail(ctx, ['pairs'], 'A matching question needs 2–6 pairs');
+      const rights = new Set<string>();
+      c.pairs.forEach((p: { right: string }, i: number) => {
+        const key = p.right.trim().toLowerCase();
+        if (rights.has(key)) fail(ctx, ['pairs', i, 'right'], `Two pairs share the right item "${p.right}", so the match would be ambiguous`);
+        rights.add(key);
+      });
+    } else if (kind === 'order') {
+      if (c.items.length < 2) fail(ctx, ['items'], 'An ordering question needs 2–6 items, written in the correct order');
     }
     if (c.speedBonus && c.timeLimitSec === null) fail(ctx, ['speedBonus'], 'A speed bonus needs a countdown: set "timeLimitSec"');
     if (c.speedBonus && !c.scored) fail(ctx, ['speedBonus'], 'A speed bonus needs "scored": true');

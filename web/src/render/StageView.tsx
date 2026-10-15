@@ -14,6 +14,7 @@ import { FitBox } from './FitBox';
 import type { StageModel } from './model';
 import { ResultsView } from './ResultsView';
 import { OptionTile, type TileState } from './viz/OptionTile';
+import { MatchStage, OrderStage } from './viz/MatchOrder';
 import { Leaderboard } from './viz/Leaderboard';
 
 /** 16:9 letterboxed canvas. Everything inside is sized in cqw, so it looks identical at any resolution. */
@@ -105,6 +106,22 @@ function ActivityBody({ m }: { m: StageModel }) {
     const correct = state.correctVisible ? quizCorrectIds(c) : [];
     const counts = showResults && results.type === 'quiz' ? results.counts : null;
     const total = showResults && results.type === 'quiz' ? results.total : 0;
+    if ((quizKind(c) === 'match' || quizKind(c) === 'order') && c.view) {
+      const revealedKey = state.correctVisible;
+      return (
+        <div className="grid gap-[1.2em]">
+          <p className="-mb-[0.2em] text-[1.6em] font-bold text-ink-2" data-testid="stage-arrange-hint">{quizKind(c) === 'match' ? 'Match each item on your phone' : 'Put them in order on your phone'}</p>
+          {quizKind(c) === 'match' ? <MatchStage view={c.view} revealed={revealedKey} /> : <OrderStage view={c.view} revealed={revealedKey} />}
+          <AnimatePresence>
+            {revealedKey && c.explanation && (
+              <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-[60em] rounded-[0.9em] bg-ok-soft px-[1em] py-[0.7em] text-[1.7em] font-semibold text-[#0b4a30]">
+                {c.explanation}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
     return (
       <div className="grid gap-[1.4em]">
         {quizKind(c) === 'multiple' && <p className="-mb-[0.4em] text-[1.6em] font-bold text-ink-2" data-testid="stage-multi-hint">Select all that apply</p>}

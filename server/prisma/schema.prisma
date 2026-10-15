@@ -75,6 +75,9 @@ model SessionActivity {
   config          String
   completed       Boolean      @default(false)
   answerRevealed  Boolean      @default(false)
+  /// Private shuffle seed for match / order questions. Never sent to any client: it is what keeps the shuffled
+  /// ids shown to phones and the projector from revealing the answer. Empty for rows created before it existed.
+  seed            String       @default("")
   session         Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   submissions     Submission[]
 

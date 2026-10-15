@@ -23,6 +23,10 @@ export function sampleResults(type: SlideType, config: AnyConfig): Results {
   switch (type) {
     case 'quiz': {
       const c = config as QuizConfig;
+      if (quizKind(c) === 'match' || quizKind(c) === 'order') {
+        const keys = quizKind(c) === 'match' ? c.pairs.map((_, i) => `L${i}`) : c.items.map((_, i) => `P${i}`);
+        return { type: 'quiz', kind: 'choice', total: 12, counts: Object.fromEntries(keys.map((k, i) => [k, Math.max(2, 11 - i * 2)])) };
+      }
       const peak = Math.max(0, c.options.findIndex((o) => quizCorrectIds(c).includes(o.id)));
       const multiple = quizKind(c) === 'multiple';
       const subs = c.options.flatMap((o, i) => Array.from({ length: spread(12, c.options.length, peak)[i] }, () => sub(multiple ? { optionIds: [o.id] } : { optionId: o.id })));

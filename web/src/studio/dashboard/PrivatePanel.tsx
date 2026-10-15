@@ -1,6 +1,7 @@
 import { Check, EyeOff, Lock, StickyNote, UserX, Users } from 'lucide-react';
 import { useState } from 'react';
 import { quizCorrectIds, type ModerationItem, type PresenterSnapshot, type QuizConfig, type WordcloudConfig } from '@classinteract/shared';
+import { quizAnswerLabel, quizAnswerLines } from '@/lib/quiz';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -72,7 +73,7 @@ export function PrivatePanel({ snap, onModerate }: { snap: PresenterSnapshot; on
   const notes = (fullConfig as { notes?: string } | null)?.notes ?? '';
   const pending = moderation.filter((m) => m.status === 'pending').length;
   const quiz = fullConfig && activity?.type === 'quiz' ? (fullConfig as QuizConfig) : null;
-  const answerTexts = quiz ? quizCorrectIds(quiz).flatMap((id) => quiz.options.find((o) => o.id === id)?.text ?? []) : [];
+  const answerTexts = quiz ? quizAnswerLines(quiz) : [];
   const premod = fullConfig && (activity?.type === 'wordcloud' || activity?.type === 'open') ? (fullConfig as WordcloudConfig).moderation === 'premoderate' : false;
 
   if (!activity || !fullConfig) {
@@ -91,7 +92,7 @@ export function PrivatePanel({ snap, onModerate }: { snap: PresenterSnapshot; on
           <span className="flex items-center gap-1.5"><Lock className="size-3.5" aria-hidden /> Private view</span>
           <Badge variant={state.resultsVisible ? 'ok' : 'neutral'}>{state.resultsVisible ? 'Showing on screen' : 'Not on screen'}</Badge>
         </div>
-        {quiz && answerTexts.length > 0 && <p className="rounded-xl bg-ok-soft px-3 py-2 text-sm font-semibold text-[#0b4a30]" data-testid="answer-key">{answerTexts.length > 1 ? 'Correct answers' : 'Correct answer'}: {answerTexts.join(' · ')}</p>}
+        {quiz && answerTexts.length > 0 && <p className="rounded-xl bg-ok-soft px-3 py-2 text-sm font-semibold text-[#0b4a30]" data-testid="answer-key">{quiz ? quizAnswerLabel(quiz) : ''}: {answerTexts.join(' · ')}</p>}
         {results && results.type !== 'content' ? (
           <div data-tone={activity.type} className="rounded-2xl bg-surface p-3.5 ring-1 ring-line" data-testid="private-results">
             <ScaleBox pct={activity.type === 'survey' ? 2.3 : 3.1}>

@@ -98,11 +98,12 @@ export interface ActivityDefinition<T extends SlideType = SlideType> {
   validate(config: ConfigByType[T], raw: unknown): ValidationResult;
   /** Free text inside a payload — the server runs its text-moderation filter over these. */
   extractText(config: ConfigByType[T], payload: any): string[];
-  evaluate(config: ConfigByType[T], payload: any, ctx: { elapsedMs: number }): { correct: boolean | null; score: number };
-  aggregate(config: ConfigByType[T], subs: AggSubmission[]): Results;
+  /** `seed` is the activity's private shuffle seed (match / order questions grade in terms of shuffled tokens). */
+  evaluate(config: ConfigByType[T], payload: any, ctx: { elapsedMs: number; seed?: string }): { correct: boolean | null; score: number };
+  aggregate(config: ConfigByType[T], subs: AggSubmission[], ctx?: { seed?: string }): Results;
   /** Strips speaker notes and (until revealed) the correct answer. Safe to send to the audience. */
-  publicConfig(config: ConfigByType[T], opts: { revealCorrect: boolean }): ConfigByType[T];
-  describeResponses(config: ConfigByType[T], payload: any): ResponseLine[];
+  publicConfig(config: ConfigByType[T], opts: { revealCorrect: boolean; seed?: string }): ConfigByType[T];
+  describeResponses(config: ConfigByType[T], payload: any, ctx?: { seed?: string }): ResponseLine[];
   titleOf(config: ConfigByType[T]): string;
 }
 
@@ -229,12 +230,14 @@ export function scoreQuiz(c: Pick<QuizConfig, 'scored' | 'points' | 'speedBonus'
 
 /**
  * Quiz grading. Old stored configs have no `kind`, so everything reads it through these helpers.
- * Returns the share of the answer that is right, 0 to 1 (1 means fully correct).
+ * `gradeQuiz` returns the share of the answer that is right, 0 to 1 (1 means fully correct).
  *   single    1 or 0
- *   multiple  ticks that are right minus ticks that are wrong, over the number of right answers (never below 0);
- *             with `partialCredit` off it is all-or-nothing
+ *   multiple  ticks that are right minus ticks that are wrong, over the number of right answers (never below 0)
+ *   match     share of left items connected to the right item
+ *   order     share of positions holding the right item
+ * With `partialCredit` off, multiple / match / order are all-or-nothing.
  */
-type QuizLike = Pick<QuizConfig, 'options' | 'correctOptionId' | 'correctOptionIds' | 'partialCredit'> & { kind?: QuizKind };
+type QuizLike = Pick<QuizConfig, 'options' | 'correctOptionId' | 'correctOptionIds' | 'partialCredit' | 'pairs' | 'items' | 'view'> & { kind?: QuizKind };
 
 export const quizKind = (c: { kind?: QuizKind }): QuizKind => c.kind ?? 'single';
 
@@ -244,15 +247,101 @@ export function quizCorrectIds(c: Partial<QuizLike>): string[] {
   return c.correctOptionId ? [c.correctOptionId] : [];
 }
 
-export function gradeQuiz(c: QuizLike, payload: any): number {
-  if (quizKind(c) === 'multiple') {
+// --- shuffling for match / order -----------------------------------------------------------------------
+// The audience gets shuffled lists with opaque ids ("R2", "I0"). Which id is which item is fixed by a private,
+// per-activity seed that only the server knows, so nothing sent to a phone or projector reveals the answer.
+
+function seededRandom(seed: string): () => number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  let a = (h ^ (h >>> 16)) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** A repeatable shuffle of 0..n-1 that is never the identity (so the question is never shown already solved). */
+export function shuffledOrder(n: number, seed: string): number[] {
+  const rnd = seededRandom(seed);
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift()!);
+  return order;
+}
+
+type QuizView = NonNullable<QuizConfig['view']>;
+
+/**
+ * Audience view of a match / order question. Lefts keep their written order (`L0…`), rights and order items are
+ * shuffled (`R0…`, `I0…`). With `answer`, it also carries the key in those same tokens.
+ */
+export function quizView(c: Pick<QuizLike, 'pairs' | 'items'> & { kind?: QuizKind }, seed: string, answer: boolean): QuizView | undefined {
+  const kind = quizKind(c);
+  if (kind === 'match') {
+    const n = c.pairs.length;
+    const perm = shuffledOrder(n, `${seed}:match`); // perm[j] = which pair's right item sits at R<j>
+    return {
+      lefts: c.pairs.map((p, i) => ({ id: `L${i}`, text: p.left })),
+      rights: perm.map((orig, j) => ({ id: `R${j}`, text: c.pairs[orig].right })),
+      items: [],
+      ...(answer ? { answerMap: Object.fromEntries(c.pairs.map((_, i) => [`L${i}`, `R${perm.indexOf(i)}`])) } : {}),
+    };
+  }
+  if (kind === 'order') {
+    const n = c.items.length;
+    const perm = shuffledOrder(n, `${seed}:order`); // perm[k] = which written item sits at I<k>
+    return {
+      lefts: [],
+      rights: [],
+      items: perm.map((orig, k) => ({ id: `I${k}`, text: c.items[orig].text })),
+      ...(answer ? { answerOrder: c.items.map((_, p) => `I${perm.indexOf(p)}`) } : {}),
+    };
+  }
+  return undefined;
+}
+
+/** The answer key in audience tokens, from the full config (server) or from a revealed audience view. */
+function quizKey(c: QuizLike, seed: string): { answerMap?: Record<string, string>; answerOrder?: string[] } {
+  if (c.view?.answerMap || c.view?.answerOrder) return c.view;
+  return quizView(c, seed, true) ?? {};
+}
+
+export function gradeQuiz(c: QuizLike, payload: any, seed = ''): number {
+  const kind = quizKind(c);
+  const partial = c.partialCredit ?? true;
+  if (kind === 'multiple') {
     const correct = new Set(quizCorrectIds(c));
     const chosen: string[] = Array.isArray(payload?.optionIds) ? payload.optionIds : [];
     const right = chosen.filter((id) => correct.has(id)).length;
     const wrong = chosen.length - right;
     if (correct.size === 0) return 0;
-    if (!(c.partialCredit ?? true)) return right === correct.size && wrong === 0 ? 1 : 0;
+    if (!partial) return right === correct.size && wrong === 0 ? 1 : 0;
     return Math.max(0, right - wrong) / correct.size;
+  }
+  if (kind === 'match') {
+    const key = quizKey(c, seed).answerMap;
+    const given = isObj(payload?.matches) ? payload.matches : {};
+    if (!key) return 0;
+    const ids = Object.keys(key);
+    if (ids.length === 0) return 0;
+    const right = ids.filter((l) => given[l] === key[l]).length;
+    return partial ? right / ids.length : right === ids.length ? 1 : 0;
+  }
+  if (kind === 'order') {
+    const key = quizKey(c, seed).answerOrder;
+    const given: unknown[] = Array.isArray(payload?.order) ? payload.order : [];
+    if (!key || key.length === 0) return 0;
+    const right = key.filter((id, p) => given[p] === id).length;
+    return partial ? right / key.length : right === key.length ? 1 : 0;
   }
   return payload?.optionId !== undefined && payload.optionId === c.correctOptionId ? 1 : 0;
 }
@@ -317,8 +406,27 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
       maxSubmissions: 1,
     }),
     validate(c, raw) {
+      const kind = quizKind(c);
+      if (kind === 'match') {
+        const n = c.pairs.length;
+        if (!isObj(raw) || !isObj(raw.matches)) return bad('Match every item');
+        const lefts = Array.from({ length: n }, (_, i) => `L${i}`);
+        const rights = new Set(Array.from({ length: n }, (_, i) => `R${i}`));
+        const given = raw.matches as Record<string, unknown>;
+        if (lefts.some((l) => given[l] === undefined)) return bad('Match every item before you lock in');
+        if (Object.keys(given).some((k) => !lefts.includes(k))) return bad('The question changed. Refresh and try again');
+        const used = lefts.map((l) => given[l]);
+        if (used.some((r) => typeof r !== 'string' || !rights.has(r)) || new Set(used).size !== n) return bad('Use each answer once');
+        return ok({ matches: Object.fromEntries(lefts.map((l) => [l, given[l]])) });
+      }
+      if (kind === 'order') {
+        const n = c.items.length;
+        const tokens = new Set(Array.from({ length: n }, (_, i) => `I${i}`));
+        if (!isObj(raw) || !Array.isArray(raw.order) || raw.order.length !== n || raw.order.some((x) => typeof x !== 'string' || !tokens.has(x)) || new Set(raw.order).size !== n) return bad('Put every item in order before you lock in');
+        return ok({ order: raw.order });
+      }
       const valid = new Set(c.options.map((o) => o.id));
-      if (quizKind(c) === 'multiple') {
+      if (kind === 'multiple') {
         if (!isObj(raw) || !Array.isArray(raw.optionIds) || raw.optionIds.some((x) => typeof x !== 'string')) return bad('Tick at least one answer');
         const ids = [...new Set(raw.optionIds as string[])];
         if (ids.length === 0) return bad('Tick at least one answer');
@@ -330,16 +438,41 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
       return ok({ optionId: raw.optionId });
     },
     extractText: () => [],
-    evaluate(c, payload, { elapsedMs }) {
-      const fraction = gradeQuiz(c, payload);
+    evaluate(c, payload, { elapsedMs, seed }) {
+      const fraction = gradeQuiz(c, payload, seed);
       const full = scoreQuiz(c, true, elapsedMs);
       return { correct: fraction === 1, score: Math.round(full * fraction) };
     },
-    aggregate(c, subs) {
+    aggregate(c, subs, ctx) {
+      const kind = quizKind(c);
+      const visible = subs.filter((s) => s.status !== 'hidden');
+      if (kind === 'match' || kind === 'order') {
+        // counts[L<i>] / counts[P<p>]: how many people got that pair / position right
+        const key = quizKey(c, ctx?.seed ?? '');
+        const counts: Record<string, number> = {};
+        let total = 0;
+        if (kind === 'match') {
+          const map = key.answerMap ?? {};
+          for (const l of Object.keys(map)) counts[l] = 0;
+          for (const s of visible) {
+            if (!isObj(s.payload?.matches)) continue;
+            total++;
+            for (const l of Object.keys(map)) if (s.payload.matches[l] === map[l]) counts[l]++;
+          }
+        } else {
+          const order = key.answerOrder ?? [];
+          order.forEach((_, p) => (counts[`P${p}`] = 0));
+          for (const s of visible) {
+            if (!Array.isArray(s.payload?.order)) continue;
+            total++;
+            order.forEach((id, p) => { if (s.payload.order[p] === id) counts[`P${p}`]++; });
+          }
+        }
+        return { type: 'quiz', kind: 'choice', total, counts };
+      }
       const counts: Record<string, number> = Object.fromEntries(c.options.map((o) => [o.id, 0]));
       let total = 0;
-      for (const s of subs) {
-        if (s.status === 'hidden') continue;
+      for (const s of visible) {
         const chosen: unknown[] = Array.isArray(s.payload?.optionIds) ? s.payload.optionIds : [s.payload?.optionId];
         let any = false;
         for (const id of chosen) if (typeof id === 'string' && id in counts) { counts[id]++; any = true; }
@@ -347,13 +480,30 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
       }
       return { type: 'quiz', kind: 'choice', total, counts };
     },
-    publicConfig: (c, { revealCorrect }) => ({
-      ...strip(c),
-      correctOptionId: revealCorrect ? c.correctOptionId : '',
-      correctOptionIds: revealCorrect ? c.correctOptionIds : [],
-      explanation: revealCorrect ? c.explanation : '',
-    }),
-    describeResponses: (c, p) => {
+    publicConfig(c, { revealCorrect, seed = '' }) {
+      const kind = quizKind(c);
+      const out = {
+        ...strip(c),
+        correctOptionId: revealCorrect ? c.correctOptionId : '',
+        correctOptionIds: revealCorrect ? c.correctOptionIds : [],
+        explanation: revealCorrect ? c.explanation : '',
+      };
+      if (kind === 'match' || kind === 'order') {
+        // the authored pairs / order are the answer, so the audience only ever gets the shuffled tokens
+        return { ...out, pairs: [], items: [], view: quizView(c, seed, revealCorrect) };
+      }
+      return out;
+    },
+    describeResponses(c, p, ctx) {
+      const kind = quizKind(c);
+      if (kind === 'match' || kind === 'order') {
+        const v = quizView(c, ctx?.seed ?? '', false)!;
+        const text = (list: { id: string; text: string }[], id: string) => list.find((x) => x.id === id)?.text ?? id;
+        const response = kind === 'match'
+          ? v.lefts.map((l) => `${l.text} → ${text(v.rights, p.matches?.[l.id])}`).join(' | ')
+          : (p.order as string[]).map((id) => text(v.items, id)).join(' > ');
+        return [{ prompt: c.question, response }];
+      }
       const chosen: string[] = Array.isArray(p.optionIds) ? p.optionIds : [p.optionId];
       return [{ prompt: c.question, response: chosen.map((id) => c.options.find((o) => o.id === id)?.text ?? String(id)).join(' | ') }];
     },
@@ -545,7 +695,7 @@ export function defaultConfig<T extends SlideType>(type: T): ConfigByType[T] {
   const opts = (...t: string[]) => t.map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
   const configs: { [K in SlideType]: () => ConfigByType[K] } = {
     content: () => ({ ...base, title: 'New slide', body: '', steps: [] }),
-    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', kind: 'single', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', correctOptionIds: [], partialCredit: true, explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
+    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', kind: 'single', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', correctOptionIds: [], pairs: [], items: [], partialCredit: true, explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
     poll: () => ({ ...base, ...live, question: 'What do you think?', options: opts('Option A', 'Option B', 'Option C'), multiple: false, maxSelections: null, anonymous: false, liveResults: true, showResultsToParticipants: true }),
     wordcloud: () => ({ ...base, ...live, question: 'In one word or a few words…', maxLength: 40, maxWords: 5, maxSubmissions: 3, moderation: 'off', liveResults: true, showResultsToParticipants: true }),
     open: () => ({ ...base, ...live, question: 'What are your thoughts?', mode: 'short', maxSubmissions: 1, moderation: 'off', liveResults: true, showResultsToParticipants: false }),

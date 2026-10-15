@@ -86,13 +86,27 @@ Interactive slides also share these (with defaults):
 | --- | --- | --- |
 | `single` (default) | `correctOptionId` | Tap one option; it is sent at once |
 | `multiple` | `correctOptionIds` (one or more) and optional `partialCredit` (default `true`) | Tick every option that applies, then lock in |
+| `match` | `pairs` (2–6, each `{ "id", "left", "right" }`) and optional `partialCredit` | Connect each left item to its right item, by tapping or dragging |
+| `order` | `items` (2–6, each `{ "id", "text" }`, **written in the correct order**) and optional `partialCredit` | Drag the items (shuffled) into the right order |
 
-Fields that belong to the other kind are rejected, so a mistake is caught on import. A True/False question is just
-a `single` question with two options.
+Fields that belong to another kind are rejected, so a mistake is caught on import (`options` for `match`/`order`,
+`pairs` for anything but `match`, and so on). A True/False question is just a `single` question with two options.
 
-Scoring for `multiple`: with `partialCredit` on, a person earns `(right ticks − wrong ticks) ÷ number of correct
-answers` of the points (never below zero). Ticking exactly the right set earns all of them, and the speed bonus applies
-to the full amount. With `partialCredit` off it is all or nothing. Only a fully right answer counts as "correct" in the
+```json
+{ "id": "capitals", "type": "quiz", "kind": "match", "question": "Match each country with its capital",
+  "pairs": [ { "left": "France", "right": "Paris" }, { "left": "Japan", "right": "Tokyo" } ] }
+{ "id": "cycle", "type": "quiz", "kind": "order", "question": "Put the water cycle in order",
+  "items": [ { "text": "Evaporation" }, { "text": "Condensation" }, { "text": "Precipitation" } ] }
+```
+
+Matching and ordering never reveal the answer before you do: phones and the projector get the items shuffled under
+opaque ids (`L0`, `R2`, `I1`…) using a private per-activity seed that stays on the server, and the pairing or order
+only arrives when you reveal the answer. Right-hand items must be different from each other.
+
+Scoring: with `partialCredit` on, a person earns a share of the points. `multiple`: `(right ticks − wrong ticks) ÷
+number of correct answers` (never below zero). `match`: the share of items connected correctly. `order`: the share
+of positions holding the right item. Getting everything right earns all of them, and the speed bonus applies to the
+full amount. With `partialCredit` off it is all or nothing. Only a fully right answer counts as "correct" in the
 leaderboard and CSV; the CSV score column shows the partial points.
 
 ### `poll`

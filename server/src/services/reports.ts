@@ -49,7 +49,7 @@ export class ReportService {
         type,
         title: (definitions[type] as any).titleOf(config),
         config,
-        results: (definitions[type] as any).aggregate(config, agg),
+        results: (definitions[type] as any).aggregate(config, agg, { seed: a.seed }),
         responses: counted.length,
         respondents: new Set(counted.map((x) => x.participantId)).size,
       };
@@ -88,7 +88,7 @@ export class ReportService {
       const config = JSON.parse(a.config);
       const anonymous = type === 'poll' && config.anonymous === true;
       const participant = anonymous ? '(anonymous)' : names.get(x.participantId) ?? '';
-      const lines_ = (definitions[type] as any).describeResponses(config, JSON.parse(x.payload)) as { prompt: string; response: string }[];
+      const lines_ = (definitions[type] as any).describeResponses(config, JSON.parse(x.payload), { seed: a.seed }) as { prompt: string; response: string }[];
       const title = (definitions[type] as any).titleOf(config);
       for (const l of lines_) {
         lines.push(csvRow([a.position + 1, type, title, l.prompt, participant, x.createdAt.toISOString(), l.response, x.correct === null ? '' : x.correct ? 'yes' : 'no', type === 'quiz' ? x.score : '', x.responseMs === null ? '' : (x.responseMs / 1000).toFixed(1), x.status]));

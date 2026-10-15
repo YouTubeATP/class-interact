@@ -1,13 +1,13 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import {
-  CONTENT_LAYOUTS, nextId, openMaxLength, quizKind, resolveContentLayout,
+  CONTENT_LAYOUTS, nextId, openMaxLength, quizKind, resolveContentLayout, type QuizKind,
   type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type Slide, type SurveyConfig, type SurveyQuestion, type WordcloudConfig,
 } from '@classinteract/shared';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SwitchRow } from '@/components/ui/switch';
-import { ImageField, NumberField, OptionsEditor, Section, SelectField, StepsEditor, TextField, TimerField, errorAt, type FieldIssue } from './fields';
+import { ImageField, NumberField, OptionsEditor, OrderItemsEditor, PairsEditor, Section, SelectField, StepsEditor, TextField, TimerField, errorAt, type FieldIssue } from './fields';
 
 type Patch<S extends Slide> = (p: Partial<S>) => void;
 interface FormProps<S extends Slide> {
@@ -86,30 +86,43 @@ function QuizForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'qu
   const c = slide as QuizConfig & { id: string };
   const kind = quizKind(c);
   const correctIds = c.correctOptionIds ?? [];
+  const sampleOptions = () => ['Option A', 'Option B', 'Option C', 'Option D'].map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
   // Changing the answer type clears the answer key of the old type, so no stale fields are left behind.
-  const setKind = (next: 'single' | 'multiple') => {
+  const setKind = (next: QuizKind) => {
     if (next === kind) return;
-    if (next === 'multiple') patch({ kind: 'multiple', correctOptionIds: c.correctOptionId ? [c.correctOptionId] : [c.options[0]?.id].filter(Boolean) as string[], correctOptionId: undefined });
-    else patch({ kind: 'single', correctOptionId: correctIds[0] ?? c.options[0]?.id, correctOptionIds: [] });
+    const options = c.options.length >= 2 ? c.options : sampleOptions();
+    const none = { correctOptionId: undefined, correctOptionIds: [] as string[], pairs: [], items: [] };
+    if (next === 'single') patch({ ...none, kind: 'single', options, correctOptionId: correctIds[0] ?? c.correctOptionId ?? options[0].id });
+    else if (next === 'multiple') patch({ ...none, kind: 'multiple', options, correctOptionIds: [c.correctOptionId ?? correctIds[0] ?? options[0].id] });
+    else if (next === 'match') patch({ ...none, kind: 'match', options: [], pairs: c.pairs.length >= 2 ? c.pairs : [1, 2, 3].map((n) => ({ id: `p${n}`, left: `Item ${n}`, right: `Match ${n}` })) });
+    else patch({ ...none, kind: 'order', options: [], items: c.items.length >= 2 ? c.items : ['First', 'Second', 'Third'].map((text, i) => ({ id: `i${i + 1}`, text })) });
   };
   const toggle = (id: string) => patch({ correctOptionIds: correctIds.includes(id) ? correctIds.filter((x) => x !== id) : [...correctIds, id] });
-  const trueFalse = () => patch({ kind: 'single', options: [{ id: 'true', text: 'True' }, { id: 'false', text: 'False' }], correctOptionId: 'true', correctOptionIds: [] });
+  const trueFalse = () => patch({ kind: 'single', options: [{ id: 'true', text: 'True' }, { id: 'false', text: 'False' }], correctOptionId: 'true', correctOptionIds: [], pairs: [], items: [] });
+  const choice = kind === 'single' || kind === 'multiple';
+  const hints: Record<QuizKind, string | undefined> = {
+    single: undefined,
+    multiple: 'People tick every option that applies, then lock in.',
+    match: 'People connect each item to its match, by tapping or dragging.',
+    order: 'People drag the items into the right order.',
+  };
   return (
     <div className="grid gap-6">
       <Section title="Question">
         <TextField label="Question" value={c.question} onChange={(question) => patch({ question })} issues={issues} path="question" multiline rows={2} maxLength={300} testId="quiz-question" />
-        <SelectField label="Answer type" value={kind} onChange={setKind} options={[{ value: 'single', label: 'One correct answer' }, { value: 'multiple', label: 'Several correct answers (checkboxes)' }]} hint={kind === 'multiple' ? 'People tick every option that applies, then lock in.' : undefined} />
-        {kind === 'multiple'
-          ? <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctIds={correctIds} onToggleCorrect={toggle} />
-          : <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctId={c.correctOptionId} onCorrect={(correctOptionId) => patch({ correctOptionId })} />}
-        <div><Button variant="ghost" size="sm" onClick={trueFalse} data-testid="quiz-true-false">Use True / False</Button></div>
+        <SelectField label="Answer type" value={kind} onChange={setKind} options={[{ value: 'single', label: 'One correct answer' }, { value: 'multiple', label: 'Several correct answers (checkboxes)' }, { value: 'match', label: 'Matching pairs (drag and drop)' }, { value: 'order', label: 'Put in order (drag and drop)' }]} hint={hints[kind]} />
+        {kind === 'multiple' && <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctIds={correctIds} onToggleCorrect={toggle} />}
+        {kind === 'single' && <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctId={c.correctOptionId} onCorrect={(correctOptionId) => patch({ correctOptionId })} />}
+        {kind === 'match' && <PairsEditor pairs={c.pairs} onChange={(pairs) => patch({ pairs })} issues={issues} />}
+        {kind === 'order' && <OrderItemsEditor items={c.items} onChange={(items) => patch({ items })} issues={issues} />}
+        {choice && <div><Button variant="ghost" size="sm" onClick={trueFalse} data-testid="quiz-true-false">Use True / False</Button></div>}
         {errorAt(issues, 'correctOptionId') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'correctOptionId')}</p>}
         {errorAt(issues, 'correctOptionIds') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'correctOptionIds')}</p>}
         <TextField label="Explanation" value={c.explanation} onChange={(explanation) => patch({ explanation })} issues={issues} path="explanation" multiline rows={2} hint="Shown with the correct answer after you reveal it." maxLength={500} />
       </Section>
       <Section title="Scoring">
         <SwitchRow label="Award points" hint="Off makes this an unscored check — it never affects the leaderboard." checked={c.scored} onChange={(scored) => patch({ scored, ...(scored ? {} : { speedBonus: false }) })} />
-        {c.scored && kind === 'multiple' && <SwitchRow label="Partial credit" hint="On: points for right ticks minus wrong ticks. Off: all or nothing." checked={c.partialCredit ?? true} onChange={(partialCredit) => patch({ partialCredit })} />}
+        {c.scored && kind !== 'single' && <SwitchRow label="Partial credit" hint={kind === 'multiple' ? 'On: points for right ticks minus wrong ticks. Off: all or nothing.' : kind === 'match' ? 'On: points for each correct match. Off: all or nothing.' : 'On: points for each item in the right place. Off: all or nothing.'} checked={c.partialCredit ?? true} onChange={(partialCredit) => patch({ partialCredit })} />}
         {c.scored && <NumberField label="Points for a correct answer" value={c.points} onChange={(points) => patch({ points })} min={10} max={10000} issues={issues} path="points" />}
         <SwitchRow label="Speed bonus" hint={c.timeLimitSec === null ? 'Needs a countdown timer.' : 'Faster correct answers earn up to 2× the minimum (down to half points at the deadline).'} checked={c.speedBonus} disabled={c.timeLimitSec === null || !c.scored} onChange={(speedBonus) => patch({ speedBonus })} />
         {errorAt(issues, 'speedBonus') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'speedBonus')}</p>}

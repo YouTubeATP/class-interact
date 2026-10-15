@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ParticipantSnapshot, PresenterSnapshot, ProjectorSnapshot } from '@classinteract/shared';
+import { quizView, type ParticipantSnapshot, type PresenterSnapshot, type ProjectorSnapshot, type QuizConfig } from '@classinteract/shared';
 import { Client, cloud, createTestContext, doc, joinSession, participant, presenterClient, projectorClient, quiz, sleep, type TestContext } from './helpers';
 
 let ctx: TestContext;
@@ -155,6 +155,74 @@ describe('quiz flow with multiple synchronised clients', () => {
     const lb = (await proj.until((x) => !!x.leaderboard)) as ProjectorSnapshot;
     expect(lb.leaderboard!.map((r) => [r.name, r.score])).toEqual([['Ann', 1000], ['Bo', 500], ['Cy', 500], ['Di', 0]]);
     [p, proj, ann.client, bo.client, cy.client, di.client].forEach((c) => c.disconnect());
+  });
+
+  it('match and order questions: shuffled tokens on every audience screen, graded server-side, answer revealed on demand', async () => {
+    const pairs = [{ id: 'p1', left: 'France', right: 'Paris' }, { id: 'p2', left: 'Japan', right: 'Tokyo' }, { id: 'p3', left: 'Egypt', right: 'Cairo' }];
+    const items = ['Mouse', 'Cat', 'Dog'].map((text, i) => ({ id: `i${i}`, text }));
+    const s = await ctx.startSession(doc([
+      { id: 'mt', type: 'quiz', kind: 'match', question: 'Capitals', pairs, notes: 'PRIVATE-NOTES', points: 900 },
+      { id: 'od', type: 'quiz', kind: 'order', question: 'Smallest first', items, points: 900 },
+    ]));
+    const p = await presenterClient(ctx, s);
+    const proj = await projectorClient(ctx, s);
+    const ann = await participant(ctx, s, 'Ann');
+    const bo = await participant(ctx, s, 'Bo');
+    await act(p, { type: 'start' });
+    for (const c of [proj, ann.client, bo.client]) await c.until((x) => x.state.phase === 'open');
+
+    // the private seed lives only in the database; tokens are derived from it
+    const rows = await ctx.prisma.sessionActivity.findMany({ where: { sessionId: s.id }, orderBy: { position: 'asc' } });
+    expect(rows[0].seed).toHaveLength(24);
+    const full = (i: number) => JSON.parse(rows[i].config) as QuizConfig;
+    const matchKey = quizView(full(0), rows[0].seed, true)!.answerMap!;
+
+    // nothing the audience receives says which right item belongs to which left item
+    const hidden = (proj.last as ProjectorSnapshot).activity!.config as QuizConfig;
+    expect(hidden.pairs).toEqual([]);
+    expect(hidden.view!.lefts.map((l) => l.text)).toEqual(['France', 'Japan', 'Egypt']);
+    expect([...hidden.view!.rights.map((r) => r.text)].sort()).toEqual(['Cairo', 'Paris', 'Tokyo']);
+    for (const snap of [proj.last, ann.client.last, bo.client.last]) {
+      const json = JSON.stringify(snap);
+      expect(json).not.toMatch(/answerMap|"right"|"left"|PRIVATE-NOTES/);
+      expect(json).not.toContain(rows[0].seed);
+    }
+    expect((await p.until((x) => x.state.phase === 'open') as PresenterSnapshot).fullConfig).toMatchObject({ pairs });
+    const mt = (proj.last as ProjectorSnapshot).activity!.id;
+
+    // incomplete or duplicated answers are refused; a full matching is accepted
+    expect(await ann.client.emit('submit', { activityId: mt, payload: { matches: { L0: matchKey.L0 } } })).toMatchObject({ ok: false });
+    expect(await ann.client.emit('submit', { activityId: mt, payload: { matches: matchKey } })).toMatchObject({ ok: true });
+    expect(await bo.client.emit('submit', { activityId: mt, payload: { matches: { ...matchKey, L0: matchKey.L1, L1: matchKey.L0 } } })).toMatchObject({ ok: true });
+
+    await act(p, { type: 'revealCorrect' });
+    const shown = ((await proj.until((x) => x.state.correctVisible)) as ProjectorSnapshot).activity!.config as QuizConfig;
+    expect(shown.view!.answerMap).toEqual(matchKey);
+    const sc = async (c: Client) => ((await c.until((x) => x.state.correctVisible)) as ParticipantSnapshot).me.submissions[0];
+    expect(await sc(ann.client)).toMatchObject({ correct: true, score: 900 });
+    expect(await sc(bo.client)).toMatchObject({ correct: false, score: 300 }); // one of three connections right
+
+    // ordering
+    await act(p, { type: 'next' });
+    for (const c of [proj, ann.client, bo.client]) await c.until((x) => x.state.phase === 'open' && (x as any).activity?.config?.kind === 'order');
+    const od = (proj.last as ProjectorSnapshot).activity!.id;
+    const orderKey = quizView(full(1), rows[1].seed, true)!.answerOrder!;
+    expect(((proj.last as ProjectorSnapshot).activity!.config as QuizConfig).items).toEqual([]);
+    expect(await ann.client.emit('submit', { activityId: od, payload: { order: orderKey } })).toMatchObject({ ok: true });
+    const swapped = [orderKey[1], orderKey[0], orderKey[2]];
+    expect(await bo.client.emit('submit', { activityId: od, payload: { order: swapped } })).toMatchObject({ ok: true });
+    await act(p, { type: 'revealCorrect' });
+    expect(await sc(ann.client)).toMatchObject({ correct: true, score: 900 });
+    const bs = (await bo.client.until((x) => x.state.correctVisible && (x as any).activity?.config?.kind === 'order')) as ParticipantSnapshot;
+    expect(bs.me.submissions[0]).toMatchObject({ correct: false, score: 300 }); // only the last position is right
+    const shownOrder = (bs.activity!.config as QuizConfig).view!;
+    expect(shownOrder.answerOrder!.map((id) => shownOrder.items.find((i) => i.id === id)!.text)).toEqual(['Mouse', 'Cat', 'Dog']);
+
+    // results and CSV read in the studio's own terms
+    const csv = await ctx.api(`/api/studio/sessions/${s.id}/export.csv`);
+    expect(csv.text).toContain('France → Paris | Japan → Tokyo | Egypt → Cairo');
+    expect(csv.text).toContain('Mouse > Cat > Dog');
+    [p, proj, ann.client, bo.client].forEach((c) => c.disconnect());
   });
 
   it('only accepts submissions while the activity is open and for the current activity', async () => {

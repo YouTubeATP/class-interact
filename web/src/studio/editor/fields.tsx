@@ -141,6 +141,75 @@ export function OptionsEditor({ options, onChange, issues, path = 'options', min
   );
 }
 
+/** Matching pairs: each row is a left item and the right item it belongs to. People see the right items shuffled. */
+export function PairsEditor({ pairs, onChange, issues }: { pairs: { id: string; left: string; right: string }[]; onChange: (p: { id: string; left: string; right: string }[]) => void; issues: FieldIssue[] }) {
+  const set = (i: number, patch: Partial<{ left: string; right: string }>) => onChange(pairs.map((p, k) => (k === i ? { ...p, ...patch } : p)));
+  const listErr = errorAt(issues.filter((i) => i.path === 'pairs'), 'pairs');
+  return (
+    <div className="grid gap-2.5">
+      <ul className="grid gap-2" aria-label="Pairs to match">
+        {pairs.map((p, i) => {
+          const err = errorAt(issues, `pairs[${i}]`);
+          return (
+            <li key={p.id} className="grid gap-1">
+              <div className="flex items-center gap-2">
+                <Input value={p.left} onChange={(e) => set(i, { left: e.target.value })} aria-label={`Item ${i + 1}`} placeholder={`Item ${i + 1}`} aria-invalid={!!err} />
+                <span aria-hidden className="text-ink-3">→</span>
+                <Input value={p.right} onChange={(e) => set(i, { right: e.target.value })} aria-label={`Match for item ${i + 1}`} placeholder={`Match ${i + 1}`} aria-invalid={!!err} />
+                <Button variant="ghost" size="icon-sm" aria-label={`Remove pair ${i + 1}`} disabled={pairs.length <= 2} onClick={() => onChange(pairs.filter((_, k) => k !== i))}><X className="size-4" /></Button>
+              </div>
+              {err && <p className="text-[0.8125rem] text-bad">{err}</p>}
+            </li>
+          );
+        })}
+      </ul>
+      {listErr && !pairs.some((_, i) => errorAt(issues, `pairs[${i}]`)) && <p className="text-[0.8125rem] text-bad" role="alert">{listErr}</p>}
+      <div className="flex items-center justify-between">
+        <Button variant="secondary" size="sm" onClick={() => onChange([...pairs, { id: nextId(pairs.map((p) => p.id), 'p'), left: `Item ${pairs.length + 1}`, right: `Match ${pairs.length + 1}` }])} disabled={pairs.length >= 6}><Plus className="size-3.5" aria-hidden /> Add pair</Button>
+        <span className="text-xs text-ink-3">2–6 pairs. The right-hand items are shuffled for everyone.</span>
+      </div>
+    </div>
+  );
+}
+
+/** Items to put in order. Write them in the CORRECT order: people see them shuffled. */
+export function OrderItemsEditor({ items, onChange, issues }: { items: { id: string; text: string }[]; onChange: (i: { id: string; text: string }[]) => void; issues: FieldIssue[] }) {
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= items.length) return;
+    const next = [...items];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+  const listErr = errorAt(issues.filter((i) => i.path === 'items'), 'items');
+  return (
+    <div className="grid gap-2.5">
+      <ol className="grid gap-2" aria-label="Items in the correct order">
+        {items.map((it, i) => {
+          const err = errorAt(issues, `items[${i}]`);
+          return (
+            <li key={it.id} className="grid gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="tabular grid size-7 shrink-0 place-items-center rounded-full bg-ok text-xs font-bold text-white" aria-hidden>{i + 1}</span>
+                <Input value={it.text} onChange={(e) => onChange(items.map((x, k) => (k === i ? { ...x, text: e.target.value } : x)))} aria-label={`Item ${i + 1}`} placeholder={i === 0 ? 'First' : `Item ${i + 1}`} aria-invalid={!!err} />
+                <Button variant="ghost" size="icon-sm" aria-label={`Move item ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="size-4" /></Button>
+                <Button variant="ghost" size="icon-sm" aria-label={`Move item ${i + 1} down`} disabled={i === items.length - 1} onClick={() => move(i, 1)}><ArrowDown className="size-4" /></Button>
+                <Button variant="ghost" size="icon-sm" aria-label={`Remove item ${i + 1}`} disabled={items.length <= 2} onClick={() => onChange(items.filter((_, k) => k !== i))}><X className="size-4" /></Button>
+              </div>
+              {err && <p className="ml-9 text-[0.8125rem] text-bad">{err}</p>}
+            </li>
+          );
+        })}
+      </ol>
+      {listErr && !items.some((_, i) => errorAt(issues, `items[${i}]`)) && <p className="text-[0.8125rem] text-bad" role="alert">{listErr}</p>}
+      <div className="flex items-center justify-between">
+        <Button variant="secondary" size="sm" onClick={() => onChange([...items, { id: nextId(items.map((x) => x.id), 'i'), text: `Item ${items.length + 1}` }])} disabled={items.length >= 6}><Plus className="size-3.5" aria-hidden /> Add item</Button>
+        <span className="text-xs text-ink-3">Write them in the correct order, 2–6 items. People see them shuffled.</span>
+      </div>
+    </div>
+  );
+}
+
 export function StepsEditor({ steps, onChange, issues }: { steps: string[]; onChange: (s: string[]) => void; issues: FieldIssue[] }) {
   const move = (i: number, d: -1 | 1) => {
     const j = i + d;

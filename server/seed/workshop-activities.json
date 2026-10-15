@@ -53,6 +53,32 @@
       "timeLimitSec": 30
     },
     {
+      "id": "match-planets",
+      "type": "quiz",
+      "kind": "match",
+      "question": "Match each planet to its nickname",
+      "pairs": [
+        { "id": "p1", "left": "Mars", "right": "The Red Planet" },
+        { "id": "p2", "left": "Jupiter", "right": "The largest planet" },
+        { "id": "p3", "left": "Saturn", "right": "Famous for its rings" },
+        { "id": "p4", "left": "Venus", "right": "The hottest planet" }
+      ],
+      "timeLimitSec": 60
+    },
+    {
+      "id": "order-planets",
+      "type": "quiz",
+      "kind": "order",
+      "question": "Put these planets in order from closest to the Sun to furthest",
+      "items": [
+        { "id": "i1", "text": "Mercury" },
+        { "id": "i2", "text": "Earth" },
+        { "id": "i3", "text": "Mars" },
+        { "id": "i4", "text": "Jupiter" }
+      ],
+      "timeLimitSec": 45
+    },
+    {
       "id": "confidence",
       "type": "rating",
       "question": "How confident do you feel about what we just covered?",

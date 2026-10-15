@@ -79,6 +79,7 @@ function allowedKeysAt(raw: unknown, path: (string | number)[]): string[] {
     const t = node.type as SlideType;
     return ['id', 'type', ...Object.keys((shapes as any)[t] ?? {})];
   }
+  if (isObj(node) && 'left' in node && 'id' in node) return ['id', 'left', 'right'];
   if (isObj(node) && 'text' in node && 'id' in node) return ['id', 'text'];
   return [];
 }
@@ -147,6 +148,8 @@ export function normalizeDoc(raw: unknown): unknown {
       const fillOptions = (opts: unknown) =>
         Array.isArray(opts) ? opts.map((o, j) => (isObj(o) && o.id === undefined ? { id: `o${j + 1}`, ...o } : o)) : opts;
       if (slide.options !== undefined) slide.options = fillOptions(slide.options);
+      if (slide.items !== undefined) slide.items = fillOptions(slide.items);
+      if (Array.isArray(slide.pairs)) slide.pairs = slide.pairs.map((p: any, j: number) => (isObj(p) && p.id === undefined ? { id: `p${j + 1}`, ...p } : p));
       if (Array.isArray(slide.questions)) {
         slide.questions = slide.questions.map((q: any, j: number) => {
           if (!isObj(q)) return q;
@@ -227,7 +230,8 @@ function withoutUnusedFields(slide: Slide): Slide {
   const kind = (q.kind as string | undefined) ?? 'single';
   if (kind !== 'multiple') delete q.correctOptionIds;
   if (kind === 'single') delete q.partialCredit;
-  if (Array.isArray(q.options) && q.options.length === 0) delete q.options;
+  for (const f of ['options', 'pairs', 'items']) if (Array.isArray(q[f]) && (q[f] as unknown[]).length === 0) delete q[f];
+  delete q.view;
   return q as unknown as Slide;
 }
 

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { openProjector, readPin } from './helpers';
 
 /**
@@ -65,13 +65,10 @@ function assertNoOverlap(label: string, g: Geo) {
   }
 }
 
-test('the dashboard replica matches the projector, and long slides never overflow', async ({ browser, request, page: dash }) => {
-  const decks = await (await request.get('/api/studio/presentations')).json();
-  const msg = decks.find((d: { title: string }) => d.title.startsWith('MSG'));
-  const s = await (await request.post(`/api/studio/presentations/${msg.id}/sessions`, { data: { collectNames: false, mode: 'standalone' } })).json();
-
+/** Opens the dashboard and a letterboxed projector on one session, and returns helpers to compare them. */
+async function harness(browser: Browser, dash: Page, sessionId: string) {
   await dash.setViewportSize({ width: 1600, height: 1000 });
-  await dash.goto(`/session/${s.id}`);
+  await dash.goto(`/session/${sessionId}`);
   await dash.getByTestId('ctl-primary').waitFor();
   const pin = await readPin(dash);
 
@@ -109,6 +106,15 @@ test('the dashboard replica matches the projector, and long slides never overflo
   const goto = async (i: number) => {
     await dash.getByTestId('flow-item').nth(i).click();
   };
+  return { projector, phone, compare, goto, settle };
+}
+
+test('the dashboard replica matches the projector, and long slides never overflow', async ({ browser, request, page: dash }) => {
+  const decks = await (await request.get('/api/studio/presentations')).json();
+  const msg = decks.find((d: { title: string }) => d.title.startsWith('MSG'));
+  const s = await (await request.post(`/api/studio/presentations/${msg.id}/sessions`, { data: { collectNames: false, mode: 'standalone' } })).json();
+
+  const { projector, phone, compare, goto } = await harness(browser, dash, s.id);
 
   // 1. word cloud with two responses
   await dash.getByTestId('ctl-primary').click(); // start -> title slide
@@ -143,6 +149,46 @@ test('the dashboard replica matches the projector, and long slides never overflo
   await goto(21);
   await expect(projector.getByText('Quick feedback on this lesson')).toBeVisible();
   await compare('survey');
+
+  await phone.context.close();
+  await projector.context().close();
+});
+
+test('matching and ordering questions look the same on the replica and the projector, before and after the reveal', async ({ browser, request, page: dash }) => {
+  const imported = await request.post('/api/studio/presentations/import', {
+    data: {
+      schemaVersion: 1,
+      title: 'Arrange replica',
+      slides: [
+        { id: 'match', type: 'quiz', kind: 'match', question: 'Match each country with its capital', explanation: 'Capitals are where governments sit.', pairs: ['France:Paris', 'Japan:Tokyo', 'Egypt:Cairo', 'Peru:Lima', 'Kenya:Nairobi', 'Chile:Santiago'].map((x, i) => ({ id: `p${i}`, left: x.split(':')[0], right: x.split(':')[1] })) },
+        { id: 'order', type: 'quiz', kind: 'order', question: 'Put the stages of the water cycle in order', items: ['Evaporation', 'Condensation', 'Precipitation', 'Collection', 'Runoff'].map((text, i) => ({ id: `i${i}`, text })) },
+        { id: 'multi', type: 'quiz', kind: 'multiple', question: 'Which of these are prime numbers?', options: ['2', '9', '11', '15', '17'].map((text, i) => ({ id: `o${i}`, text })), correctOptionIds: ['o0', 'o2', 'o4'] },
+      ],
+    },
+  });
+  const deck = await imported.json();
+  const s = await (await request.post(`/api/studio/presentations/${deck.id}/sessions`, { data: { collectNames: false, mode: 'standalone' } })).json();
+  const { projector, phone, compare } = await harness(browser, dash, s.id);
+
+  await dash.getByTestId('ctl-primary').click(); // start
+  await expect(projector.getByTestId('stage-match')).toBeVisible();
+  await compare('matching');
+  await dash.getByTestId('ctl-primary').click(); // close
+  await dash.getByTestId('ctl-primary').click(); // reveal
+  await expect(projector.getByTestId('stage-match-answer')).toBeVisible();
+  await compare('matching, revealed');
+
+  await dash.getByTestId('ctl-primary').click(); // next
+  await expect(projector.getByTestId('stage-order')).toBeVisible();
+  await compare('ordering');
+  await dash.getByTestId('ctl-primary').click();
+  await dash.getByTestId('ctl-primary').click();
+  await expect(projector.getByTestId('stage-order-answer')).toBeVisible();
+  await compare('ordering, revealed');
+
+  await dash.getByTestId('ctl-primary').click(); // next
+  await expect(projector.getByTestId('stage-multi-hint')).toBeVisible();
+  await compare('several answers');
 
   await phone.context.close();
   await projector.context().close();

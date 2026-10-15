@@ -13,6 +13,7 @@ import { ResultsView } from '@/render/ResultsView';
 import { ScaleBox } from '@/render/ScaleBox';
 import { Leaderboard } from '@/render/viz/Leaderboard';
 import { OptionTile, type TileState } from '@/render/viz/OptionTile';
+import { MatchPlay, OrderPlay } from './QuizPlay';
 import { ActivityShell, BigButton, ErrorLine, Received, WaitingDots, useP, useSubmit } from './common';
 
 /** Aggregated results, when the presenter has chosen to share them with the room. */
@@ -138,8 +139,13 @@ export function QuizView() {
   const c = activity.config as QuizConfig;
   const { phase, correctVisible } = snap.state;
   const submit = useSubmit();
-  const multiple = quizKind(c) === 'multiple';
+  const kind = quizKind(c);
+  const multiple = kind === 'multiple';
+  const arranged = kind === 'match' || kind === 'order';
+  const view = c.view;
   const [picked, setPicked] = useState<string[]>([]);
+  const [matches, setMatches] = useState<Record<string, string>>({});
+  const [order, setOrder] = useState<string[]>(() => view?.items.map((i) => i.id) ?? []);
   const answer = mine[0];
   const answered: string[] = answer ? (Array.isArray(answer.payload?.optionIds) ? answer.payload.optionIds : [answer.payload?.optionId]) : [];
   const chosen = answer ? answered : picked;
@@ -162,25 +168,39 @@ export function QuizView() {
     setPicked([id]);
     void submit.run({ optionId: id }).then((ok) => { if (!ok) setPicked([]); });
   };
-  const lockIn = () => void submit.run({ optionIds: picked });
+  const lefts = view?.lefts.length ?? 0;
+  const ready = kind === 'match' ? Object.keys(matches).length === lefts : kind === 'order' ? order.length > 0 : picked.length > 0;
+  const lockIn = () => void submit.run(kind === 'match' ? { matches } : kind === 'order' ? { order } : { optionIds: picked });
+  const lockLabel = kind === 'multiple' ? (picked.length ? `Lock in ${picked.length} ${picked.length === 1 ? 'answer' : 'answers'}` : 'Lock in answer') : kind === 'match' && !ready ? `Match all ${lefts} to lock in` : 'Lock in answer';
+  const needsButton = (multiple || arranged) && canAnswer;
+  // what to show once locked: the person's own arrangement, from the server's copy
+  const shownMatches: Record<string, string> = answer?.payload?.matches ?? matches;
+  const shownOrder: string[] = answer?.payload?.order ?? order;
 
   return (
     <ActivityShell
       title={c.question}
-      footer={multiple && canAnswer ? <BigButton disabled={picked.length === 0 || submit.pending} loading={submit.pending} onClick={lockIn} data-testid="quiz-submit">{picked.length ? `Lock in ${picked.length} ${picked.length === 1 ? 'answer' : 'answers'}` : 'Lock in answer'}</BigButton> : undefined}
+      footer={needsButton ? <BigButton disabled={!ready || submit.pending} loading={submit.pending} onClick={lockIn} data-testid="quiz-submit">{lockLabel}</BigButton> : undefined}
     >
       {multiple && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-multi-hint">Select all that apply</p>}
-      <div className="grid gap-3" role={multiple ? 'group' : undefined} aria-label={multiple ? 'Answers, select all that apply' : undefined}>
-        {c.options.map((o, i) => (
-          <OptionTile key={o.id} size="phone" index={i} text={o.text} state={tile(o.id)} checkbox={multiple} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
-        ))}
-      </div>
+      {kind === 'match' && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-match-hint">Match every item</p>}
+      {kind === 'order' && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-order-hint">Put them in order, first at the top</p>}
+      {kind === 'match' && view && <MatchPlay view={view} value={shownMatches} onChange={setMatches} locked={!canAnswer} answerMap={correctVisible && answer ? view.answerMap : undefined} />}
+      {kind === 'order' && view && <OrderPlay view={view} value={shownOrder} onChange={setOrder} locked={!canAnswer} answerOrder={correctVisible && answer ? view.answerOrder : undefined} />}
+      {!arranged && (
+        <div className="grid gap-3" role={multiple ? 'group' : undefined} aria-label={multiple ? 'Answers, select all that apply' : undefined}>
+          {c.options.map((o, i) => (
+            <OptionTile key={o.id} size="phone" index={i} text={o.text} state={tile(o.id)} checkbox={multiple} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
+          ))}
+        </div>
+      )}
       <ErrorLine message={submit.error} />
       {phase === 'ready' && <p className="text-center font-semibold text-ink-3">Get ready. Answers open soon.</p>}
       {phase === 'open' && answer && <Received title="Answer locked in" hint="Waiting for everyone else…" />}
       {phase === 'closed' && (answer ? <p className="text-center font-semibold text-ink-2" data-testid="waiting-reveal">Answers are closed. Waiting for the reveal…</p> : <p className="text-center font-semibold text-ink-2">Time’s up. No answer recorded.</p>)}
       {correctVisible && <QuizFeedback correct={answer ? answer.correct : null} score={answer?.score ?? null} fraction={answer ? gradeQuiz(c, answer.payload) : 0} />}
-      <SharedResults mine={{ optionIds: chosen }} />
+      {!arranged && <SharedResults mine={{ optionIds: chosen }} />}
+      {arranged && <SharedResults />}
     </ActivityShell>
   );
 }
