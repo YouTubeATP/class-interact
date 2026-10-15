@@ -43,7 +43,7 @@ npm install        # installs all workspaces and generates the Prisma client
 npm run dev        # that's it
 ```
 
-`npm run dev` does everything on a fresh clone: it creates and migrates the SQLite database, imports the demo
+`npm run dev` does everything on a fresh clone: it regenerates the Prisma client, creates and migrates the SQLite database, imports the demo
 presentations (idempotent), then starts the API with auto-reload on <http://localhost:3001> and the web app with
 hot reload on <http://localhost:5173> (Vite proxies `/api`, `/uploads` and the WebSocket to the API). No `.env`
 is needed; copy `.env.example` to `.env` only to change settings.
@@ -59,7 +59,7 @@ Docker or behind a domain or tunnel, set `PUBLIC_URL` (see below); container-int
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Migrate + seed the database, then run the API (tsx watch) and web (Vite) together |
+| `npm run dev` | Regenerate the Prisma client, migrate + seed the database, then run the API (tsx watch) and web (Vite) together |
 | `npm run build` | Build the web app and bundle the server |
 | `npm start` | Run the production build (serves the web app too) on `PORT` (default 3001) |
 | `npm run db:migrate` | Apply migrations (`prisma migrate deploy`) |
