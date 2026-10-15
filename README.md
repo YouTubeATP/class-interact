@@ -55,6 +55,22 @@ own camera app opens it and lands straight in the session. It must point at an a
 development, when the Studio runs on `localhost`, the link automatically uses your machine's LAN address. In
 Docker or behind a domain or tunnel, set `PUBLIC_URL` (see below); container-internal addresses are never offered.
 
+**Ports.** Nothing is pinned to 5173 or 3001. Set `WEB_PORT` (dev server) and `PORT` (API; the whole app in production)
+in `.env`, and the Vite proxy follows. If a port is taken, the dev server stops with an error instead of quietly
+choosing another one, so QR codes, bookmarks and tunnels never point at the wrong place.
+
+**Serving `npm run dev` through a Cloudflare Tunnel.** Point the tunnel's public hostname at
+`http://localhost:<WEB_PORT>` (the dev server proxies `/api`, uploads and the WebSocket to the API, so one hostname
+is enough) and set, in `.env`:
+
+```
+PUBLIC_URL=https://class.example.com      # QR codes use it, and Vite accepts its hostname
+# ALLOWED_HOSTS=other.example.com         # more hostnames, or * for any
+# HMR_CLIENT_PORT=443                     # only if you want hot reload through the https tunnel
+```
+
+For real use, prefer the production build below (`npm start` on `PORT`, or Docker Compose); it needs none of this.
+
 ### Commands
 
 | Command | What it does |
@@ -84,7 +100,7 @@ DATABASE_URL=file:/var/lib/classinteract/app.db DATA_DIR=/var/lib/classinteract 
 
 ```bash
 cp .env.example .env     # set PUBLIC_URL and STUDIO_PASSWORD
-docker compose up -d     # http://localhost:3001
+docker compose up -d     # http://localhost:3001 (or your PORT / HOST_PORT)
 ```
 
 The image runs migrations on start and keeps the database, uploads and signing secret in the
@@ -95,7 +111,7 @@ The image runs migrations on start and keeps the database, uploads and signing s
 No inbound ports, TLS handled by Cloudflare, WebSockets work as-is.
 
 1. In Cloudflare Zero Trust, create a tunnel and add a **public hostname** (for example `class.example.com`)
-   with service `http://app:3001`.
+   with service `http://app:3001` (`http://app:<PORT>` if you changed `PORT`).
 2. Put the tunnel token and your public address in `.env`:
 
    ```
@@ -120,7 +136,10 @@ and `/socket.io` open for participants and projectors.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PORT` | `3001` | Server port |
+| `PORT` | `3001` | Server port (API in dev, the whole app in production, and inside the Docker container) |
+| `WEB_PORT` | `5173` | Dev server port for `npm run dev` |
+| `ALLOWED_HOSTS` | none | Extra hostnames the dev server accepts (`*` for any); `PUBLIC_URL`'s host is always allowed |
+| `HMR_CLIENT_PORT` | unset | Port the browser uses for hot reload behind an https tunnel (`443`) |
 | `DATABASE_URL` | `file:../data/classinteract.db` | SQLite file (relative to `server/prisma/` in dev) |
 | `DATA_DIR` | `./data` | Uploads and the generated signing secret |
 | `PUBLIC_URL` | unset | Address people open on phones; used for the QR code |

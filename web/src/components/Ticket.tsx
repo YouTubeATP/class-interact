@@ -23,7 +23,9 @@ export function Ticket({ pin, url, host, variant = 'hero', className, style, ani
       </div>
       <div className="grid content-center" style={{ padding: big ? '1.5em 2em 1.5em 1.8em' : '0.8em 1.1em 0.8em 1em', gap: big ? '0.35em' : '0.15em' }}>
         <p className="text-ink-2" style={{ fontSize: big ? '1.05em' : '0.72em', lineHeight: 1.25 }}>
-          Scan, or go to <strong className="font-semibold text-ink">{host}</strong>
+          {/* two fixed lines: letting the address sit inline made it wrap differently at different sizes */}
+          <span className="block">Scan, or go to</span>
+          <strong className="block font-semibold text-ink [overflow-wrap:anywhere]">{host}</strong>
         </p>
         <p data-testid="ticket-pin" data-pin={pin} className="display tabular whitespace-nowrap text-ink" style={{ fontSize: big ? '3.3em' : variant === 'card' ? '2.35em' : '2.3em', letterSpacing: '-0.02em', lineHeight: 1 }} aria-label={`Session code ${pin.split('').join(' ')}`}>
           {digits.map((d, i) =>

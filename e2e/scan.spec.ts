@@ -32,8 +32,10 @@ test('the join page has a Scan QR code button that reads the projector QR with t
     const page = await phone.newPage();
     await page.goto('/join');
     await expect(page.getByTestId('scan-open')).toBeVisible();
+    await page.waitForLoadState('networkidle');
     await page.getByTestId('scan-open').click();
-    await expect(page.getByTestId('scan-overlay')).toBeVisible();
+    // the scanner (and its decoder) is a lazily loaded chunk, so give a slow runner time to fetch it
+    await expect(page.getByTestId('scan-overlay')).toBeVisible({ timeout: 30_000 });
 
     // The code is recognised and the join flow continues by itself, exactly like opening the QR link.
     await expect(page.getByTestId('name-input')).toBeVisible({ timeout: 20_000 });
