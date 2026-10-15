@@ -1,6 +1,8 @@
 import { AssistantChatTransport, useAISDKError, useChatRuntime } from '@assistant-ui/ai-sdk';
 import { AssistantRuntimeProvider, AuiConfig, ComposerPrimitive, MessagePrimitive, ThreadPrimitive, Tools, defineToolkit, useAui, useAuiState } from '@assistant-ui/react';
+import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { lastAssistantMessageIsCompleteWithToolCalls } from 'ai';
+import remarkGfm from 'remark-gfm';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, ArrowUp, Check, Eye, FilePlus2, Loader2, MoveVertical, PencilLine, Palette, RotateCcw, Sparkles, Square, Trash2, Undo2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
@@ -46,6 +48,7 @@ function ToolCard(props: any) {
   if (!running && !rejected) {
     if (toolName === 'add_slides' && Array.isArray(result.added)) detail = `${result.added.length} ${result.added.length === 1 ? 'slide' : 'slides'}`;
     else if (toolName === 'update_slide') detail = String(args?.slide_id ?? '');
+    else if (toolName === 'get_presentation' && args?.slide_id) detail = String(result?.slide?.title ?? result?.slide?.question ?? args.slide_id);
   }
   return (
     <div className={cn('my-1.5 flex items-start gap-2 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold', rejected ? 'bg-warn-soft text-warn' : 'bg-ink/5 text-ink-2')} data-testid="ai-tool" data-tool={toolName} data-state={running ? 'running' : rejected ? 'rejected' : 'done'}>
@@ -62,6 +65,30 @@ function ToolCard(props: any) {
 
 const Text = ({ text }: { text: string }) => <p className="whitespace-pre-wrap leading-relaxed">{text}</p>;
 
+/** The assistant writes Markdown (bold, lists, headings, tables), so it is rendered, styled to match the panel. */
+const markdownComponents = {
+  h1: (p: any) => <h3 className="mb-1.5 mt-3 text-[1.0625rem] font-extrabold first:mt-0" {...p} />,
+  h2: (p: any) => <h3 className="mb-1.5 mt-3 text-[1rem] font-extrabold first:mt-0" {...p} />,
+  h3: (p: any) => <h4 className="mb-1 mt-2.5 text-[0.9375rem] font-bold first:mt-0" {...p} />,
+  h4: (p: any) => <h4 className="mb-1 mt-2.5 text-[0.9375rem] font-bold first:mt-0" {...p} />,
+  p: (p: any) => <p className="my-2 leading-relaxed first:mt-0 last:mb-0" {...p} />,
+  ul: (p: any) => <ul className="my-2 list-disc space-y-1 pl-5 marker:text-ink-3" {...p} />,
+  ol: (p: any) => <ol className="my-2 list-decimal space-y-1 pl-5 marker:font-semibold marker:text-ink-3" {...p} />,
+  li: (p: any) => <li className="pl-0.5 leading-relaxed" {...p} />,
+  strong: (p: any) => <strong className="font-bold" {...p} />,
+  em: (p: any) => <em className="italic" {...p} />,
+  a: (p: any) => <a className="font-semibold text-accent underline underline-offset-2" target="_blank" rel="noreferrer noopener" {...p} />,
+  hr: () => <hr className="my-3 border-line" />,
+  blockquote: (p: any) => <blockquote className="my-2 border-l-[3px] border-accent/40 pl-3 text-ink-2" {...p} />,
+  code: (p: any) => <code className="rounded-md bg-ink/7 px-1.5 py-0.5 font-mono text-[0.85em]" {...p} />,
+  pre: (p: any) => <pre className="my-2 overflow-x-auto rounded-xl bg-ink/6 p-3 font-mono text-[0.8125rem] [&_code]:bg-transparent [&_code]:p-0" {...p} />,
+  table: (p: any) => <div className="my-2 overflow-x-auto"><table className="w-full border-collapse text-left text-[0.8125rem]" {...p} /></div>,
+  th: (p: any) => <th className="border-b border-line-2 px-2 py-1.5 font-bold" {...p} />,
+  td: (p: any) => <td className="border-b border-line px-2 py-1.5 align-top" {...p} />,
+};
+
+const Markdown = () => <MarkdownTextPrimitive remarkPlugins={[remarkGfm]} components={markdownComponents} smooth={false} className="min-w-0 break-words" />;
+
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end" data-testid="ai-user-message">
@@ -77,7 +104,7 @@ function AssistantMessage() {
     <MessagePrimitive.Root className="flex gap-2.5" data-testid="ai-assistant-message">
       <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-ink"><Sparkles className="size-3.5" aria-hidden /></span>
       <div className="min-w-0 flex-1 text-[0.9375rem] text-ink">
-        <MessagePrimitive.Parts components={{ Text, tools: { Fallback: ToolCard } }} />
+        <MessagePrimitive.Parts components={{ Text: Markdown, tools: { Fallback: ToolCard } }} />
       </div>
     </MessagePrimitive.Root>
   );

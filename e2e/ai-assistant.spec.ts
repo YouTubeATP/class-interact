@@ -31,6 +31,11 @@ test('the assistant builds slides in the live editor, retries after a rejected c
   await expect(page.getByTestId('ai-user-message')).toContainText('Create a quiz about planets');
   await expect(page.getByTestId('ai-tool').first()).toHaveAttribute('data-state', 'done');
   await expect(page.getByTestId('ai-assistant-message').last()).toContainText('All done');
+  // the reply is rendered as rich text, not shown as raw Markdown
+  const reply = page.getByTestId('ai-assistant-message').last();
+  await expect(reply.locator('strong')).toHaveText('two slides');
+  await expect(reply.locator('li')).toHaveCount(2);
+  await expect(reply).not.toContainText('**');
   await expect(page.getByTestId('slide-row')).toHaveCount(2);
   await expect(page.getByTestId('editor-title')).toHaveText('AI deck');
   // the change went through the normal editor path: it validates and autosaves

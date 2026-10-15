@@ -3,6 +3,7 @@ import { ArrowRight, Loader2, ScanLine } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AmbientBackdrop, BreathingGlow } from '@/components/Ambient';
+import { SiteFooter } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
@@ -176,6 +177,7 @@ export default function JoinPage() {
           </motion.form>
         )}
       </AnimatePresence>
+      <SiteFooter className="pt-2" />
       {scanning && <Suspense fallback={null}><QrScanner open onClose={() => setScanning(false)} onCode={onScanned} /></Suspense>}
     </div>
   );

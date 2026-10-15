@@ -16,6 +16,7 @@ import { prettyPin } from '@/lib/joinUrl';
 import { ConfirmDialog, PromptDialog } from './dialogs';
 import { ImportDialog } from './ImportDialog';
 import { StartSessionDialog } from './StartSessionDialog';
+import { SiteFooter } from '@/components/Footer';
 import { StudioHeader } from './StudioRoutes';
 
 type Dialog =
@@ -109,9 +110,9 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-paper">
+    <div className="flex min-h-dvh flex-col bg-paper">
       <StudioHeader />
-      <main className="mx-auto grid max-w-7xl gap-10 px-4 py-8 sm:px-6">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 content-start gap-10 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="grid gap-1.5">
             <h1 className="display text-[2.4rem]">Presentations</h1>
@@ -184,6 +185,7 @@ export default function LibraryPage() {
           )}
         </section>
       </main>
+      <SiteFooter className="pb-6 pt-2" />
 
       <PromptDialog open={dialog?.kind === 'new'} onOpenChange={(o) => !o && setDialog(null)} title="New presentation" label="Title" confirm="Create" initial="" onSubmit={async (title) => { const r = await api.presentations.create(title); navigate(`/studio/${r.id}`); }} />
       <ImportDialog open={dialog?.kind === 'import'} onOpenChange={(o) => !o && setDialog(null)} onImported={(id, warnings) => { toast.success('Presentation imported'); warnings.forEach((w) => toast.message(w)); navigate(`/studio/${id}`); }} />

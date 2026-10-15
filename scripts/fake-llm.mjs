@@ -65,7 +65,7 @@ export async function startFakeLlm({ port = 0 } = {}) {
       say = userText.includes('invalid') ? 'Adding it now. ' : 'Sure. ';
     } else if (last.role === 'tool') {
       if (textOf(last.content).includes('"ok":false')) { calls = goodSlides('Planets (fixed)').slice(1); say = 'That was not valid, let me fix it. '; }
-      else say = 'All done: I added the slides. Have a look at the quiz.';
+      else say = 'All done: I added **two slides**.\n\n- a title slide\n- a quiz about planets\n\nHave a look at the quiz.';
     }
     if (say) for (const word of say.match(/\S+\s*/g) ?? []) { send({ content: word }); await sleep(5); }
     if (calls) {

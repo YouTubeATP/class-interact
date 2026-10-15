@@ -279,8 +279,14 @@ presentation for Companion mode.
 ## Troubleshooting
 
 - **"The database has not been set up yet"**: run `npm run db:migrate`.
-- **Phones cannot open the QR code**: set `PUBLIC_URL`, or open the Studio using your computer's network address
-  instead of `localhost`.
+- **Phones cannot open the QR code**: the phone must be on the **same Wi-Fi** as the computer (not mobile data), and the
+  firewall must allow Node.js on private networks (Windows prompts the first time; choose *Private networks*). A computer
+  with several network adapters (VPN, WSL, Hyper-V) may guess the wrong address: open **Phone can't open the link?** on
+  the session dashboard and pick another one (usually `192.168.…`). For anything beyond one room, set `PUBLIC_URL`.
 - **Projector shows "link is not valid"**: open it from **Open projector** on the session dashboard; it carries a
   signed key.
 - **Lost the dashboard tab**: reopen the session from **Live now** in the library; control is re-issued to the Studio.
+
+---
+
+Built with ❤️ by [AnsonWPH](https://ansonwph.me)

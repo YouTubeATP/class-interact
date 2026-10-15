@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { SiteFooter } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
@@ -49,6 +50,7 @@ export default function LoginPage() {
         </Field>
         <Button type="submit" variant="primary" size="lg" disabled={busy || !password} data-testid="studio-login">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Sign in</Button>
       </form>
+      <SiteFooter />
     </div>
   );
 }
