@@ -1,5 +1,5 @@
 import type {
-  ClientConfig, JoinLookup, JoinResponse, PresentationDoc, PresentationSummary, SessionControlInfo, SessionMode,
+  ClientConfig, JoinLookup, JoinResponse, PresentationDoc, PresentationSummary, ProjectorClaim, SessionControlInfo, SessionMode,
   SessionResultsView, SessionSummary, DocIssue,
 } from '@classinteract/shared';
 import { STUDIO_TOKEN_KEY, store } from './storage';
@@ -68,6 +68,7 @@ export const api = {
   config: () => request<ClientConfig>('/api/config'),
   login: (password: string) => request<{ token: string }>('/api/auth/login', { body: { password } }),
   lookup: (pin: string) => request<JoinLookup>(`/api/join/${pin}`),
+  claimProjector: (code: string) => request<ProjectorClaim>('/api/projector/claim', { body: { code } }),
   join: (body: { pin: string; name?: string; token?: string }) => request<JoinResponse>('/api/join', { body }),
 
   presentations: {

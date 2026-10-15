@@ -24,7 +24,7 @@ A presentation made for one mode runs in the other without conversion, and you c
 | Screen | For | Notes |
 | --- | --- | --- |
 | Presenter Studio (`/studio`) | the presenter | Library, editor with drag-and-drop ordering, live preview, JSON import/export, session dashboard, results and CSV export |
-| Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see |
+| Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see. Open it from the dashboard, or on any other computer type the session's **projector code** (shown in the dashboard) into the box on the home page |
 | Participant (`/join`) | phones | Mobile-first. Scanning the QR code with the camera app opens the session immediately (no account, no typing); the page also has a Scan button and a PIN field. Names are off by default (everyone gets a friendly name they can change); turn them on per session when you need real names |
 
 **Activities.** Multiple-choice quiz (timer, points, speed bonus, leaderboard), poll (single/multiple,
@@ -171,6 +171,7 @@ e2e/      Playwright scenarios against the built app
   projector and phones never receive speaker notes or the correct answer until you reveal it, and results
   only when you show them. Every connection starts from a complete snapshot, so refreshes and reconnects
   are seamless.
+- **Projector code.** Each live session also has a second six-digit code, shown only in the presenter's dashboard. Typing it on the home page of any computer turns that screen into the projector (no link to copy). It is separate from the join PIN, never collides with one, stops working when the session ends, and claim attempts are rate limited. It unlocks only the audience-safe projector view.
 - **Identity and access.** Participants get an unpredictable token (stored hashed). The PIN only lets someone
   *join*. Presenter control and the projector use separate server-signed credentials, so a PIN grants nothing.
 - **Integrity in the database.** Unique constraints make double submissions impossible (one response per
@@ -183,7 +184,7 @@ e2e/      Playwright scenarios against the built app
 ## Testing
 
 ```bash
-npm test          # shared (50), server integration with real Socket.IO clients and SQLite (32), web (5)
+npm test          # shared (50), server integration with real Socket.IO clients and SQLite (33), web (5)
 npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
                   # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link, and the dashboard-replica-matches-projector layout check
 ```

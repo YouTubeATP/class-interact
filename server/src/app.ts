@@ -7,7 +7,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import rateLimit from 'express-rate-limit';
 import type { PrismaClient } from '@prisma/client';
 import { Server as IOServer } from 'socket.io';
-import { SCHEMA_VERSION, joinRequestSchema, presentationJsonSchema, type ClientConfig, type SessionControlInfo } from '@classinteract/shared';
+import { SCHEMA_VERSION, joinRequestSchema, presentationJsonSchema, type ClientConfig, type ProjectorClaim, type SessionControlInfo } from '@classinteract/shared';
 import { z } from 'zod';
 import { createAuth } from './auth';
 import type { Config } from './config';
@@ -89,6 +89,17 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     res.json(await sessions.lookupPin(pin));
   });
 
+  // Turns a screen-side computer into the projector. The code is separate from the join PIN and is only shown in the
+  // presenter's dashboard. What it unlocks is the audience-safe projector view, and guessing is rate limited.
+  api.post('/projector/claim', limit(60_000, 30, 'Too many attempts. Wait a minute and try again.'), async (req, res) => {
+    const code = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
+    if (!/^\d{6}$/.test(code)) throw badRequest('The code is 6 digits.');
+    const id = await sessions.sessionForProjectorCode(code);
+    if (!id) throw notFound('No live session with that code. Check the digits and try again.');
+    const body: ProjectorClaim = { sessionId: id, projectorKey: auth.projectorKey(id) };
+    res.json(body);
+  });
+
   // Generous per-IP limit: a whole classroom often shares one network address.
   api.post('/join', limit(60_000, 400, 'Too many people are joining from this network. Wait a minute and try again.'), async (req, res) => {
     const parsed = joinRequestSchema.safeParse(req.body);
@@ -156,7 +167,7 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
   studio.get('/sessions/:id/control', async (req, res) => {
     const id = String(req.params.id);
     if (!(await sessions.sessionExists(id))) throw notFound('Session not found');
-    const body: SessionControlInfo = { sessionId: id, presenterToken: auth.presenterToken(id), projectorKey: auth.projectorKey(id) };
+    const body: SessionControlInfo = { sessionId: id, presenterToken: auth.presenterToken(id), projectorKey: auth.projectorKey(id), projectorCode: await sessions.projectorCodeFor(id) };
     res.json(body);
   });
 

@@ -157,6 +157,8 @@ export class SessionService {
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const pin = String(randomInt(100000, 1000000));
+      // one box on the join page accepts both kinds of code, so they may never collide
+      if (await this.prisma.session.findUnique({ where: { liveProjectorCode: pin }, select: { id: true } })) continue;
       try {
         const s = await this.prisma.session.create({
           data: {
@@ -171,6 +173,7 @@ export class SessionService {
             activities: { create: p.activities.map((a) => ({ key: a.key, position: a.position, type: a.type, config: a.config })) },
           },
         });
+        await this.projectorCodeFor(s.id);
         return { id: s.id, pin };
       } catch (e) {
         if (isUnique(e)) continue; // PIN collision with another live session
@@ -178,6 +181,34 @@ export class SessionService {
       }
     }
     throw new AppError(503, 'NO_PIN', 'Could not allocate a session code. Try again.');
+  }
+
+  /**
+   * The six digits that turn another computer into this session's projector (typed on the same page people join from).
+   * Allocated on first use, so sessions that predate the feature get one too; null once the session has ended.
+   */
+  async projectorCodeFor(sessionId: string): Promise<string | null> {
+    const s = await this.prisma.session.findUnique({ where: { id: sessionId }, select: { status: true, liveProjectorCode: true } });
+    if (!s || s.status !== 'live') return null;
+    if (s.liveProjectorCode) return s.liveProjectorCode;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const code = String(randomInt(100000, 1000000));
+      if (await this.prisma.session.findUnique({ where: { livePin: code }, select: { id: true } })) continue;
+      try {
+        await this.prisma.session.update({ where: { id: sessionId }, data: { liveProjectorCode: code } });
+        return code;
+      } catch (e) {
+        if (isUnique(e)) continue;
+        throw e;
+      }
+    }
+    throw new AppError(503, 'NO_CODE', 'Could not allocate a projector code. Try again.');
+  }
+
+  /** Resolve a projector code to its live session, or null. */
+  async sessionForProjectorCode(code: string): Promise<string | null> {
+    const s = await this.prisma.session.findUnique({ where: { liveProjectorCode: code }, select: { id: true } });
+    return s?.id ?? null;
   }
 
   async lookupPin(pin: string): Promise<JoinLookup> {
@@ -319,7 +350,7 @@ export class SessionService {
         data: {
           state: JSON.stringify(r.state),
           lastActivityAt: new Date(now),
-          ...(ending ? { status: 'ended', endedAt: new Date(now), livePin: null } : {}),
+          ...(ending ? { status: 'ended', endedAt: new Date(now), livePin: null, liveProjectorCode: null } : {}),
         },
       }),
     ];

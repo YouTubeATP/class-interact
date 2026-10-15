@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { exportPresentationJson, parsePresentationDoc, type PresentationDoc } from '@classinteract/shared';
 import { csvCell } from '../src/services/reports';
 import { seedDemo, DEMO_PRESENTATIONS } from '../src/seed';
-import { createTestContext, doc, quiz, cloud, type TestContext } from './helpers';
+import { createTestContext, doc, quiz, cloud, presenterClient, type Session, type TestContext } from './helpers';
 
 let ctx: TestContext;
 beforeAll(async () => { ctx = await createTestContext(); });
@@ -130,6 +130,35 @@ describe('seeded demo presentations (imported through the JSON pipeline)', () =>
     expect(again.ok && again.doc).toEqual(d);
     // and the workshop kit is a Companion-ready presentation with no content slides
     expect(DEMO_PRESENTATIONS[1].slides.every((s) => s.type !== 'content')).toBe(true);
+  });
+});
+
+describe('projector code', () => {
+  it('turns another screen into the projector without ever revealing it to people joining', async () => {
+    const p = await ctx.api('/api/studio/presentations/import', { body: sample() });
+    const s = await ctx.api(`/api/studio/presentations/${p.body.id}/sessions`, { body: { collectNames: false, mode: 'standalone' } });
+    const ctl = await ctx.api(`/api/studio/sessions/${s.body.id}/control`);
+    const code: string = ctl.body.projectorCode;
+    expect(code).toMatch(/^\d{6}$/);
+    expect(code).not.toBe(s.body.pin);
+    expect((await ctx.api(`/api/studio/sessions/${s.body.id}/control`)).body.projectorCode).toBe(code); // stable
+
+    // the code resolves to the projector credential for that session, spaces and all
+    const claim = await ctx.api('/api/projector/claim', { body: { code: `${code.slice(0, 3)} ${code.slice(3)}` } });
+    expect(claim.status).toBe(200);
+    expect(claim.body).toEqual({ sessionId: s.body.id, projectorKey: ctl.body.projectorKey });
+
+    // the join PIN is not a projector code, and a projector code is not a join PIN
+    expect((await ctx.api('/api/projector/claim', { body: { code: s.body.pin } })).status).toBe(404);
+    expect((await ctx.api(`/api/join/${code}`)).status).toBe(404);
+    expect((await ctx.api('/api/projector/claim', { body: { code: '12' } })).status).toBe(400);
+
+    // once the session ends the code stops working
+    const ender = await presenterClient(ctx, { id: s.body.id, presenterToken: ctl.body.presenterToken } as Session);
+    expect(await ender.emit('presenter', { cmd: 'action', action: { type: 'end' } })).toMatchObject({ ok: true });
+    ender.disconnect();
+    expect((await ctx.api('/api/projector/claim', { body: { code } })).status).toBe(404);
+    expect((await ctx.api(`/api/studio/sessions/${s.body.id}/control`)).body.projectorCode).toBeNull();
   });
 });
 

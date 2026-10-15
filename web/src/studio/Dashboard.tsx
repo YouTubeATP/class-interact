@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, Copy, Download, Link2, MonitorPlay, PanelsTopLeft, Power, Radio } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, Download, Link2, MonitorPlay, Tv, PanelsTopLeft, Power, Radio } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/dropdown';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { useJoinInfo } from '@/lib/joinUrl';
+import { prettyPin, useJoinInfo } from '@/lib/joinUrl';
 import { useSession } from '@/lib/session-client';
 import { projectorViewOfPresenter } from '@/render/model';
 import { StageView } from '@/render/StageView';
@@ -114,6 +114,16 @@ function Live({ info }: { info: SessionControlInfo }) {
               <Button variant="ghost" size="sm" onClick={() => void copy('join', join.url)}>{copied === 'join' ? <Check className="size-4 text-ok" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied === 'join' ? 'Copied' : 'Copy'}</Button>
             </div>
             {join.localhostWarning && <p className="rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn" role="alert">The QR code points to localhost, which phones cannot reach. Set PUBLIC_URL on the server or open this page using your computer’s network address.</p>}
+            {info.projectorCode && !ended && (
+              <div className="grid gap-1 rounded-2xl bg-ink/5 px-3.5 py-3" data-testid="projector-code-card">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink-3"><Tv className="size-3.5" aria-hidden /> Projector code</p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="tabular text-[1.6rem] font-extrabold tracking-[0.08em]" data-testid="projector-code" data-code={info.projectorCode}>{prettyPin(info.projectorCode)}</span>
+                  <Button variant="ghost" size="sm" onClick={() => void copy('code', info.projectorCode!)}>{copied === 'code' ? <Check className="size-4 text-ok" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied === 'code' ? 'Copied' : 'Copy'}</Button>
+                </div>
+                <p className="text-xs leading-snug text-ink-2">On the screen’s computer, open <span className="font-semibold">{join.host}</span> and type this code to make it the projector. Keep it to yourself: it is not the join code.</p>
+              </div>
+            )}
             <Roster snap={snapshot} onKick={(id, name) => setKick({ id, name })} />
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">

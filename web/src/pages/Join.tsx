@@ -58,6 +58,14 @@ export default function JoinPage() {
       if (info.collectNames) setStep({ kind: 'name', pin: p, title: info.title });
       else await joinWith(p);
     } catch (e) {
+      // not a join code? It may be a presenter's projector code, which turns this screen into the projector
+      if (e instanceof ApiError && e.status === 404) {
+        try {
+          const claim = await api.claimProjector(p);
+          navigate(`/project/${claim.sessionId}?k=${encodeURIComponent(claim.projectorKey)}`, { replace: true });
+          return;
+        } catch { /* neither: fall through to the usual message */ }
+      }
       setError(e instanceof ApiError ? e.message : 'Something went wrong. Try again.');
       setStep({ kind: 'pin' });
     } finally {
@@ -124,6 +132,7 @@ export default function JoinPage() {
             <div className="grid gap-2">
               <h1 className="display text-[2.6rem]">Join a session</h1>
               <p className="text-[1.0625rem] text-ink-2">Enter the code on the screen, or scan the QR code with your camera.</p>
+              <p className="text-sm text-ink-3">Presenting? Type your projector code here to turn this screen into the projector.</p>
             </div>
             <Field error={error}>
               <div className="relative">

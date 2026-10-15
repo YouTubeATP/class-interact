@@ -235,6 +235,13 @@ export interface SessionControlInfo {
   sessionId: string;
   presenterToken: string;
   projectorKey: string;
+  /** Six digits that turn another computer into this session's projector; null once the session has ended. */
+  projectorCode: string | null;
+}
+
+export interface ProjectorClaim {
+  sessionId: string;
+  projectorKey: string;
 }
 
 export interface ActivityResultsView {

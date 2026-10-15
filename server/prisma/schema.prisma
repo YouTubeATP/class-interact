@@ -50,6 +50,9 @@ model Session {
   pin            String
   /// Equal to `pin` while live, NULL once ended — so a PIN is unique among live sessions only.
   livePin        String?           @unique
+  /// Six digits typed on a screen-side computer to turn it into this session's projector. Separate from `pin`
+  /// (which only lets people join), and NULL once the session has ended.
+  liveProjectorCode String?        @unique
   /// JSON: SessionState (phase, activity index, visibility flags, timer)
   state          String
   createdAt      DateTime          @default(now())
