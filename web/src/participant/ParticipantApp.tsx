@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useMemo, useState } from 'react';
 import type { Ack, MySubmission, ParticipantSnapshot } from '@classinteract/shared';
+import { AmbientBackdrop } from '@/components/Ambient';
 import { LogoMark } from '@/components/Logo';
 import { ConnectionBanner } from '@/components/Status';
 import { cn } from '@/lib/cn';
@@ -61,7 +62,8 @@ export function ParticipantApp({ snap, status, submit, now }: { snap: Participan
   const node = <PCtx.Provider value={ctx}>{view}</PCtx.Provider>;
   const tone = activity && state.phase !== 'lobby' && state.phase !== 'standby' && state.phase !== 'ended' ? activity.type : 'content';
   return (
-    <div data-palette={snap.session.theme.palette} data-tone={tone} className="mx-auto flex min-h-dvh max-w-lg flex-col bg-paper">
+    <div data-palette={snap.session.theme.palette} data-tone={tone} className="mx-auto flex min-h-dvh max-w-lg flex-col">
+      {(state.phase === 'lobby' || state.phase === 'standby') && <AmbientBackdrop />}
       <ConnectionBanner status={status} className="sticky top-0 z-20" />
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur">
         <LogoMark className="size-8 shrink-0" />

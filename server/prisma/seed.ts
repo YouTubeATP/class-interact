@@ -1,8 +1,10 @@
 import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { loadConfig } from '../src/config';
+import { loadDotEnv } from '../src/dotenv';
 import { seedDemo } from '../src/seed';
 
+loadDotEnv();
 // Same default database location as the server and `npm run db:migrate`.
 process.env.DATABASE_URL ||= `file:${resolve(loadConfig().dataDir, 'classinteract.db')}`;
 const prisma = new PrismaClient();

@@ -12,12 +12,15 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
   const [snapshot, setSnapshot] = useState<T | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const offset = useRef(0);
+  /** Server time of the newest snapshot applied. Snapshots are built asynchronously, so a slow one can arrive late. */
+  const appliedAt = useRef(0);
   const socketRef = useRef<Socket | null>(null);
   const authKey = auth ? JSON.stringify(auth) : '';
 
   useEffect(() => {
     if (!authKey) return;
     setSnapshot(null);
+    appliedAt.current = 0;
     setStatus('connecting');
     const socket = io({ auth: JSON.parse(authKey), transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 400, reconnectionDelayMax: 4000, timeout: 8000 });
     socketRef.current = socket;
@@ -35,6 +38,8 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
     });
     socket.on('removed', () => { setStatus('removed'); socket.disconnect(); });
     socket.on('snapshot', (s: T) => {
+      if (s.serverNow < appliedAt.current) return; // stale: a newer snapshot was already applied
+      appliedAt.current = s.serverNow;
       offset.current = s.serverNow - Date.now();
       setSnapshot(s);
     });

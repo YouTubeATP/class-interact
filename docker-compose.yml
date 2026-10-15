@@ -1,0 +1,49 @@
+# ClassInteract on a home server.
+#
+#   cp .env.example .env        # set PUBLIC_URL and STUDIO_PASSWORD
+#   docker compose up -d        # app only (http://localhost:3001)
+#   docker compose --profile tunnel up -d   # app + Cloudflare Tunnel (needs TUNNEL_TOKEN)
+#
+# Data (SQLite database, uploads, signing secret) lives in the `classinteract-data` volume.
+
+services:
+  app:
+    build: .
+    image: classinteract:latest
+    restart: unless-stopped
+    environment:
+      # Address people open on their phones. Used for the QR code.  e.g. https://class.example.com
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      # Protects the Presenter Studio. Participants never need it. Set this on anything public.
+      STUDIO_PASSWORD: ${STUDIO_PASSWORD:-}
+      # Optional: fixed secret for presenter/projector links (otherwise generated into the data volume)
+      SERVER_SECRET: ${SERVER_SECRET:-}
+      # Number of proxy hops to trust for client IPs. 1 behind Cloudflare Tunnel / a single reverse proxy.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      MAX_PARTICIPANTS: ${MAX_PARTICIPANTS:-500}
+      SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}
+      AUTO_SEED: ${AUTO_SEED:-true}
+      EXTRA_BLOCKED_WORDS: ${EXTRA_BLOCKED_WORDS:-}
+    volumes:
+      - classinteract-data:/data
+    ports:
+      # Bound to localhost by default; the tunnel reaches the app over the compose network.
+      # For a plain LAN deployment change to "3001:3001".
+      - "127.0.0.1:${HOST_PORT:-3001}:3001"
+
+  # Optional: publish the app through a Cloudflare Tunnel (no open inbound ports, TLS handled by Cloudflare).
+  # In the Zero Trust dashboard, create a tunnel, add a public hostname pointing at  http://app:3001
+  # and put the tunnel token in .env as TUNNEL_TOKEN. WebSockets work without extra configuration.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  classinteract-data:

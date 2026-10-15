@@ -9,7 +9,7 @@
     "web"
   ],
   "engines": {
-    "node": ">=20.11"
+    "node": ">=20.12"
   },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
@@ -24,7 +24,8 @@
     "test": "npm run test -w shared && npm run test -w server && npm run test -w web",
     "test:e2e": "npm run build && playwright test",
     "postinstall": "npm run db:generate",
-    "test:e2e:only": "playwright test"
+    "test:e2e:only": "playwright test",
+    "schema": "tsx scripts/gen-schema.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

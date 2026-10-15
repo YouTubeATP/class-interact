@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { resolveContentLayout, type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type SurveyConfig, type WordcloudConfig } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
+import { BreathingGlow, DriftingShape } from '@/components/Ambient';
 import { TimerRing } from '@/components/Countdown';
 import { Ticket } from '@/components/Ticket';
 import { cn } from '@/lib/cn';
@@ -25,9 +26,13 @@ export function StageFrame({ palette, background, tone, children, className }: {
         style={{ width: 'min(100cqw, calc(100cqh * 16 / 9))', aspectRatio: '16 / 9', containerType: 'size', fontSize: '1cqw' }}
       >
         {background === 'soft' && (
-          <motion.div aria-hidden className="absolute -right-[9%] -top-[18%] size-[46%] rounded-full bg-tone" key={tone} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 0.7 }} transition={{ type: 'spring', stiffness: 80, damping: 18 }} />
+          <>
+            <motion.div aria-hidden className="absolute -right-[9%] -top-[18%] size-[46%]" key={tone} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 0.7 }} transition={{ type: 'spring', stiffness: 80, damping: 18 }}>
+              <DriftingShape className="inset-0 rounded-full bg-tone" dx={22} dy={16} duration={22} />
+            </motion.div>
+            <DriftingShape className="-bottom-[26%] -left-[8%] size-[38%] rounded-full bg-accent-soft opacity-70" dx={-18} dy={14} duration={26} delay={3} />
+          </>
         )}
-        {background === 'soft' && <div aria-hidden className="absolute -bottom-[26%] -left-[8%] size-[38%] rounded-full bg-accent-soft opacity-70" />}
         {children}
       </div>
     </div>
@@ -202,8 +207,11 @@ function LobbyView({ m }: { m: StageModel }) {
           <AnimatedNumber value={m.counts.participants} /> {m.counts.participants === 1 ? 'person' : 'people'} joined
         </p>
       </div>
-      <div style={{ width: '44cqw', fontSize: '1.5cqw' }}>
-        <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="hero" animate />
+      <div className="relative" style={{ width: '44cqw', fontSize: '1.5cqw' }}>
+        {/* the ticket "breathes": a slow halo says this is the thing to scan */}
+        <BreathingGlow className="inset-[-6%] opacity-60" from={0.3} to={0.75} duration={5} />
+        <BreathingGlow className="inset-[2%] bg-tone-strong" from={0.15} to={0.45} duration={5} delay={1.2} />
+        <div className="relative"><Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="hero" animate /></div>
       </div>
     </div>
   );

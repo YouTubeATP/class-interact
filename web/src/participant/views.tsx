@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import type { ContentConfig, OpenConfig, PollConfig, QuizConfig, RatingConfig, SurveyConfig, WordcloudConfig } from '@classinteract/shared';
 import { openMaxLength } from '@classinteract/shared';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
+import { BreathingGlow } from '@/components/Ambient';
 import { Input, Textarea } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
 import { ContentSlide } from '@/render/ContentSlide';
@@ -37,7 +38,11 @@ export function WaitingView({ kind }: { kind: 'lobby' | 'standby' }) {
   const { snap } = useP();
   return (
     <div className="grid flex-1 content-center justify-items-center gap-5 py-10 text-center" data-testid={`waiting-${kind}`}>
-      <WaitingDots />
+      <div className="relative grid size-28 place-items-center">
+        <BreathingGlow className="size-24" from={0.25} to={0.6} duration={4} />
+        <motion.span aria-hidden className="absolute size-20 rounded-full border-2 border-accent/50" animate={{ scale: [1, 1.5], opacity: [0.7, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }} />
+        <WaitingDots />
+      </div>
       <div className="grid gap-2">
         <h2 className="display text-[1.9rem]">{kind === 'lobby' ? `You’re in, ${snap.me.name}` : 'Hang tight'}</h2>
         <p className="mx-auto max-w-[19rem] text-[1.0625rem] text-ink-2">

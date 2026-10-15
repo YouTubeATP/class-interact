@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsup",
-    "start": "node --env-file-if-exists=../.env dist/index.js",
+    "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "node scripts/prisma.mjs generate",
     "db:migrate": "node scripts/prisma.mjs migrate deploy",
     "db:migrate:dev": "node scripts/prisma.mjs migrate dev",
-    "db:seed": "tsx --env-file-if-exists=../.env prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts",
     "db:reset": "node scripts/prisma.mjs migrate reset --force"
   },
   "prisma": {
@@ -24,13 +24,13 @@
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "obscenity": "^0.4.3",
+    "prisma": "^6.19.0",
     "socket.io": "^4.8.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
-    "prisma": "^6.19.0",
     "socket.io-client": "^4.8.1",
     "supertest": "^7.0.0",
     "@types/supertest": "^6.0.2",

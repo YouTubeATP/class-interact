@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AmbientBackdrop, BreathingGlow } from '@/components/Ambient';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
@@ -91,6 +92,7 @@ export default function JoinPage() {
 
   return (
     <div data-palette="azure" className="relative mx-auto grid min-h-dvh max-w-md content-center gap-8 px-5 py-10">
+      <AmbientBackdrop />
       <header className="flex items-center justify-between">
         <Logo />
         <Link to="/studio" className="rounded-full px-3 py-1.5 text-sm font-semibold text-ink-3 transition-colors hover:bg-ink/6 hover:text-ink">Presenter Studio</Link>
@@ -110,6 +112,8 @@ export default function JoinPage() {
               <p className="text-[1.0625rem] text-ink-2">Enter the code on the screen, or scan the QR code with your camera.</p>
             </div>
             <Field error={error}>
+              <div className="relative">
+                <BreathingGlow className="inset-x-2 inset-y-1 rounded-3xl" from={0.2} to={0.55} duration={4.5} />
               <Input
                 autoFocus
                 inputMode="numeric"
@@ -120,8 +124,9 @@ export default function JoinPage() {
                 onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(null); }}
                 aria-invalid={!!error}
                 data-testid="pin-input"
-                className="tabular h-16 rounded-2xl text-center text-[2rem] font-extrabold tracking-[0.12em] placeholder:font-semibold placeholder:tracking-normal"
+                className="tabular relative h-16 rounded-2xl text-center text-[2rem] font-extrabold tracking-[0.12em] placeholder:font-semibold placeholder:tracking-normal"
               />
+              </div>
             </Field>
             <Button type="submit" variant="primary" size="xl" disabled={busy || pin.length !== 6} data-testid="pin-submit">
               {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null} Continue <ArrowRight className="size-5" aria-hidden />

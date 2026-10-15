@@ -2,9 +2,11 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from './app';
 import { loadConfig } from './config';
+import { loadDotEnv } from './dotenv';
 import { seedDemo } from './seed';
 
 async function main() {
+  loadDotEnv();
   const config = loadConfig();
   process.env.DATABASE_URL ||= `file:${resolve(config.dataDir, 'classinteract.db')}`;
   const prisma = new PrismaClient();
