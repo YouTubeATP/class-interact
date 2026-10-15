@@ -10,6 +10,7 @@ import { TimerRing } from '@/components/Countdown';
 import { Ticket } from '@/components/Ticket';
 import { cn } from '@/lib/cn';
 import { ContentSlide } from './ContentSlide';
+import { FitBox } from './FitBox';
 import type { StageModel } from './model';
 import { ResultsView } from './ResultsView';
 import { OptionTile, type TileState } from './viz/OptionTile';
@@ -20,20 +21,30 @@ export function StageFrame({ palette, background, tone, children, className }: {
   return (
     <div className={cn('grid size-full place-items-center', className)} style={{ containerType: 'size' }}>
       <div
+        data-testid="stage"
         data-palette={palette}
         data-tone={tone}
         className="relative overflow-hidden bg-surface text-ink"
-        style={{ width: 'min(100cqw, calc(100cqh * 16 / 9))', aspectRatio: '16 / 9', containerType: 'size', fontSize: '1cqw' }}
+        style={{ width: 'min(100cqw, calc(100cqh * 16 / 9))', aspectRatio: '16 / 9', containerType: 'size' }}
       >
-        {background === 'soft' && (
-          <>
-            <motion.div aria-hidden className="absolute -right-[9%] -top-[18%] size-[46%]" key={tone} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 0.7 }} transition={{ type: 'spring', stiffness: 80, damping: 18 }}>
-              <DriftingShape className="inset-0 rounded-full bg-tone" dx={22} dy={16} duration={22} />
-            </motion.div>
-            <DriftingShape className="-bottom-[26%] -left-[8%] size-[38%] rounded-full bg-accent-soft opacity-70" dx={-18} dy={14} duration={26} delay={3} />
-          </>
-        )}
-        {children}
+        {/*
+          The base font size lives on a CHILD of the size container. A cqw unit on the container itself would
+          resolve against the *outer* box, so on a letterboxed display (any window that is not exactly 16:9) every
+          em-sized element would come out too big and wrap differently from the same slide in the dashboard replica.
+          Optical sizing is pinned so glyph widths are identical at every scale; otherwise text wraps differently
+          on a thumbnail than on the projector.
+        */}
+        <div className="absolute inset-0" style={{ fontSize: '1cqw', fontOpticalSizing: 'none', fontVariationSettings: "'opsz' 28" }}>
+          {background === 'soft' && (
+            <>
+              <motion.div aria-hidden className="absolute -right-[9%] -top-[18%] size-[46%]" key={tone} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 0.7 }} transition={{ type: 'spring', stiffness: 80, damping: 18 }}>
+                <DriftingShape className="inset-0 rounded-full bg-tone" dx={22} dy={16} duration={22} />
+              </motion.div>
+              <DriftingShape className="-bottom-[26%] -left-[8%] size-[38%] rounded-full bg-accent-soft opacity-70" dx={-18} dy={14} duration={26} delay={3} />
+            </>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -170,7 +181,7 @@ function ActivityView({ m }: { m: StageModel }) {
         {image && <SafeImage src={image.url} alt={image.alt} fit={image.fit} className="absolute right-0 top-[1.2em] z-0 h-[17.5em] w-[26em] rounded-[1.2em] ring-1 ring-line" />}
       </div>
       <div className={cn('min-h-0 pr-[1%]', image ? 'mt-[2.6em]' : 'mt-[1.8em]')}>
-        <ActivityBody m={m} />
+        <FitBox><ActivityBody m={m} /></FitBox>
       </div>
       <div className="flex min-h-[5.6em] items-end justify-between pt-[1em]">
         {a.interactive && state.phase !== 'ready' ? <ResponseMeter m={m} /> : <span />}
@@ -256,7 +267,8 @@ function contentForPhase(m: StageModel): { key: string; node: ReactNode; tone: s
       tone: 'content',
       node: full ? <ContentSlide config={c} /> : (
         <div className="absolute inset-0 px-[6%] py-[5.5%]">
-          <ContentSlide config={c} />
+          {/* leave the bottom-right corner to the join ticket; shrink long slides instead of letting them run off */}
+          <FitBox className="pb-[7%]"><ContentSlide config={c} /></FitBox>
           <JoinCorner m={m} />
         </div>
       ),

@@ -185,7 +185,7 @@ e2e/      Playwright scenarios against the built app
 ```bash
 npm test          # shared (50), server integration with real Socket.IO clients and SQLite (32), web (5)
 npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
-                  # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link
+                  # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link, and the dashboard-replica-matches-projector layout check
 ```
 
 The main end-to-end scenario authors a quiz and word cloud in the editor, starts a session, joins a projector
