@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowRight, Loader2, ScanLine } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AmbientBackdrop, BreathingGlow } from '@/components/Ambient';
 import { Logo } from '@/components/Logo';
+import { QrScanner } from '@/components/QrScanner';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const ran = useRef(false);
+  const [scanning, setScanning] = useState(false);
 
   async function joinWith(p: string, nm?: string) {
     const stored = credentialForPin(p);
@@ -58,6 +60,14 @@ export default function JoinPage() {
       setBusy(false);
     }
   }
+
+  // a successful scan fills in the code and carries straight on, exactly like opening the QR link
+  const onScanned = useCallback((code: string) => {
+    setScanning(false);
+    setPin(code);
+    void lookup(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (params.pin && !ran.current && /^\d{6}$/.test(params.pin)) {
@@ -131,6 +141,8 @@ export default function JoinPage() {
             <Button type="submit" variant="primary" size="xl" disabled={busy || pin.length !== 6} data-testid="pin-submit">
               {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null} Continue <ArrowRight className="size-5" aria-hidden />
             </Button>
+            <div className="flex items-center gap-3 text-sm font-semibold text-ink-3" aria-hidden><span className="h-px flex-1 bg-line-2" />or<span className="h-px flex-1 bg-line-2" /></div>
+            <Button variant="secondary" size="xl" onClick={() => setScanning(true)} data-testid="scan-open"><ScanLine className="size-5" aria-hidden /> Scan QR code</Button>
           </motion.form>
         )}
 
@@ -151,6 +163,7 @@ export default function JoinPage() {
           </motion.form>
         )}
       </AnimatePresence>
+      <QrScanner open={scanning} onClose={() => setScanning(false)} onCode={onScanned} />
     </div>
   );
 }

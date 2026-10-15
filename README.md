@@ -25,7 +25,7 @@ A presentation made for one mode runs in the other without conversion, and you c
 | --- | --- | --- |
 | Presenter Studio (`/studio`) | the presenter | Library, editor with drag-and-drop ordering, live preview, JSON import/export, session dashboard, results and CSV export |
 | Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see |
-| Participant (`/join`) | phones | Mobile-first; scan or type the PIN, pick a name, no account |
+| Participant (`/join`) | phones | Mobile-first; scan the QR code in the page (or with the camera app) or type the PIN, pick a name, no account |
 
 **Activities.** Multiple-choice quiz (timer, points, speed bonus, leaderboard), poll (single/multiple,
 anonymous), word cloud (normalised and grouped, moderation), open-ended (short or paragraph, optional
@@ -179,8 +179,9 @@ e2e/      Playwright scenarios against the built app
 ## Testing
 
 ```bash
-npm test          # shared (50), server integration with real Socket.IO clients and SQLite (30)
-npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip
+npm test          # shared (50), server integration with real Socket.IO clients and SQLite (30), web (5)
+npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
+                  # and the in-page QR scanner (a real QR image played through a fake camera)
 ```
 
 The main end-to-end scenario authors a quiz and word cloud in the editor, starts a session, joins a projector
