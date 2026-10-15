@@ -47,7 +47,7 @@ function TypeChip({ type }: { type: keyof typeof typeMeta }) {
 function JoinCorner({ m }: { m: StageModel }) {
   return (
     <div className="absolute bottom-[3%] right-[3%] z-10" style={{ width: '17.5%', fontSize: '1.05cqw' }}>
-      <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="mini" className="shadow-[0_10px_30px_-12px_rgb(22_27_51/.4)] ring-1 ring-line" />
+      <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="mini" />
     </div>
   );
 }
@@ -197,8 +197,8 @@ function LobbyView({ m }: { m: StageModel }) {
           <AnimatedNumber value={m.counts.participants} /> {m.counts.participants === 1 ? 'person' : 'people'} joined
         </p>
       </div>
-      <div style={{ width: '40cqw', fontSize: '1.55cqw' }}>
-        <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="hero" animate className="shadow-[0_30px_70px_-30px_rgb(22_27_51/.45)] ring-1 ring-line" />
+      <div style={{ width: '44cqw', fontSize: '1.5cqw' }}>
+        <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="hero" animate />
       </div>
     </div>
   );

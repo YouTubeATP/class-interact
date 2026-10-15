@@ -53,9 +53,13 @@ export function ParticipantApp({ snap, status, submit, now }: { snap: Participan
       <SurveyView />;
   }
 
-  const ctx = activity ? { snap, activity, mine, now, send } : null;
+  // Each view gets its own context value, captured when it was created. AnimatePresence keeps the
+  // *exiting* view mounted for a moment; a shared provider would hand it the next activity's data.
+  const ctx = activity
+    ? { snap, activity, mine, now, send }
+    : { snap, activity: null as never, mine: [] as MySubmission[], now, send: async () => ({ ok: false as const, code: 'NO_ACTIVITY', message: 'Nothing to answer yet.' }) };
+  const node = <PCtx.Provider value={ctx}>{view}</PCtx.Provider>;
   const tone = activity && state.phase !== 'lobby' && state.phase !== 'standby' && state.phase !== 'ended' ? activity.type : 'content';
-
   return (
     <div data-palette={snap.session.theme.palette} data-tone={tone} className="mx-auto flex min-h-dvh max-w-lg flex-col bg-paper">
       <ConnectionBanner status={status} className="sticky top-0 z-20" />
@@ -69,28 +73,12 @@ export function ParticipantApp({ snap, status, submit, now }: { snap: Participan
         <span className={cn('size-2.5 shrink-0 rounded-full', status === 'connected' ? 'bg-ok' : 'bg-warn')} role="img" aria-label={status === 'connected' ? 'Connected' : 'Reconnecting'} />
       </header>
       <main className="flex flex-1 flex-col px-4 pb-6 pt-5">
-        {ctx ? (
-          <PCtx.Provider value={ctx}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={key} className="flex flex-1 flex-col" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.24, ease: [0.3, 0.7, 0.2, 1] }}>
-                {view}
-              </motion.div>
-            </AnimatePresence>
-          </PCtx.Provider>
-        ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={key} className="flex flex-1 flex-col" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}>
-              <NoActivityContext snap={snap} now={now}>{view}</NoActivityContext>
-            </motion.div>
-          </AnimatePresence>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={key} className="flex flex-1 flex-col" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.24, ease: [0.3, 0.7, 0.2, 1] }}>
+            {node}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
-}
-
-/** Lobby / standby / ended screens have no current activity, but still read from the snapshot. */
-function NoActivityContext({ snap, now, children }: { snap: ParticipantSnapshot; now: () => number; children: React.ReactNode }) {
-  const dummy = { snap, activity: null as never, mine: [], now, send: async () => ({ ok: false as const, code: 'NO_ACTIVITY', message: 'Nothing to answer yet.' }) };
-  return <PCtx.Provider value={dummy}>{children}</PCtx.Provider>;
 }

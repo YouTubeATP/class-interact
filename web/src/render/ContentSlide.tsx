@@ -69,8 +69,8 @@ export function ContentSlide({ config, compact = false }: { config: ContentConfi
   if (layout === 'title') {
     return (
       <div className={cn('grid h-full items-center gap-[4em]', image ? 'grid-cols-[1.25fr_1fr]' : 'grid-cols-1')}>
-        <div className="grid max-w-[46em] gap-[0.9em]">
-          <motion.h1 {...rise(0)} className="display text-[7.4em]" style={{ textWrap: 'balance' }}>{title}</motion.h1>
+        <div className="grid max-w-[60em] gap-[0.9em]">
+          <motion.h1 {...rise(0)} className="display text-[6.4em]" style={{ textWrap: 'balance' }}>{title}</motion.h1>
           {body && <motion.p {...rise(1)} className="max-w-[28em] text-[2.7em] font-medium leading-snug text-ink-2">{body}</motion.p>}
         </div>
         {image && <motion.div {...rise(2)} className="h-[78%]"><SafeImage src={image.url} alt={image.alt} fit={image.fit} className="size-full rounded-[1.4em]" /></motion.div>}

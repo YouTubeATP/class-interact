@@ -193,7 +193,7 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
   if (existsSync(join(webDist, 'index.html'))) {
     app.use(express.static(webDist, { index: false, maxAge: '1h', setHeaders: (res, p) => { if (p.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); } }));
     app.use((req, res, next) => {
-      if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+      if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(join(webDist, 'index.html'));
     });

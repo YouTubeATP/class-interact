@@ -12,14 +12,14 @@ import { plural } from '@/lib/format';
 export function LessonFlow({ snap, onGoto }: { snap: PresenterSnapshot; onGoto: (i: number) => void }) {
   const current = snap.state.phase !== 'lobby' && snap.state.phase !== 'standby' && snap.state.phase !== 'ended' ? snap.state.activityIndex : -1;
   return (
-    <ol className="grid gap-1.5" aria-label="Lesson flow" data-testid="lesson-flow">
+    <ol className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Lesson flow" data-testid="lesson-flow">
       {snap.outline.map((o) => {
         const m = typeMeta[o.type];
         const active = o.index === current;
         return (
-          <li key={o.key}>
+          <li key={o.key} className="min-w-0">
             <button type="button" onClick={() => onGoto(o.index)} disabled={!snap.available.includes('goto') || active} data-tone={o.type} data-testid="flow-item" aria-current={active}
-              className={cn('flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors disabled:cursor-default', active ? 'border-accent bg-accent-soft' : 'border-transparent hover:bg-ink/5')}>
+              className={cn('flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors disabled:cursor-default', active ? 'border-accent bg-accent-soft' : 'border-transparent hover:bg-ink/5')}>
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-tone text-tone-ink"><m.icon className="size-4" aria-label={m.label} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.8125rem] font-semibold leading-tight">{o.title || m.label}</span>
@@ -42,16 +42,16 @@ export function ActivityLauncher({ snap, onGoto, onStandby }: { snap: PresenterS
   const items = snap.outline.filter((o) => showSlides || o.interactive);
   const onStandbyNow = snap.state.phase === 'standby' || snap.state.phase === 'lobby';
   return (
-    <div className="grid gap-3" data-testid="activity-launcher">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="activity-launcher">
       <Button variant={onStandbyNow ? 'soft' : 'secondary'} size="lg" className="w-full" onClick={onStandby} disabled={!snap.available.includes('standby')} data-testid="standby">
         <CirclePause className="size-4" aria-hidden /> {onStandbyNow ? 'Participants are on standby' : 'Back to standby'}
       </Button>
-      <ul className="grid gap-2">
+      <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {items.map((o) => {
           const m = typeMeta[o.type];
           const active = o.index === showing;
           return (
-            <motion.li key={o.key} layout data-tone={o.type} className={cn('grid gap-2 rounded-2xl border bg-surface p-3', active ? 'border-accent shadow-[0_0_0_3px_var(--accent-soft)]' : 'border-line')} data-testid="launch-card">
+            <motion.li key={o.key} layout data-tone={o.type} className={cn('grid min-w-0 gap-2 rounded-2xl border bg-surface p-3', active ? 'border-accent shadow-[0_0_0_3px_var(--accent-soft)]' : 'border-line')} data-testid="launch-card">
               <div className="flex items-start gap-2.5">
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-tone text-tone-ink"><m.icon className="size-[1.1rem]" aria-label={m.label} /></span>
                 <div className="min-w-0 flex-1">

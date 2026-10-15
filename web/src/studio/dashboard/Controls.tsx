@@ -78,7 +78,7 @@ export function Controls({ snap, run, now }: { snap: PresenterSnapshot; run: (ty
 
       {inActivity && interactive && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3.5" aria-label="Activity controls">
-          {state.phase === 'open' ? <Btn action="close" testId="ctl-close"><Lock className="size-4" aria-hidden /> Close responses</Btn> : <Btn action="open" testId="ctl-open"><Unlock className="size-4" aria-hidden /> {state.phase === 'ready' ? 'Open responses' : 'Reopen responses'}</Btn>}
+          {primary?.action !== 'close' && primary?.action !== 'open' && (state.phase === 'open' ? <Btn action="close" testId="ctl-close"><Lock className="size-4" aria-hidden /> Close responses</Btn> : <Btn action="open" testId="ctl-open"><Unlock className="size-4" aria-hidden /> Reopen responses</Btn>)}
           {state.resultsVisible ? <Btn action="hideResults" testId="ctl-hide-results"><EyeOff className="size-4" aria-hidden /> Hide results</Btn> : <Btn action="revealResults" testId="ctl-reveal-results"><BarChart3 className="size-4" aria-hidden /> Show results</Btn>}
           {hasAnswer && (state.correctVisible ? <Btn action="hideCorrect" testId="ctl-hide-correct"><EyeOff className="size-4" aria-hidden /> Hide answer</Btn> : <Btn action="revealCorrect" variant="soft" testId="ctl-reveal-correct"><Eye className="size-4" aria-hidden /> Reveal answer</Btn>)}
           {state.phase !== 'ready' && <Btn action="complete" testId="ctl-complete"><Square className="size-3.5" aria-hidden /> Finish activity</Btn>}

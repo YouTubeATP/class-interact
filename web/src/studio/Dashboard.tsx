@@ -106,8 +106,8 @@ function Live({ info }: { info: SessionControlInfo }) {
       )}
 
       <div className="mx-auto grid max-w-[110rem] gap-5 p-4 sm:p-6 lg:grid-cols-[20.5rem_minmax(0,1fr)] xl:grid-cols-[20.5rem_minmax(0,1fr)_25rem]">
-        <aside className="grid content-start gap-5" aria-label="Session">
-          <div data-testid="join-card" className="grid gap-3 rounded-card border border-line bg-surface p-4">
+        <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5" aria-label="Session">
+          <div data-testid="join-card" className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
             <div style={{ fontSize: '0.82rem' }}><Ticket pin={session.pin} url={join.url} host={join.host} variant="card" className="ring-1 ring-line" /></div>
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="truncate text-ink-3" title={join.url}>{join.host}/join/{session.pin}</span>
@@ -116,7 +116,7 @@ function Live({ info }: { info: SessionControlInfo }) {
             {join.localhostWarning && <p className="rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn" role="alert">The QR code points to localhost, which phones cannot reach. Set PUBLIC_URL on the server or open this page using your computer’s network address.</p>}
             <Roster snap={snapshot} onKick={(id, name) => setKick({ id, name })} />
           </div>
-          <div className="grid gap-3 rounded-card border border-line bg-surface p-4">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
             <h2 className="text-[0.9375rem] font-bold">{session.mode === 'standalone' ? 'Lesson flow' : 'Launch an activity'}</h2>
             {session.mode === 'companion' && <p className="-mt-1 text-[0.8125rem] leading-snug text-ink-3">Teach in your other app. Launch any activity here whenever you need it, then return to standby. Participants stay connected.</p>}
             {session.mode === 'standalone'

@@ -104,7 +104,8 @@
   --stub: 38%;
   position: relative;
   display: grid;
-  grid-template-columns: var(--stub) 1fr;
+  /* minmax(0, …) keeps the QR from forcing the ticket wider than its container */
+  grid-template-columns: minmax(0, var(--stub)) minmax(0, 1fr);
   background: var(--ticket-bg, #fff);
   color: var(--color-ink);
   border-radius: 1.2em;
