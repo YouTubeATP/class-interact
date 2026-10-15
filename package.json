@@ -26,6 +26,7 @@
     "test:e2e": "npm run build && playwright test",
     "postinstall": "npm run db:generate",
     "test:e2e:only": "playwright test",
+    "test:e2e:dev": "E2E_DEV=1 playwright test",
     "schema": "tsx scripts/gen-schema.ts"
   },
   "devDependencies": {

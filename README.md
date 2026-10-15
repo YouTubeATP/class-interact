@@ -39,12 +39,14 @@ re-packs as answers arrive, leaderboard reordering, and confirmations. It respec
 Requires Node 20.12+ (Node 22 recommended).
 
 ```bash
-npm install                 # installs all workspaces and generates the Prisma client
-cp .env.example .env        # optional: defaults work out of the box
-npm run db:migrate          # create the SQLite database
-npm run db:seed             # import the demo presentations (optional)
-npm run dev                 # API on :3001, web on http://localhost:5173
+npm install        # installs all workspaces and generates the Prisma client
+npm run dev        # that's it
 ```
+
+`npm run dev` does everything on a fresh clone: it creates and migrates the SQLite database, imports the demo
+presentations (idempotent), then starts the API with auto-reload on <http://localhost:3001> and the web app with
+hot reload on <http://localhost:5173> (Vite proxies `/api`, `/uploads` and the WebSocket to the API). No `.env`
+is needed; copy `.env.example` to `.env` only to change settings.
 
 Open <http://localhost:5173/studio>, pick **MSG: The Secret Ingredient?** and choose **Start session**.
 
@@ -57,7 +59,7 @@ Docker or behind a domain or tunnel, set `PUBLIC_URL` (see below); container-int
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | API (tsx watch) and web (Vite) together |
+| `npm run dev` | Migrate + seed the database, then run the API (tsx watch) and web (Vite) together |
 | `npm run build` | Build the web app and bundle the server |
 | `npm start` | Run the production build (serves the web app too) on `PORT` (default 3001) |
 | `npm run db:migrate` | Apply migrations (`prisma migrate deploy`) |
@@ -66,7 +68,8 @@ Docker or behind a domain or tunnel, set `PUBLIC_URL` (see below); container-int
 | `npm run db:reset` | Drop and recreate the database |
 | `npm run typecheck` | TypeScript across all workspaces |
 | `npm test` | Unit and integration tests (Vitest) |
-| `npm run test:e2e` | Build, then run the Playwright end-to-end suite |
+| `npm run test:e2e` | Build, then run the Playwright end-to-end suite against the production build |
+| `npm run test:e2e:dev` | Run the same suite against `npm run dev` (hot-reload mode) on a throwaway database |
 | `npm run schema` | Regenerate `docs/presentation.schema.json` |
 
 ## Production

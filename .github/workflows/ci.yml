@@ -47,6 +47,8 @@ jobs:
         run: npm run build
       - name: Run end-to-end tests
         run: npx playwright test
+      - name: Smoke-test `npm run dev` (hot-reload mode, throwaway database)
+        run: E2E_DEV=1 npx playwright test e2e/join-link.spec.ts e2e/session.spec.ts
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

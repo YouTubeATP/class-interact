@@ -22,13 +22,18 @@ test('scanning the projector QR code takes a phone straight into the session', a
   const s = await startSession(request, false);
   const screen = await projectorQr(browser, s);
 
-  // What the QR code contains is a plain link to this server that carries the session code.
-  expect(screen.link).toBe(`${baseURL}/join/${s.pin}`);
+  // What the QR code contains is a plain link to this server that carries the session code. (In development
+  // the host is this machine's LAN address so phones on the same Wi-Fi can reach it, hence path + port.)
+  const url = new URL(screen.link);
+  expect(url.pathname).toBe(`/join/${s.pin}`);
+  expect(url.port).toBe(new URL(baseURL!).port);
 
   // The native camera app just opens that link. No typing, no taps: the phone is in the session.
+  // (Opened via the test's base URL so the check does not depend on routing to this machine's LAN address.)
+  const link = `${baseURL}${url.pathname}`;
   const context = await phone(browser);
   const page = await context.newPage();
-  await page.goto(screen.link);
+  await page.goto(link);
   await expect(page.getByTestId('waiting-lobby')).toBeVisible();
   await expect(page).toHaveURL(/\/play\/.+/);
   await expect(screen.page.getByTestId('lobby-count')).toContainText('1 person joined');
@@ -43,7 +48,7 @@ test('scanning the projector QR code takes a phone straight into the session', a
   await expect(screen.page.getByText('Ada', { exact: true })).toBeVisible();
 
   // Scanning again on the same phone resumes the same participant instead of adding a second one.
-  await page.goto(screen.link);
+  await page.goto(link);
   await expect(page.getByTestId('waiting-lobby')).toBeVisible();
   await expect(page.getByTestId('participant-name')).toContainText('Ada');
   await expect(screen.page.getByTestId('lobby-count')).toContainText('1 person joined');
