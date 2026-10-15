@@ -43,7 +43,7 @@ function DeckCard({ p, i, onAction }: { p: PresentationSummary; i: number; onAct
       <div className="grid gap-3 p-4">
         <div className="grid gap-1">
           <h3 className="line-clamp-2 text-[1.0625rem] font-bold leading-snug tracking-tight">{p.title}</h3>
-          <p className="line-clamp-2 min-h-[2.6rem] text-[0.8125rem] leading-snug text-ink-2">{p.description || 'No description yet.'}</p>
+          <p className="line-clamp-3 min-h-[4.125em] text-[0.8125rem] leading-snug text-ink-2" title={p.description || undefined}>{p.description || 'No description yet.'}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Badge>{plural(p.slideCount, 'slide')}</Badge>
