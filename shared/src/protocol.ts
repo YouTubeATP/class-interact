@@ -211,6 +211,8 @@ export interface PresentationSummary {
   description: string;
   slideCount: number;
   interactiveCount: number;
+  /** Distinct slide types in the deck, in a stable order — lets the library show what is inside. */
+  types: SlideType[];
   theme: Theme;
   updatedAt: string;
   sessionCount: number;

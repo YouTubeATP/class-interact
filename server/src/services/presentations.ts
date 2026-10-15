@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import {
-  SCHEMA_VERSION, DOCUMENT_FORMAT, isInteractiveType, parsePresentationDoc, parseSlideConfig,
+  SCHEMA_VERSION, DOCUMENT_FORMAT, SLIDE_TYPES, isInteractiveType, parsePresentationDoc, parseSlideConfig,
   type PresentationDoc, type PresentationSummary, type Slide, type SlideType, type Theme,
 } from '@classinteract/shared';
 import { AppError, notFound } from '../lib/errors';
@@ -33,6 +33,7 @@ export class PresentationService {
       description: p.description,
       slideCount: p.activities.length,
       interactiveCount: p.activities.filter((a) => isInteractiveType(a.type as SlideType)).length,
+      types: SLIDE_TYPES.filter((t) => p.activities.some((a) => a.type === t)),
       theme: JSON.parse(p.theme) as Theme,
       updatedAt: p.updatedAt.toISOString(),
       sessionCount: p._count.sessions,

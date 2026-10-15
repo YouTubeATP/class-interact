@@ -1,0 +1,140 @@
+@import '@fontsource-variable/inter/opsz.css';
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------------------------
+   ClassInteract design tokens
+   Cool paper canvas, ink text, one ultramarine accent. Pastel tones are *information*:
+   each activity type owns one, so the room can tell a quiz from a poll at a glance.
+   ------------------------------------------------------------------------------------ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-paper: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #161b33;
+  --color-ink-2: #4a5170;
+  --color-ink-3: #6b7390;
+  --color-line: #e3e6f0;
+  --color-line-2: #d0d6e8;
+  --color-ok: #17804f;
+  --color-ok-soft: #d5f2e3;
+  --color-warn: #a35a00;
+  --color-warn-soft: #fff0be;
+  --color-bad: #c0304f;
+  --color-bad-soft: #ffdde5;
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-stage: 1.75rem;
+
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}
+
+/* The accent follows the presentation theme (set with data-palette on a wrapper). */
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-tone: var(--tone);
+  --color-tone-ink: var(--tone-ink);
+  --color-tone-strong: var(--tone-strong);
+}
+
+:root,
+[data-palette='azure'] { --accent: #3347ff; --accent-ink: #2433c9; --accent-soft: #e8ebff; }
+[data-palette='lavender'] { --accent: #6c4bff; --accent-ink: #4b33c9; --accent-soft: #ece8ff; }
+[data-palette='mint'] { --accent: #0e8f63; --accent-ink: #0a6a49; --accent-soft: #d9f4e8; }
+[data-palette='peach'] { --accent: #dd5a14; --accent-ink: #a8430b; --accent-soft: #ffe6d6; }
+[data-palette='rose'] { --accent: #cf2f63; --accent-ink: #a1214b; --accent-soft: #ffe0e9; }
+[data-palette='slate'] { --accent: #334155; --accent-ink: #1e293b; --accent-soft: #e5e9f0; }
+
+/* Activity tones */
+:root,
+[data-tone='content'] { --tone: #eceef6; --tone-ink: #4a5170; --tone-strong: #7c839e; }
+[data-tone='quiz'] { --tone: #e6e1ff; --tone-ink: #4b33c9; --tone-strong: #6c4bff; }
+[data-tone='poll'] { --tone: #d9eaff; --tone-ink: #1b5cb8; --tone-strong: #2f7be8; }
+[data-tone='wordcloud'] { --tone: #d5f2e3; --tone-ink: #14704a; --tone-strong: #1a9a62; }
+[data-tone='open'] { --tone: #ffe3d1; --tone-ink: #a8430b; --tone-strong: #e8590c; }
+[data-tone='rating'] { --tone: #fff0be; --tone-ink: #7a5800; --tone-strong: #c98a00; }
+[data-tone='survey'] { --tone: #ffdde5; --tone-ink: #a1214b; --tone-strong: #d6336c; }
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    font-feature-settings: 'cv11', 'ss03';
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-weight: 450;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  h1, h2, h3 { font-weight: 750; letter-spacing: -0.022em; line-height: 1.12; text-wrap: balance; }
+  p { text-wrap: pretty; }
+  button, [role='button'] { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: var(--accent-soft); }
+}
+
+@layer utilities {
+  .tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum', 'cv11'; }
+  .display { font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; }
+  .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+/* ------------------------------------------------------------------------------------
+   The session ticket: the one signature shape. A stub with the QR code, a perforation,
+   and the PIN. "Join once; stay for the whole session."
+   ------------------------------------------------------------------------------------ */
+.ticket {
+  --r: 0.9em;
+  --stub: 38%;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--stub) 1fr;
+  background: var(--ticket-bg, #fff);
+  color: var(--color-ink);
+  border-radius: 1.2em;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at var(--stub) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--stub) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at var(--stub) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--stub) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+}
+.ticket::after {
+  content: '';
+  position: absolute;
+  top: var(--r);
+  bottom: var(--r);
+  left: var(--stub);
+  border-left: 0.16em dashed color-mix(in srgb, var(--color-ink) 22%, transparent);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
