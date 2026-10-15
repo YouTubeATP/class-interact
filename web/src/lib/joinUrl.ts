@@ -21,8 +21,10 @@ export function chooseLanHost(host: string) {
 export function joinBase(cfg: ClientConfig | null): { base: string; localhostWarning: boolean } {
   if (cfg?.publicUrl) return { base: cfg.publicUrl, localhostWarning: false };
   const { origin, hostname, port, protocol } = window.location;
-  if (isLocal(hostname) && cfg?.lanUrls.length) {
-    const hosts = cfg.lanUrls.map((u) => new URL(u).hostname);
+  const hosts = (cfg?.lanUrls ?? []).map((u) => new URL(u).hostname);
+  // Opened on localhost, or on one of this computer's own addresses (say Vite's first "Network" link, which may be a
+  // VPN adapter): offer the address phones are most likely to reach, not just whatever the browser happens to be using.
+  if ((isLocal(hostname) || hosts.includes(hostname)) && hosts.length) {
     const chosen = store.get<string>(LAN_CHOICE_KEY);
     const lan = new URL(`http://${chosen && hosts.includes(chosen) ? chosen : hosts[0]}`);
     return { base: `${protocol}//${lan.hostname}${port ? `:${port}` : ''}`, localhostWarning: false };
@@ -57,7 +59,8 @@ export function useJoinInfo(pin: string | undefined) {
   }, []);
   const { base, localhostWarning } = joinBase(cfg);
   // other addresses this computer answers on, offered when phones cannot reach the first guess
-  const onLocalhost = isLocal(window.location.hostname) && !cfg?.publicUrl;
-  const alternatives = onLocalhost && cfg ? cfg.lanUrls.map((u) => new URL(u).hostname) : [];
+  const lanHosts = (cfg?.lanUrls ?? []).map((u) => new URL(u).hostname);
+  const onThisComputer = (isLocal(window.location.hostname) || lanHosts.includes(window.location.hostname)) && !cfg?.publicUrl;
+  const alternatives = onThisComputer ? lanHosts : [];
   return { url: pin ? joinUrl(base, pin) : '', host: displayHost(base), base, localhostWarning, ready: !!cfg, alternatives };
 }
