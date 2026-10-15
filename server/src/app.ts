@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
-import { networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -12,6 +11,7 @@ import { z } from 'zod';
 import { createAuth } from './auth';
 import type { Config } from './config';
 import { AppError, badRequest, notFound } from './lib/errors';
+import { lanUrls } from './lan';
 import { createTextFilter } from './lib/moderation';
 import { attachGateway } from './realtime/gateway';
 import { PresentationService } from './services/presentations';
@@ -26,27 +26,6 @@ const IMAGE_TYPES: Record<string, { ext: string; magic: (b: Buffer) => boolean }
   'image/gif': { ext: 'gif', magic: (b) => b.subarray(0, 3).toString() === 'GIF' },
   'image/webp': { ext: 'webp', magic: (b) => b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP' },
 };
-
-/**
- * Addresses phones on the same network might use, best guess first. A laptop usually has several: the real Wi-Fi or
- * Ethernet card, plus virtual adapters (WSL, Hyper-V, Docker, VPNs) that no phone can reach. Likely-real ones lead.
- */
-function lanUrls(port: number): string[] {
-  const VIRTUAL = /vethernet|wsl|hyper-v|virtualbox|vmware|vmnet|docker|veth|br-|tailscale|zerotier|utun|tun\d|tap|loopback|bluetooth|vpn/i;
-  const rank = (name: string, ip: string): number => {
-    let r = VIRTUAL.test(name) ? 20 : 0;
-    if (ip.startsWith('192.168.')) r += 0;
-    else if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) r += 2;
-    else if (ip.startsWith('10.')) r += 1;
-    else r += 3; // 169.254 link-local and anything unusual
-    if (ip.startsWith('169.254.')) r += 10;
-    return r;
-  };
-  return Object.entries(networkInterfaces())
-    .flatMap(([name, list]) => (list ?? []).filter((i) => i.family === 'IPv4' && !i.internal).map((i) => ({ ip: i.address, r: rank(name, i.address) })))
-    .sort((a, b) => a.r - b.r)
-    .map((x) => `http://${x.ip}:${port}`);
-}
 
 export function createApp(opts: { prisma: PrismaClient; config: Config }) {
   const { prisma, config } = opts;
