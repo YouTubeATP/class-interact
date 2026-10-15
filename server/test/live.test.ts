@@ -165,6 +165,27 @@ describe('quiz flow with multiple synchronised clients', () => {
   }, 15000);
 });
 
+describe('waiting room', () => {
+  it('keeps the headcount on phones current while they wait (lobby and standby)', async () => {
+    const s = await ctx.startSession(doc([cloud()]), { mode: 'companion' });
+    const p = await presenterClient(ctx, s);
+    const a = await participant(ctx, s, 'Ann');
+    await a.client.until((x) => x.counts.participants === 1);
+    const b = await participant(ctx, s, 'Bo');
+    // Ann never did anything, yet her screen learns that Bo arrived
+    expect((await a.client.until((x) => x.counts.participants === 2)).counts.participants).toBe(2);
+    await act(p, { type: 'goto', index: 0 });
+    await act(p, { type: 'standby' });
+    await a.client.until((x) => x.state.phase === 'standby');
+    const c = await participant(ctx, s, 'Cy');
+    expect((await a.client.until((x) => x.counts.participants === 3)).counts.participants).toBe(3);
+    // ...and when someone leaves, they are not counted as gone from the roster, only offline
+    b.client.disconnect();
+    await p.until((x) => x.counts.online === 2);
+    [p, a.client, c.client].forEach((x) => x.disconnect());
+  });
+});
+
 describe('reconnection', () => {
   it('a refreshed participant keeps their identity, answer and current view', async () => {
     const s = await ctx.startSession(doc([quiz()]));

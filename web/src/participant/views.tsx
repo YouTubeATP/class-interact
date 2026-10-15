@@ -250,7 +250,11 @@ function TextEntry({ max, limit, paragraph, placeholder, wordHint }: { max: numb
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canAnswer || !text.trim() || submit.pending) return;
-    if (await submit.run({ text })) setText('');
+    // Clear straight away so anything typed while the server is answering is never wiped;
+    // put the text back only if the submission was refused and the field is still empty.
+    const sent = text;
+    setText('');
+    if (!(await submit.run({ text: sent }))) setText((cur) => (cur === '' ? sent : cur));
   };
 
   return (

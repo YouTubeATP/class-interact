@@ -74,7 +74,9 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
     p.running = true;
     try {
       const snaps = await service.buildSnapshots(sessionId, onlineParticipants(sessionId));
-      const participantsNeedUpdate = scopes.has('control') || (scopes.has('data') && snaps.participantsSeeLiveData);
+      // Phones watching the lobby / standby screen show who is here, so roster changes must reach them too.
+      const waiting = snaps.projector.state.phase === 'lobby' || snaps.projector.state.phase === 'standby';
+      const participantsNeedUpdate = scopes.has('control') || (scopes.has('roster') && waiting) || (scopes.has('data') && snaps.participantsSeeLiveData);
       for (const c of targets) {
         if (c.role === 'presenter') c.socket.emit('snapshot', snaps.presenter);
         else if (c.role === 'projector') c.socket.emit('snapshot', snaps.projector);

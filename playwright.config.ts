@@ -6,7 +6,8 @@ export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // No retries: a test that only passes on the second try is a bug report, not a pass.
+  retries: 0,
   timeout: 90_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
