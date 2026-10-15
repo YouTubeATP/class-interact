@@ -115,6 +115,48 @@ describe('quiz flow with multiple synchronised clients', () => {
     [p, proj, ann.client, bo.client, cy.client].forEach((c) => c.disconnect());
   });
 
+  it('multiple-answer quiz: ticked sets are graded with partial credit, and the key stays secret until reveal', async () => {
+    const s = await ctx.startSession(doc([quiz({ id: 'mq', kind: 'multiple', correctOptionId: undefined, correctOptionIds: ['a', 'c'], options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }, { id: 'c', text: 'C' }, { id: 'd', text: 'D' }], points: 1000 })]));
+    const p = await presenterClient(ctx, s);
+    const proj = await projectorClient(ctx, s);
+    const ann = await participant(ctx, s, 'Ann');
+    const bo = await participant(ctx, s, 'Bo');
+    const cy = await participant(ctx, s, 'Cy');
+    const di = await participant(ctx, s, 'Di');
+    await act(p, { type: 'start' });
+    for (const c of [proj, ann.client, bo.client, cy.client, di.client]) await c.until((x) => x.state.phase === 'open');
+    const q = (proj.last as ProjectorSnapshot).activity!;
+    expect(q.config).toMatchObject({ kind: 'multiple', correctOptionIds: [], correctOptionId: '', explanation: '' });
+    expect(JSON.stringify(ann.client.last)).not.toMatch(/PRIVATE-NOTES|EXPLAIN-B/);
+    expect((await p.until((x) => x.state.phase === 'open') as PresenterSnapshot).fullConfig).toMatchObject({ correctOptionIds: ['a', 'c'] });
+
+    // a single-answer payload is refused for a multiple-answer question, and so is an empty one
+    expect(await ann.client.emit('submit', { activityId: q.id, payload: { optionId: 'a' } })).toMatchObject({ ok: false });
+    expect(await ann.client.emit('submit', { activityId: q.id, payload: { optionIds: [] } })).toMatchObject({ ok: false });
+    expect(await ann.client.emit('submit', { activityId: q.id, payload: { optionIds: ['a', 'c'] } })).toMatchObject({ ok: true });
+    expect(await bo.client.emit('submit', { activityId: q.id, payload: { optionIds: ['a'] } })).toMatchObject({ ok: true });
+    expect(await cy.client.emit('submit', { activityId: q.id, payload: { optionIds: ['a', 'b', 'c'] } })).toMatchObject({ ok: true });
+    expect(await di.client.emit('submit', { activityId: q.id, payload: { optionIds: ['b', 'd'] } })).toMatchObject({ ok: true });
+
+    const live = (await p.until((x) => x.counts.respondents === 4)) as PresenterSnapshot;
+    expect(live.results).toMatchObject({ type: 'quiz', total: 4, counts: { a: 3, b: 2, c: 2, d: 1 } });
+
+    await act(p, { type: 'revealCorrect' });
+    const pr = (await proj.until((x) => x.state.correctVisible)) as ProjectorSnapshot;
+    expect(pr.activity!.config).toMatchObject({ correctOptionIds: ['a', 'c'] });
+    const score = async (c: Client) => ((await c.until((x) => x.state.correctVisible)) as ParticipantSnapshot).me.submissions[0];
+    expect(await score(ann.client)).toMatchObject({ correct: true, score: 1000 });
+    expect(await score(bo.client)).toMatchObject({ correct: false, score: 500 }); // one of two right
+    expect(await score(cy.client)).toMatchObject({ correct: false, score: 500 }); // two right, one wrong: (2-1)/2
+    expect(await score(di.client)).toMatchObject({ correct: false, score: 0 });
+
+    // only the fully right answer counts towards "correct" on the leaderboard
+    await act(p, { type: 'showLeaderboard' });
+    const lb = (await proj.until((x) => !!x.leaderboard)) as ProjectorSnapshot;
+    expect(lb.leaderboard!.map((r) => [r.name, r.score])).toEqual([['Ann', 1000], ['Bo', 500], ['Cy', 500], ['Di', 0]]);
+    [p, proj, ann.client, bo.client, cy.client, di.client].forEach((c) => c.disconnect());
+  });
+
   it('only accepts submissions while the activity is open and for the current activity', async () => {
     const s = await ctx.startSession(doc([quiz({ id: 'q1', autoOpen: false }), quiz({ id: 'q2', autoOpen: false })]));
     const p = await presenterClient(ctx, s);

@@ -6,7 +6,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import rateLimit from 'express-rate-limit';
 import type { PrismaClient } from '@prisma/client';
 import { Server as IOServer } from 'socket.io';
-import { SCHEMA_VERSION, joinRequestSchema, presentationJsonSchema, type ClientConfig, type ProjectorClaim, type SessionControlInfo } from '@classinteract/shared';
+import { exportPresentationJson, joinRequestSchema, presentationJsonSchema, type ClientConfig, type ProjectorClaim, type SessionControlInfo } from '@classinteract/shared';
 import { z } from 'zod';
 import { createAuth } from './auth';
 import type { Config } from './config';
@@ -144,7 +144,7 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     const slug = doc.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'presentation';
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${slug}.classinteract.json"`);
-    res.send(JSON.stringify({ ...doc, schemaVersion: SCHEMA_VERSION }, null, 2) + '\n');
+    res.send(exportPresentationJson(doc));
   });
 
   const startSchema = z.object({ collectNames: z.boolean().default(true), mode: z.enum(['standalone', 'companion']).default('standalone') });

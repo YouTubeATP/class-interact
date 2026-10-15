@@ -217,9 +217,23 @@ export function parsePresentationJson(text: string): ParseResult {
   return parsePresentationDoc(json);
 }
 
+/**
+ * Resolved defaults make exports explicit, but fields that cannot apply to a question's kind are noise
+ * (`correctOptionIds: []` on a single-answer question), so they are left out. Parsing puts the defaults back.
+ */
+function withoutUnusedFields(slide: Slide): Slide {
+  if (slide.type !== 'quiz') return slide;
+  const q: Record<string, unknown> = { ...slide };
+  const kind = (q.kind as string | undefined) ?? 'single';
+  if (kind !== 'multiple') delete q.correctOptionIds;
+  if (kind === 'single') delete q.partialCredit;
+  if (Array.isArray(q.options) && q.options.length === 0) delete q.options;
+  return q as unknown as Slide;
+}
+
 /** Canonical, fully-resolved JSON text. `parsePresentationJson(exportDoc(d))` yields an equal document. */
 export function exportPresentationJson(doc: PresentationDoc): string {
-  return JSON.stringify({ ...doc, format: DOCUMENT_FORMAT, schemaVersion: SCHEMA_VERSION }, null, 2) + '\n';
+  return JSON.stringify({ ...doc, slides: doc.slides.map(withoutUnusedFields), format: DOCUMENT_FORMAT, schemaVersion: SCHEMA_VERSION }, null, 2) + '\n';
 }
 
 /** Validates a single slide's configuration (used by the editor and the server for row-level writes). */

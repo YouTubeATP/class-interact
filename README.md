@@ -27,7 +27,7 @@ A presentation made for one mode runs in the other without conversion, and you c
 | Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see. Open it from the dashboard, or on any other computer type the session's **projector code** (shown in the dashboard) into the box on the home page |
 | Participant (`/join`) | phones | Mobile-first. Scanning the QR code with the camera app opens the session immediately (no account, no typing); the page also has a Scan button and a PIN field. Names are off by default (everyone gets a friendly name they can change); turn them on per session when you need real names |
 
-**Activities.** Multiple-choice quiz (timer, points, speed bonus, leaderboard), poll (single/multiple,
+**Activities.** Quiz (one correct answer or tick-all-that-apply with partial credit; timer, points, speed bonus, leaderboard), poll (single/multiple,
 anonymous), word cloud (normalised and grouped, moderation), open-ended (short or paragraph, optional
 approval), rating scale, multi-question survey, and content slides (five layout templates).
 
@@ -203,7 +203,7 @@ e2e/      Playwright scenarios against the built app
 ## Testing
 
 ```bash
-npm test          # shared (50), server integration with real Socket.IO clients and SQLite (35), web (8)
+npm test          # shared (62), server integration with real Socket.IO clients and SQLite (36), web (8)
 npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
                   # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link, and the dashboard-replica-matches-projector layout check
 ```

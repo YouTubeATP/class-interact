@@ -76,9 +76,24 @@ Interactive slides also share these (with defaults):
 
 ### `quiz`
 
-`question`, `options` (2–6, each `{ "id", "text" }`; ids are generated if omitted),
-`correctOptionId`, `explanation`, `timeLimitSec`, `scored` (default true), `points` (default 1000),
+`question`, `kind`, `options` (2–6, each `{ "id", "text" }`; ids are generated if omitted),
+`explanation`, `timeLimitSec`, `scored` (default true), `points` (default 1000),
 `speedBonus` (needs a timer; decays linearly to half points at the deadline).
+
+`kind` says how the question is answered; it decides which answer key you give:
+
+| `kind` | Answer key | People |
+| --- | --- | --- |
+| `single` (default) | `correctOptionId` | Tap one option; it is sent at once |
+| `multiple` | `correctOptionIds` (one or more) and optional `partialCredit` (default `true`) | Tick every option that applies, then lock in |
+
+Fields that belong to the other kind are rejected, so a mistake is caught on import. A True/False question is just
+a `single` question with two options.
+
+Scoring for `multiple`: with `partialCredit` on, a person earns `(right ticks − wrong ticks) ÷ number of correct
+answers` of the points (never below zero). Ticking exactly the right set earns all of them, and the speed bonus applies
+to the full amount. With `partialCredit` off it is all or nothing. Only a fully right answer counts as "correct" in the
+leaderboard and CSV; the CSV score column shows the partial points.
 
 ### `poll`
 

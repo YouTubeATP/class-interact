@@ -38,6 +38,21 @@
       "speedBonus": true
     },
     {
+      "id": "select-all",
+      "type": "quiz",
+      "kind": "multiple",
+      "question": "Which of these are planets in our solar system?",
+      "options": [
+        { "id": "a", "text": "Mars" },
+        { "id": "b", "text": "The Moon" },
+        { "id": "c", "text": "Jupiter" },
+        { "id": "d", "text": "Sirius" }
+      ],
+      "correctOptionIds": ["a", "c"],
+      "explanation": "The Moon orbits Earth and Sirius is a star. Mars and Jupiter are planets.",
+      "timeLimitSec": 30
+    },
+    {
       "id": "confidence",
       "type": "rating",
       "question": "How confident do you feel about what we just covered?",

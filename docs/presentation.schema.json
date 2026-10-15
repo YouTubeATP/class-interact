@@ -217,6 +217,14 @@
                 "minLength": 1,
                 "maxLength": 300
               },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "multiple"
+                ],
+                "default": "single"
+              },
               "options": {
                 "type": "array",
                 "items": {
@@ -238,12 +246,25 @@
                   ],
                   "additionalProperties": false
                 },
-                "minItems": 2,
-                "maxItems": 6
+                "maxItems": 6,
+                "default": []
               },
               "correctOptionId": {
                 "type": "string",
                 "pattern": "^[A-Za-z0-9_-]{1,32}$"
+              },
+              "correctOptionIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,32}$"
+                },
+                "maxItems": 6,
+                "default": []
+              },
+              "partialCredit": {
+                "type": "boolean",
+                "default": true
               },
               "explanation": {
                 "type": "string",
@@ -272,9 +293,7 @@
             "required": [
               "id",
               "type",
-              "question",
-              "options",
-              "correctOptionId"
+              "question"
             ],
             "additionalProperties": false
           },

@@ -16,6 +16,14 @@ export const DOCUMENT_FORMAT = 'classinteract.presentation';
 export const PALETTES = ['azure', 'lavender', 'mint', 'peach', 'rose', 'slate'] as const;
 export const BACKGROUNDS = ['soft', 'plain'] as const;
 export const CONTENT_LAYOUTS = ['title', 'text', 'image-text', 'full-image', 'instructions'] as const;
+/**
+ * How a quiz question is answered.
+ *   single    pick one option (`correctOptionId`)
+ *   multiple  tick every option that applies (`correctOptionIds`); optional partial credit
+ */
+export const QUIZ_KINDS = ['single', 'multiple'] as const;
+export type QuizKind = (typeof QUIZ_KINDS)[number];
+
 export const SLIDE_TYPES = ['content', 'quiz', 'poll', 'wordcloud', 'open', 'rating', 'survey'] as const;
 export const INTERACTIVE_TYPES = ['quiz', 'poll', 'wordcloud', 'open', 'rating', 'survey'] as const;
 
@@ -113,8 +121,12 @@ export const contentShape = {
 export const quizShape = {
   ...interactiveBase,
   question: text(1, 300, 'Question'),
-  options: z.array(optionSchema, { required_error: 'A quiz needs "options"' }).min(2, 'A quiz needs 2–6 options').max(6, 'A quiz can have at most 6 options'),
-  correctOptionId: itemId,
+  kind: z.enum(QUIZ_KINDS, { errorMap: () => ({ message: `Question kind must be one of: ${QUIZ_KINDS.join(', ')}` }) }).default('single'),
+  // Which of the fields below apply depends on `kind` (checked in the quiz refiner). Unused ones are left out of exports.
+  options: z.array(optionSchema).max(6, 'A quiz can have at most 6 options').default([]),
+  correctOptionId: itemId.optional(),
+  correctOptionIds: z.array(itemId).max(6).default([]),
+  partialCredit: z.boolean().default(true),
   explanation: optionalText(500, 'Explanation'),
   scored: z.boolean().default(true),
   points: z.number().int().min(10, 'Points must be at least 10').max(10000, 'Points can be at most 10000').default(1000),
@@ -258,9 +270,25 @@ export const refiners: Record<SlideType, (c: any, ctx: Ctx) => void> = {
     }
   },
   quiz(c, ctx) {
+    const kind: QuizKind = c.kind ?? 'single';
+    const ids = new Set<string>(c.options.map((o: { id: string }) => o.id));
+    const valid = () => `Valid ids: ${c.options.map((o: { id: string }) => o.id).join(', ')}`;
     uniqueIds(ctx, c.options, ['options'], 'option');
-    if (!c.options.some((o: { id: string }) => o.id === c.correctOptionId)) {
-      fail(ctx, ['correctOptionId'], `"correctOptionId" ("${c.correctOptionId}") does not match any option. Valid ids: ${c.options.map((o: { id: string }) => o.id).join(', ')}`);
+    if (c.options.length < 2) fail(ctx, ['options'], 'A quiz needs 2–6 options');
+
+    if (kind === 'single') {
+      if (!c.correctOptionId) fail(ctx, ['correctOptionId'], 'A single-answer quiz needs "correctOptionId"');
+      else if (!ids.has(c.correctOptionId)) fail(ctx, ['correctOptionId'], `"correctOptionId" ("${c.correctOptionId}") does not match any option. ${valid()}`);
+      if (c.correctOptionIds.length > 0) fail(ctx, ['correctOptionIds'], '"correctOptionIds" is for kind "multiple". A single-answer quiz uses "correctOptionId"');
+    } else if (kind === 'multiple') {
+      if (c.correctOptionId !== undefined) fail(ctx, ['correctOptionId'], '"correctOptionId" is for kind "single". A multiple-answer quiz uses "correctOptionIds"');
+      if (c.correctOptionIds.length === 0) fail(ctx, ['correctOptionIds'], 'Mark at least one correct answer in "correctOptionIds"');
+      const seen = new Set<string>();
+      c.correctOptionIds.forEach((id: string, i: number) => {
+        if (!ids.has(id)) fail(ctx, ['correctOptionIds', i], `"${id}" does not match any option. ${valid()}`);
+        else if (seen.has(id)) fail(ctx, ['correctOptionIds', i], `"${id}" is listed twice`);
+        seen.add(id);
+      });
     }
     if (c.speedBonus && c.timeLimitSec === null) fail(ctx, ['speedBonus'], 'A speed bonus needs a countdown: set "timeLimitSec"');
     if (c.speedBonus && !c.scored) fail(ctx, ['speedBonus'], 'A speed bonus needs "scored": true');

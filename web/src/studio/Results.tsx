@@ -3,6 +3,7 @@ import { ArrowLeft, Download, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { quizCorrectIds } from '@classinteract/shared';
 import type { ActivityResultsView, QuizConfig, SessionResultsView, SurveyConfig, TextTally } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { Notice, Spinner } from '@/components/Status';
@@ -54,7 +55,7 @@ function ActivityCard({ a, i }: { a: ActivityResultsView; i: number }) {
       {!interactive ? <p className="text-sm text-ink-3">Content slide, nothing to collect.</p> : a.responses === 0 ? <p className="rounded-xl bg-paper px-4 py-6 text-center text-sm text-ink-3">This activity did not receive any responses.</p> : (
         <ScaleBox pct={a.type === 'survey' ? 1.5 : 2.1}>
           <div className={a.type === 'wordcloud' ? 'h-[20em]' : ''}>
-            <ResultsView type={a.type} config={a.config} results={a.results} correctId={quiz?.correctOptionId} fill={a.type === 'wordcloud'} />
+            <ResultsView type={a.type} config={a.config} results={a.results} correctIds={quiz ? quizCorrectIds(quiz) : null} fill={a.type === 'wordcloud'} />
           </div>
         </ScaleBox>
       )}

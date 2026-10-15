@@ -1,5 +1,5 @@
 import type { AnyConfig, PollConfig, QuizConfig, RatingConfig, Results, SlideType, SurveyConfig } from '@classinteract/shared';
-import { definitions, type AggSubmission } from '@classinteract/shared';
+import { definitions, quizCorrectIds, quizKind, type AggSubmission } from '@classinteract/shared';
 
 /**
  * Deterministic sample responses so the editor can show what the results will look like.
@@ -23,8 +23,9 @@ export function sampleResults(type: SlideType, config: AnyConfig): Results {
   switch (type) {
     case 'quiz': {
       const c = config as QuizConfig;
-      const peak = Math.max(0, c.options.findIndex((o) => o.id === c.correctOptionId));
-      const subs = c.options.flatMap((o, i) => Array.from({ length: spread(12, c.options.length, peak)[i] }, () => sub({ optionId: o.id })));
+      const peak = Math.max(0, c.options.findIndex((o) => quizCorrectIds(c).includes(o.id)));
+      const multiple = quizKind(c) === 'multiple';
+      const subs = c.options.flatMap((o, i) => Array.from({ length: spread(12, c.options.length, peak)[i] }, () => sub(multiple ? { optionIds: [o.id] } : { optionId: o.id })));
       return def.aggregate(c, subs);
     }
     case 'poll': {

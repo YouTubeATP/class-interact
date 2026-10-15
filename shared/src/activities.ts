@@ -12,6 +12,7 @@ import {
   type ConfigByType,
   type PollConfig,
   type QuizConfig,
+  type QuizKind,
   type RatingConfig,
   type OpenConfig,
   type SlideType,
@@ -226,6 +227,36 @@ export function scoreQuiz(c: Pick<QuizConfig, 'scored' | 'points' | 'speedBonus'
   return c.points;
 }
 
+/**
+ * Quiz grading. Old stored configs have no `kind`, so everything reads it through these helpers.
+ * Returns the share of the answer that is right, 0 to 1 (1 means fully correct).
+ *   single    1 or 0
+ *   multiple  ticks that are right minus ticks that are wrong, over the number of right answers (never below 0);
+ *             with `partialCredit` off it is all-or-nothing
+ */
+type QuizLike = Pick<QuizConfig, 'options' | 'correctOptionId' | 'correctOptionIds' | 'partialCredit'> & { kind?: QuizKind };
+
+export const quizKind = (c: { kind?: QuizKind }): QuizKind => c.kind ?? 'single';
+
+/** The correct option ids that are visible in this config (hidden answers come through as empty). */
+export function quizCorrectIds(c: Partial<QuizLike>): string[] {
+  if (quizKind(c) === 'multiple') return (c.correctOptionIds ?? []).filter(Boolean);
+  return c.correctOptionId ? [c.correctOptionId] : [];
+}
+
+export function gradeQuiz(c: QuizLike, payload: any): number {
+  if (quizKind(c) === 'multiple') {
+    const correct = new Set(quizCorrectIds(c));
+    const chosen: string[] = Array.isArray(payload?.optionIds) ? payload.optionIds : [];
+    const right = chosen.filter((id) => correct.has(id)).length;
+    const wrong = chosen.length - right;
+    if (correct.size === 0) return 0;
+    if (!(c.partialCredit ?? true)) return right === correct.size && wrong === 0 ? 1 : 0;
+    return Math.max(0, right - wrong) / correct.size;
+  }
+  return payload?.optionId !== undefined && payload.optionId === c.correctOptionId ? 1 : 0;
+}
+
 const strip = <T extends AnyConfig>(c: T): T => ({ ...c, notes: '' });
 
 // ---------------------------------------------------------------------------------------
@@ -274,7 +305,7 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
   quiz: {
     type: 'quiz',
     label: 'Quiz',
-    description: 'Timed multiple-choice question with scoring and a leaderboard.',
+    description: 'Timed question with scoring and a leaderboard: one answer or several.',
     interactive: true,
     behavior: (c) => ({
       interactive: true,
@@ -286,27 +317,46 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
       maxSubmissions: 1,
     }),
     validate(c, raw) {
+      const valid = new Set(c.options.map((o) => o.id));
+      if (quizKind(c) === 'multiple') {
+        if (!isObj(raw) || !Array.isArray(raw.optionIds) || raw.optionIds.some((x) => typeof x !== 'string')) return bad('Tick at least one answer');
+        const ids = [...new Set(raw.optionIds as string[])];
+        if (ids.length === 0) return bad('Tick at least one answer');
+        if (ids.some((id) => !valid.has(id))) return bad('That option no longer exists');
+        return ok({ optionIds: ids });
+      }
       if (!isObj(raw) || typeof raw.optionId !== 'string') return bad('Pick an answer');
-      if (!c.options.some((o) => o.id === raw.optionId)) return bad('That option no longer exists');
+      if (!valid.has(raw.optionId)) return bad('That option no longer exists');
       return ok({ optionId: raw.optionId });
     },
     extractText: () => [],
     evaluate(c, payload, { elapsedMs }) {
-      const correct = payload.optionId === c.correctOptionId;
-      return { correct, score: scoreQuiz(c, correct, elapsedMs) };
+      const fraction = gradeQuiz(c, payload);
+      const full = scoreQuiz(c, true, elapsedMs);
+      return { correct: fraction === 1, score: Math.round(full * fraction) };
     },
     aggregate(c, subs) {
       const counts: Record<string, number> = Object.fromEntries(c.options.map((o) => [o.id, 0]));
       let total = 0;
       for (const s of subs) {
         if (s.status === 'hidden') continue;
-        const id = s.payload?.optionId;
-        if (id in counts) { counts[id]++; total++; }
+        const chosen: unknown[] = Array.isArray(s.payload?.optionIds) ? s.payload.optionIds : [s.payload?.optionId];
+        let any = false;
+        for (const id of chosen) if (typeof id === 'string' && id in counts) { counts[id]++; any = true; }
+        if (any) total++;
       }
       return { type: 'quiz', kind: 'choice', total, counts };
     },
-    publicConfig: (c, { revealCorrect }) => ({ ...strip(c), correctOptionId: revealCorrect ? c.correctOptionId : '', explanation: revealCorrect ? c.explanation : '' }),
-    describeResponses: (c, p) => [{ prompt: c.question, response: c.options.find((o) => o.id === p.optionId)?.text ?? String(p.optionId) }],
+    publicConfig: (c, { revealCorrect }) => ({
+      ...strip(c),
+      correctOptionId: revealCorrect ? c.correctOptionId : '',
+      correctOptionIds: revealCorrect ? c.correctOptionIds : [],
+      explanation: revealCorrect ? c.explanation : '',
+    }),
+    describeResponses: (c, p) => {
+      const chosen: string[] = Array.isArray(p.optionIds) ? p.optionIds : [p.optionId];
+      return [{ prompt: c.question, response: chosen.map((id) => c.options.find((o) => o.id === id)?.text ?? String(id)).join(' | ') }];
+    },
     titleOf: (c) => c.question,
   },
 
@@ -495,7 +545,7 @@ export function defaultConfig<T extends SlideType>(type: T): ConfigByType[T] {
   const opts = (...t: string[]) => t.map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
   const configs: { [K in SlideType]: () => ConfigByType[K] } = {
     content: () => ({ ...base, title: 'New slide', body: '', steps: [] }),
-    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
+    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', kind: 'single', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', correctOptionIds: [], partialCredit: true, explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
     poll: () => ({ ...base, ...live, question: 'What do you think?', options: opts('Option A', 'Option B', 'Option C'), multiple: false, maxSelections: null, anonymous: false, liveResults: true, showResultsToParticipants: true }),
     wordcloud: () => ({ ...base, ...live, question: 'In one word or a few words…', maxLength: 40, maxWords: 5, maxSubmissions: 3, moderation: 'off', liveResults: true, showResultsToParticipants: true }),
     open: () => ({ ...base, ...live, question: 'What are your thoughts?', mode: 'short', maxSubmissions: 1, moderation: 'off', liveResults: true, showResultsToParticipants: false }),

@@ -50,14 +50,15 @@ describe('presentation document', () => {
 
   it('reports actionable errors with paths and suggestions', () => {
     const r = parsePresentationDoc(minimal([
-      { id: 'q', type: 'quiz', question: 'Q?', options: [{ id: 'a', text: 'A' }], correctOptionId: 'z', timelimit: 10 },
+      { id: 'q', type: 'quiz', question: 'Q?', options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }], correctOptionId: 'z', timelimit: 10 },
     ]));
     expect(r.ok).toBe(false);
     if (r.ok) return;
     const text = r.errors.map(issueToString).join('\n');
-    expect(text).toContain('slides[0].options');
-    expect(text).toContain('2–6 options');
     expect(text).toContain('Did you mean "timeLimitSec"?');
+    // rules that depend on several fields are reported once the structure is sound
+    const few = parsePresentationDoc(minimal([{ id: 'q', type: 'quiz', question: 'Q?', options: [{ id: 'a', text: 'A' }], correctOptionId: 'a' }]));
+    expect(!few.ok && few.errors.map(issueToString).join('\n')).toContain('slides[0].options: A quiz needs 2–6 options');
   });
 
   it('explains a wrong correctOptionId and unknown slide types', () => {

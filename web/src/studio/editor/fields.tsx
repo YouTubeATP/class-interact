@@ -68,7 +68,7 @@ export function NumberField({ label, value, onChange, min, max, hint, issues = [
 export function SelectField<T extends string>({ label, value, onChange, options, hint }: { label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; hint?: string }) {
   return (
     <Field label={label} hint={hint}>
-      <Select value={value} onChange={(e) => onChange(e.target.value as T)}>
+      <Select value={value} aria-label={label} onChange={(e) => onChange(e.target.value as T)}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </Select>
     </Field>
@@ -88,15 +88,19 @@ export function TimerField({ value, onChange, issues, label = 'Countdown timer',
 }
 
 /** Answer options. When `correctId` is provided, each row has a "correct answer" selector (quiz). */
-export function OptionsEditor({ options, onChange, issues, path = 'options', min, max, correctId, onCorrect }: {
+export function OptionsEditor({ options, onChange, issues, path = 'options', min, max, correctId, onCorrect, correctIds, onToggleCorrect }: {
   options: { id: string; text: string }[]; onChange: (o: { id: string; text: string }[]) => void; issues: FieldIssue[]; path?: string; min: number; max: number; correctId?: string; onCorrect?: (id: string) => void;
+  /** Several correct answers: tick boxes instead of one radio. */
+  correctIds?: string[]; onToggleCorrect?: (id: string) => void;
 }) {
+  const multi = correctIds !== undefined;
   const set = (i: number, text: string) => onChange(options.map((o, k) => (k === i ? { ...o, text } : o)));
   const remove = (i: number) => {
     const removed = options[i];
     const next = options.filter((_, k) => k !== i);
     onChange(next);
     if (onCorrect && removed.id === correctId && next[0]) onCorrect(next[0].id);
+    if (multi && correctIds!.includes(removed.id)) onToggleCorrect?.(removed.id);
   };
   const add = () => onChange([...options, { id: nextId(options.map((o) => o.id), 'o'), text: `Option ${options.length + 1}` }]);
   const listErr = errorAt(issues.filter((i) => i.path === path), path);
@@ -108,6 +112,12 @@ export function OptionsEditor({ options, onChange, issues, path = 'options', min
           return (
             <li key={o.id} className="grid gap-1">
               <div className="flex items-center gap-2">
+                {multi && (
+                  <button type="button" role="checkbox" aria-checked={correctIds!.includes(o.id)} aria-label={`Mark option ${i + 1} as a correct answer`} title="Correct answer" onClick={() => onToggleCorrect?.(o.id)}
+                    className={cn('grid size-8 shrink-0 place-items-center rounded-lg border-2 transition-colors', correctIds!.includes(o.id) ? 'border-ok bg-ok text-white' : 'border-line-2 text-transparent hover:border-ok hover:text-ok/50')}>
+                    <Check className="size-4" strokeWidth={3} />
+                  </button>
+                )}
                 {correctId !== undefined && (
                   <button type="button" role="radio" aria-checked={correctId === o.id} aria-label={`Mark option ${i + 1} as the correct answer`} title="Correct answer" onClick={() => onCorrect?.(o.id)}
                     className={cn('grid size-8 shrink-0 place-items-center rounded-full border-2 transition-colors', correctId === o.id ? 'border-ok bg-ok text-white' : 'border-line-2 text-transparent hover:border-ok hover:text-ok/50')}>
@@ -125,7 +135,7 @@ export function OptionsEditor({ options, onChange, issues, path = 'options', min
       {listErr && !options.some((_, i) => errorAt(issues, `${path}[${i}]`)) && <p className="text-[0.8125rem] text-bad" role="alert">{listErr}</p>}
       <div className="flex items-center justify-between">
         <Button variant="secondary" size="sm" onClick={add} disabled={options.length >= max}><Plus className="size-3.5" aria-hidden /> Add option</Button>
-        <span className="text-xs text-ink-3">{min}–{max} options{correctId !== undefined ? ', tick the correct one' : ''}</span>
+        <span className="text-xs text-ink-3">{min}–{max} options{multi ? ', tick every correct one' : correctId !== undefined ? ', tick the correct one' : ''}</span>
       </div>
     </div>
   );

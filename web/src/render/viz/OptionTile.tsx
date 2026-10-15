@@ -6,8 +6,10 @@ import { cn } from '@/lib/cn';
 export type TileState = 'idle' | 'selected' | 'correct' | 'wrong' | 'dim';
 
 /** An answer option. On the projector it is display-only; on phones it is the tap target. */
-export function OptionTile({ index, text, count, total, state = 'idle', onClick, disabled, delay = 0, size = 'stage' }: {
+export function OptionTile({ index, text, count, total, state = 'idle', onClick, disabled, delay = 0, size = 'stage', checkbox = false }: {
   index: number; text: string; count?: number; total?: number; state?: TileState; onClick?: () => void; disabled?: boolean; delay?: number; size?: 'stage' | 'phone';
+  /** Several answers can apply: shows a tick box that fills when selected. */
+  checkbox?: boolean;
 }) {
   const c = OPTION_COLORS[index % OPTION_COLORS.length];
   const pct = count !== undefined && total ? (count / total) * 100 : 0;
@@ -15,7 +17,7 @@ export function OptionTile({ index, text, count, total, state = 'idle', onClick,
   const Tag = interactive ? motion.button : motion.div;
   return (
     <Tag
-      {...(interactive ? { type: 'button' as const, onClick, disabled, 'aria-pressed': state === 'selected' } : {})}
+      {...(interactive ? (checkbox ? { type: 'button' as const, onClick, disabled, role: 'checkbox', 'aria-checked': state === 'selected' } : { type: 'button' as const, onClick, disabled, 'aria-pressed': state === 'selected' }) : {})}
       className={cn(
         'relative flex w-full items-center overflow-hidden text-left',
         size === 'stage' ? 'gap-[0.9em] rounded-[1em] px-[1em] py-[0.8em] text-[1.9em]' : 'min-h-[4.25rem] gap-3.5 rounded-2xl px-4 py-3 text-[1.0625rem]',
@@ -36,6 +38,11 @@ export function OptionTile({ index, text, count, total, state = 'idle', onClick,
       <span className="relative min-w-0 flex-1 font-semibold leading-snug">{text}</span>
       {count !== undefined && (
         <span className={cn('tabular relative shrink-0 font-bold', size === 'stage' ? 'text-[0.8em]' : 'text-sm')}>{count}</span>
+      )}
+      {checkbox && interactive && (
+        <span aria-hidden className={cn('relative grid shrink-0 place-items-center rounded-[0.4em] border-2 transition-colors', size === 'stage' ? 'size-[1.1em]' : 'size-7', state === 'selected' ? 'border-transparent text-white' : 'border-current/40 text-transparent')} style={state === 'selected' ? { background: c.strong } : undefined}>
+          <Check className="size-[70%]" strokeWidth={3.4} />
+        </span>
       )}
       {state === 'correct' && (
         <motion.span className="relative grid shrink-0 place-items-center rounded-full bg-ok text-white" style={{ width: size === 'stage' ? '1.3em' : '2rem', height: size === 'stage' ? '1.3em' : '2rem' }} initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}>

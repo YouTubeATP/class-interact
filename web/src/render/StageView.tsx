@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Trophy, Users } from 'lucide-react';
 import { SafeImage } from '@/components/SafeImage';
 import type { ReactNode } from 'react';
-import { resolveContentLayout, type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type SurveyConfig, type WordcloudConfig } from '@classinteract/shared';
+import { quizCorrectIds, quizKind, resolveContentLayout, type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type SurveyConfig, type WordcloudConfig } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { BreathingGlow, DriftingShape } from '@/components/Ambient';
@@ -102,19 +102,20 @@ function ActivityBody({ m }: { m: StageModel }) {
 
   if (a.type === 'quiz') {
     const c = a.config as QuizConfig;
-    const correct = state.correctVisible && c.correctOptionId ? c.correctOptionId : null;
+    const correct = state.correctVisible ? quizCorrectIds(c) : [];
     const counts = showResults && results.type === 'quiz' ? results.counts : null;
     const total = showResults && results.type === 'quiz' ? results.total : 0;
     return (
       <div className="grid gap-[1.4em]">
+        {quizKind(c) === 'multiple' && <p className="-mb-[0.4em] text-[1.6em] font-bold text-ink-2" data-testid="stage-multi-hint">Select all that apply</p>}
         <div className={cn('grid gap-[0.9em]', c.options.length > 3 ? 'grid-cols-2' : 'grid-cols-1')}>
           {c.options.map((o, i) => {
-            const tile: TileState = correct ? (o.id === correct ? 'correct' : 'dim') : 'idle';
+            const tile: TileState = correct.length ? (correct.includes(o.id) ? 'correct' : 'dim') : 'idle';
             return <OptionTile key={o.id} index={i} text={o.text} count={counts ? (counts[o.id] ?? 0) : undefined} total={total} state={tile} delay={i * 0.06} />;
           })}
         </div>
         <AnimatePresence>
-          {correct && c.explanation && (
+          {correct.length > 0 && c.explanation && (
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-[60em] rounded-[0.9em] bg-ok-soft px-[1em] py-[0.7em] text-[1.7em] font-semibold text-[#0b4a30]">
               {c.explanation}
             </motion.p>

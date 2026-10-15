@@ -98,13 +98,13 @@ test('library: export a presentation as JSON and import it again unchanged', asy
   const path = await (await download).path();
   const exported = JSON.parse(await readFile(path, 'utf8'));
   expect(exported).toMatchObject({ format: 'classinteract.presentation', schemaVersion: 1, title: 'Workshop activity kit' });
-  expect(exported.slides).toHaveLength(6);
+  expect(exported.slides).toHaveLength(7);
 
   await page.getByTestId('import-open').click();
   await page.getByTestId('import-file').setInputFiles(path);
   await page.getByTestId('import-submit').click();
   await expect(page).toHaveURL(/\/studio\/.+/);
-  await expect(page.getByTestId('slide-row')).toHaveCount(6);
+  await expect(page.getByTestId('slide-row')).toHaveCount(7);
   // the re-imported deck exports to identical JSON
   const secondDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export JSON' }).click();

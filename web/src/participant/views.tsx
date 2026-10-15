@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Frown, PartyPopper, Trophy } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import type { ContentConfig, OpenConfig, PollConfig, QuizConfig, RatingConfig, SurveyConfig, WordcloudConfig } from '@classinteract/shared';
-import { openMaxLength } from '@classinteract/shared';
+import { gradeQuiz, openMaxLength, quizCorrectIds, quizKind } from '@classinteract/shared';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { BreathingGlow } from '@/components/Ambient';
 import { Input, Textarea } from '@/components/ui/input';
@@ -23,7 +24,7 @@ function SharedResults({ mine }: { mine?: { optionIds?: string[]; value?: number
       <h3 className="mb-3 text-[0.8125rem] font-bold text-ink-3">Results so far</h3>
       <ScaleBox pct={3.4}>
         <div className="h-auto">
-          <ResultsView type={activity.type} config={activity.config} results={snap.results} mine={mine} correctId={snap.state.correctVisible ? (activity.config as QuizConfig).correctOptionId : null} />
+          <ResultsView type={activity.type} config={activity.config} results={snap.results} mine={mine} correctIds={snap.state.correctVisible && activity.type === 'quiz' ? quizCorrectIds(activity.config as QuizConfig) : null} />
         </div>
       </ScaleBox>
     </motion.section>
@@ -108,18 +109,22 @@ export function ContentView() {
 // Quiz
 // ------------------------------------------------------------------------------------
 
-function QuizFeedback({ correct, score }: { correct: boolean | null; score: number | null }) {
+function QuizFeedback({ correct, score, fraction }: { correct: boolean | null; score: number | null; fraction: number }) {
   const { snap, activity } = useP();
   const c = activity.config as QuizConfig;
   const scored = c.scored;
   const standing = snap.me.standing;
+  const partly = correct === false && fraction > 0;
+  const tone = correct ? 'bg-ok-soft text-[#0b4a30]' : partly ? 'bg-warn-soft text-[#6b4300]' : correct === false ? 'bg-bad-soft text-[#7a1428]' : 'bg-surface ring-1 ring-line';
+  const badge = correct ? 'bg-ok' : partly ? 'bg-warn' : correct === false ? 'bg-bad' : 'bg-ink-3';
   return (
-    <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 22 }} className={cn('grid justify-items-center gap-2 rounded-3xl px-5 py-6 text-center', correct ? 'bg-ok-soft text-[#0b4a30]' : correct === false ? 'bg-bad-soft text-[#7a1428]' : 'bg-surface ring-1 ring-line')} data-testid="quiz-feedback" role="status">
-      <motion.span initial={{ scale: 0, rotate: -35 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 480, damping: 15, delay: 0.1 }} className={cn('grid size-14 place-items-center rounded-full text-white', correct ? 'bg-ok' : correct === false ? 'bg-bad' : 'bg-ink-3')}>
-        {correct ? <Check className="size-8" strokeWidth={3} aria-hidden /> : <Frown className="size-8" aria-hidden />}
+    <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 22 }} className={cn('grid justify-items-center gap-2 rounded-3xl px-5 py-6 text-center', tone)} data-testid="quiz-feedback" role="status">
+      <motion.span initial={{ scale: 0, rotate: -35 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 480, damping: 15, delay: 0.1 }} className={cn('grid size-14 place-items-center rounded-full text-white', badge)}>
+        {correct ? <Check className="size-8" strokeWidth={3} aria-hidden /> : partly ? <TriangleAlert className="size-7" aria-hidden /> : <Frown className="size-8" aria-hidden />}
       </motion.span>
-      <h3 className="display text-[1.6rem]">{correct ? 'Correct!' : correct === false ? 'Not this time' : 'No answer recorded'}</h3>
-      {scored && correct && score !== null && (
+      <h3 className="display text-[1.6rem]">{correct ? 'Correct!' : partly ? 'Partly right' : correct === false ? 'Not this time' : 'No answer recorded'}</h3>
+      {partly && <p className="text-sm font-semibold opacity-80">You got {Math.round(fraction * 100)}% of it.</p>}
+      {scored && score !== null && score > 0 && (
         <p className="tabular text-lg font-bold">+<AnimatedNumber value={score} format={(n) => n.toLocaleString()} /> points</p>
       )}
       {scored && snap.me.totalScore > 0 && <p className="text-sm font-semibold opacity-80">Total {snap.me.totalScore.toLocaleString()}{standing ? ` · rank ${standing.rank}` : ''}</p>}
@@ -133,36 +138,49 @@ export function QuizView() {
   const c = activity.config as QuizConfig;
   const { phase, correctVisible } = snap.state;
   const submit = useSubmit();
-  const [picked, setPicked] = useState<string | null>(null);
+  const multiple = quizKind(c) === 'multiple';
+  const [picked, setPicked] = useState<string[]>([]);
   const answer = mine[0];
-  const chosen: string | null = answer?.payload?.optionId ?? picked;
+  const answered: string[] = answer ? (Array.isArray(answer.payload?.optionIds) ? answer.payload.optionIds : [answer.payload?.optionId]) : [];
+  const chosen = answer ? answered : picked;
   const canAnswer = phase === 'open' && !answer && !submit.pending;
-  const correctId = correctVisible && c.correctOptionId ? c.correctOptionId : null;
+  const correctIds = correctVisible ? quizCorrectIds(c) : [];
 
   const tile = (id: string): TileState => {
-    if (correctId) return id === correctId ? 'correct' : id === chosen ? 'wrong' : 'dim';
-    if (chosen) return id === chosen ? 'selected' : 'dim';
-    return 'idle';
+    if (correctIds.length) return correctIds.includes(id) ? 'correct' : chosen.includes(id) ? 'wrong' : 'dim';
+    if (chosen.includes(id)) return 'selected';
+    return chosen.length && !multiple ? 'dim' : 'idle';
   };
   const pick = (id: string) => {
     if (!canAnswer) return;
-    setPicked(id);
-    void submit.run({ optionId: id }).then((ok) => { if (!ok) setPicked(null); });
+    if (multiple) {
+      // several answers: tapping only ticks; nothing is sent until "Lock in"
+      submit.clearError();
+      setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+      return;
+    }
+    setPicked([id]);
+    void submit.run({ optionId: id }).then((ok) => { if (!ok) setPicked([]); });
   };
+  const lockIn = () => void submit.run({ optionIds: picked });
 
   return (
-    <ActivityShell title={c.question}>
-      <div className="grid gap-3">
+    <ActivityShell
+      title={c.question}
+      footer={multiple && canAnswer ? <BigButton disabled={picked.length === 0 || submit.pending} loading={submit.pending} onClick={lockIn} data-testid="quiz-submit">{picked.length ? `Lock in ${picked.length} ${picked.length === 1 ? 'answer' : 'answers'}` : 'Lock in answer'}</BigButton> : undefined}
+    >
+      {multiple && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-multi-hint">Select all that apply</p>}
+      <div className="grid gap-3" role={multiple ? 'group' : undefined} aria-label={multiple ? 'Answers, select all that apply' : undefined}>
         {c.options.map((o, i) => (
-          <OptionTile key={o.id} size="phone" index={i} text={o.text} state={tile(o.id)} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
+          <OptionTile key={o.id} size="phone" index={i} text={o.text} state={tile(o.id)} checkbox={multiple} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
         ))}
       </div>
       <ErrorLine message={submit.error} />
       {phase === 'ready' && <p className="text-center font-semibold text-ink-3">Get ready. Answers open soon.</p>}
       {phase === 'open' && answer && <Received title="Answer locked in" hint="Waiting for everyone else…" />}
       {phase === 'closed' && (answer ? <p className="text-center font-semibold text-ink-2" data-testid="waiting-reveal">Answers are closed. Waiting for the reveal…</p> : <p className="text-center font-semibold text-ink-2">Time’s up. No answer recorded.</p>)}
-      {correctVisible && <QuizFeedback correct={answer ? answer.correct : null} score={answer?.score ?? null} />}
-      <SharedResults mine={{ optionIds: chosen ? [chosen] : [] }} />
+      {correctVisible && <QuizFeedback correct={answer ? answer.correct : null} score={answer?.score ?? null} fraction={answer ? gradeQuiz(c, answer.payload) : 0} />}
+      <SharedResults mine={{ optionIds: chosen }} />
     </ActivityShell>
   );
 }

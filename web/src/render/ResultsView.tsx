@@ -7,12 +7,12 @@ import { WordCloud } from './viz/WordCloud';
 import { Users } from 'lucide-react';
 
 /** Renders aggregated results for any activity type. Sized in `em`; wrap in <ScaleBox>. */
-export function ResultsView({ type, config, results, mine, correctId, fill }: { type: SlideType; config: AnyConfig; results: Results; mine?: { optionIds?: string[]; value?: number; terms?: string[] }; correctId?: string | null; fill?: boolean }) {
+export function ResultsView({ type, config, results, mine, correctIds, fill }: { type: SlideType; config: AnyConfig; results: Results; mine?: { optionIds?: string[]; value?: number; terms?: string[] }; correctIds?: string[] | null; fill?: boolean }) {
   if (results.type === 'content') return null;
   switch (results.type) {
     case 'quiz': {
       const c = config as QuizConfig;
-      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: o.text + (correctId === o.id ? '  ✓' : ''), count: results.counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
+      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: o.text + (correctIds?.includes(o.id) ? '  ✓' : ''), count: results.counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
     }
     case 'poll': {
       const c = config as PollConfig;
