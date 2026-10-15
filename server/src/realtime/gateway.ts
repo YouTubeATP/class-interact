@@ -14,7 +14,7 @@ interface Conn {
 
 const DEBOUNCE_MS = 120;
 
-function toAck(e: unknown): Ack {
+function toAck(e: unknown): { ok: false; code: string; message: string } {
   if (e instanceof AppError) return { ok: false, code: e.code, message: e.message };
   console.error('[gateway] unexpected error', e);
   return { ok: false, code: 'INTERNAL', message: 'Something went wrong. Try again.' };
@@ -147,6 +147,19 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       try {
         const r = await service.submit(sessionId, conn.participantId, parsed.data.activityId, parsed.data.payload);
         reply({ ok: true, ...r });
+      } catch (e) {
+        reply(toAck(e));
+      }
+    });
+
+    socket.on('rename', async (req: unknown, ack?: (a: Ack<{ name: string }>) => void) => {
+      const reply = typeof ack === 'function' ? ack : () => undefined;
+      if (conn.role !== 'participant' || !conn.participantId) return reply({ ok: false, code: 'FORBIDDEN', message: 'Only participants can do that.' });
+      if (opts.rateLimit && !submitBuckets.take(conn.participantId)) return reply({ ok: false, code: 'RATE_LIMITED', message: 'Slow down a little and try again.' });
+      const name = (req as { name?: unknown } | null)?.name;
+      if (typeof name !== 'string' || name.length > 80) return reply({ ok: false, code: 'INVALID', message: 'Enter a name.' });
+      try {
+        reply({ ok: true, name: await service.rename(sessionId, conn.participantId, name) });
       } catch (e) {
         reply(toAck(e));
       }

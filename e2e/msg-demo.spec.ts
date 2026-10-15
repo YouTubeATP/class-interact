@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { joinAsParticipant, openProjector, readPin } from './helpers';
+import { confirmStart, joinAsParticipant, openProjector, readPin } from './helpers';
 
 test.describe('MSG: The Secret Ingredient? (seeded through the JSON import pipeline)', () => {
   test('is in the library, previewable, and runs as a live session with observers welcome', async ({ browser, page: presenter }) => {
@@ -18,7 +18,7 @@ test.describe('MSG: The Secret Ingredient? (seeded through the JSON import pipel
     // Start it from the library
     await presenter.goto('/studio');
     await presenter.getByTestId('deck-card').filter({ hasText: 'MSG: The Secret Ingredient?' }).getByTestId('start-session').click();
-    await presenter.getByTestId('start-session-confirm').click();
+    await confirmStart(presenter, { names: true });
     await expect(presenter).toHaveURL(/\/session\/.+/);
     const pin = await readPin(presenter);
     const projector = await openProjector(browser, presenter);

@@ -60,7 +60,7 @@ export function PreviewPane({ doc, index, onIndexChange, large = false }: { doc:
       ) : (
         <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-[2.2rem] border-[7px] border-ink bg-paper shadow-lg" style={{ height: large ? '40rem' : '34rem' }} data-testid="preview-phone">
           <div className="h-full overflow-y-auto no-scrollbar">
-            <ParticipantApp key={phoneKey} snap={snap} status="connected" submit={previewSubmit} now={Date.now} />
+            <ParticipantApp key={phoneKey} snap={snap} status="connected" submit={previewSubmit} rename={async (name) => ({ ok: true, name })} now={Date.now} />
           </div>
         </div>
       )}

@@ -186,6 +186,30 @@ describe('waiting room', () => {
   });
 });
 
+describe('renaming', () => {
+  it('lets a participant change their own name, with the same rules as joining', async () => {
+    const s = await ctx.startSession(doc([cloud()]), { collectNames: false });
+    const p = await presenterClient(ctx, s);
+    const a = await participant(ctx, s); // joined instantly with a generated name
+    const b = await participant(ctx, s);
+    const generated = (a.client.last as ParticipantSnapshot).me.name;
+    expect(generated).toMatch(/^\w+ \w+/);
+
+    expect(await a.client.emit('rename', { name: 'Ada' })).toMatchObject({ ok: true, name: 'Ada' });
+    expect(((await a.client.until((x) => (x as ParticipantSnapshot).me.name === 'Ada')) as ParticipantSnapshot).me.name).toBe('Ada');
+    expect((await p.until((x) => (x as PresenterSnapshot).participants.some((q) => q.name === 'Ada'))).state.phase).toBe('lobby');
+
+    expect(await b.client.emit('rename', { name: ' ada ' })).toMatchObject({ ok: false, code: 'NAME_TAKEN' });
+    expect(await b.client.emit('rename', { name: '' })).toMatchObject({ ok: false, code: 'INVALID' });
+    expect(await b.client.emit('rename', { name: 'x'.repeat(40) })).toMatchObject({ ok: false, code: 'INVALID' });
+    expect(await b.client.emit('rename', { name: 'sh' + 'it' + 'head' })).toMatchObject({ ok: false, code: 'MODERATED' });
+    expect(await p.emit('rename', { name: 'Boss' })).toMatchObject({ ok: false, code: 'FORBIDDEN' }); // presenters are not participants
+    // the old generated name is free again
+    expect(await b.client.emit('rename', { name: generated })).toMatchObject({ ok: true });
+    [p, a.client, b.client].forEach((c) => c.disconnect());
+  });
+});
+
 describe('reconnection', () => {
   it('a refreshed participant keeps their identity, answer and current view', async () => {
     const s = await ctx.startSession(doc([quiz()]));

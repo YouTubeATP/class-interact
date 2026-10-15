@@ -25,7 +25,7 @@ A presentation made for one mode runs in the other without conversion, and you c
 | --- | --- | --- |
 | Presenter Studio (`/studio`) | the presenter | Library, editor with drag-and-drop ordering, live preview, JSON import/export, session dashboard, results and CSV export |
 | Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see |
-| Participant (`/join`) | phones | Mobile-first; scan the QR code in the page (or with the camera app) or type the PIN, pick a name, no account |
+| Participant (`/join`) | phones | Mobile-first. Scanning the QR code with the camera app opens the session immediately (no account, no typing); the page also has a Scan button and a PIN field. Names are off by default (everyone gets a friendly name they can change); turn them on per session when you need real names |
 
 **Activities.** Multiple-choice quiz (timer, points, speed bonus, leaderboard), poll (single/multiple,
 anonymous), word cloud (normalised and grouped, moderation), open-ended (short or paragraph, optional
@@ -48,9 +48,10 @@ npm run dev                 # API on :3001, web on http://localhost:5173
 
 Open <http://localhost:5173/studio>, pick **MSG: The Secret Ingredient?** and choose **Start session**.
 
-**Phones on your Wi-Fi:** the QR code must point at an address phones can reach. When the Studio runs on
-`localhost`, the join link automatically uses your machine's LAN address. Behind a domain or tunnel, set
-`PUBLIC_URL` (see below).
+**Phones on your Wi-Fi:** the QR code encodes a plain link (`https://your-host/join/123456`), so the phone's
+own camera app opens it and lands straight in the session. It must point at an address phones can reach. In
+development, when the Studio runs on `localhost`, the link automatically uses your machine's LAN address. In
+Docker or behind a domain or tunnel, set `PUBLIC_URL` (see below); container-internal addresses are never offered.
 
 ### Commands
 
@@ -179,9 +180,9 @@ e2e/      Playwright scenarios against the built app
 ## Testing
 
 ```bash
-npm test          # shared (50), server integration with real Socket.IO clients and SQLite (30), web (5)
+npm test          # shared (50), server integration with real Socket.IO clients and SQLite (32), web (5)
 npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
-                  # and the in-page QR scanner (a real QR image played through a fake camera)
+                  # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link
 ```
 
 The main end-to-end scenario authors a quiz and word cloud in the editor, starts a session, joins a projector

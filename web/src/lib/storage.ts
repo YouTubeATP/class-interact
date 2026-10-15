@@ -44,3 +44,8 @@ export function credentialForPin(pin: string): ParticipantCredential | null {
   const sessionId = store.get<string>(pinKey(pin));
   return sessionId ? loadCredential(sessionId) : null;
 }
+
+const LAST_NAME_KEY = 'ci:lastName';
+/** The display name used last on this device, offered again next time so joining is one tap. */
+export const lastName = () => store.get<string>(LAST_NAME_KEY) ?? '';
+export const rememberName = (name: string) => store.set(LAST_NAME_KEY, name);

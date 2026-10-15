@@ -24,7 +24,7 @@ export function QRCode({ value, className, label = 'QR code to join the session'
   if (!value) return <div className={className} aria-hidden />;
   const quiet = 2;
   return (
-    <svg viewBox={`${-quiet} ${-quiet} ${size + quiet * 2} ${size + quiet * 2}`} className={className} role="img" aria-label={label} shapeRendering="crispEdges">
+    <svg viewBox={`${-quiet} ${-quiet} ${size + quiet * 2} ${size + quiet * 2}`} className={className} role="img" aria-label={label} data-value={value} shapeRendering="crispEdges">
       <rect x={-quiet} y={-quiet} width={size + quiet * 2} height={size + quiet * 2} fill="#fff" />
       <path d={d} fill="#161b33" />
     </svg>

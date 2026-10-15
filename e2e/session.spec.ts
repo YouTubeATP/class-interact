@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { joinAsParticipant, openProjector, readPin, waitSaved } from './helpers';
+import { confirmStart, joinAsParticipant, openProjector, readPin, waitSaved } from './helpers';
 
 /**
  * The core workflow, end to end, with real browsers and no mocks:
@@ -27,8 +27,7 @@ test('author → live session → quiz → word cloud → refresh → end → re
 
   // 2. Start a session; a projector and two phones join with the single PIN -------------
   await presenter.getByTestId('editor-start').click();
-  await presenter.getByTestId('mode-standalone').click();
-  await presenter.getByTestId('start-session-confirm').click();
+  await confirmStart(presenter, { mode: 'standalone', names: true });
   await expect(presenter).toHaveURL(/\/session\/.+/);
   const pin = await readPin(presenter);
 

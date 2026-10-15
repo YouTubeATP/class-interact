@@ -3,10 +3,10 @@ import { Route, Routes } from 'react-router-dom';
 import { Spinner } from '@/components/Status';
 import JoinPage from '@/pages/Join';
 import PlayPage from '@/pages/Play';
-import ProjectPage from '@/pages/Project';
 
 // The studio is only for presenters; keep it out of the bundle phones download.
 const StudioRoutes = lazy(() => import('@/studio/StudioRoutes'));
+const ProjectPage = lazy(() => import('@/pages/Project'));
 
 export default function App() {
   return (

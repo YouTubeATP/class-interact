@@ -4,14 +4,14 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Notice, Spinner } from '@/components/Status';
 import { useSession } from '@/lib/session-client';
-import { loadCredential, participantKey, store } from '@/lib/storage';
+import { loadCredential, participantKey, rememberName, store } from '@/lib/storage';
 import type { ParticipantSnapshot } from '@classinteract/shared';
 import { ParticipantApp } from '@/participant/ParticipantApp';
 
 export default function PlayPage() {
   const { sessionId = '' } = useParams();
   const cred = loadCredential(sessionId);
-  const { snapshot, status, submit, now } = useSession<ParticipantSnapshot>(cred ? { role: 'participant', sessionId, token: cred.token } : null);
+  const { snapshot, status, submit, rename, now } = useSession<ParticipantSnapshot>(cred ? { role: 'participant', sessionId, token: cred.token } : null);
 
   useEffect(() => {
     if (status === 'denied' || status === 'removed') store.remove(participantKey(sessionId));
@@ -31,5 +31,13 @@ export default function PlayPage() {
   if (!snapshot) {
     return <div className="grid min-h-dvh place-items-center" data-palette="azure"><div className="grid justify-items-center gap-3 text-ink-2"><Spinner className="size-7" /><p className="font-semibold">{status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'}</p></div></div>;
   }
-  return <ParticipantApp snap={snapshot} status={status} submit={submit} now={now} />;
+  const changeName = async (name: string) => {
+    const ack = await rename(name);
+    if (ack.ok) {
+      rememberName(ack.name);
+      if (cred) store.set(participantKey(sessionId), { ...cred, name: ack.name });
+    }
+    return ack;
+  };
+  return <ParticipantApp snap={snapshot} status={status} submit={submit} rename={changeName} now={now} />;
 }

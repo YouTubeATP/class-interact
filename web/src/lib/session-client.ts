@@ -75,10 +75,11 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
     });
   }, []);
 
+  const rename = useCallback((name: string) => request<{ name: string }>('rename', { name }), [request]);
   const command = useCallback((cmd: PresenterCommand) => request('presenter', cmd), [request]);
   const submit = useCallback((activityId: string, payload: unknown) => request('submit', { activityId, payload }), [request]);
   /** Server time "now", corrected for this device's clock. */
   const now = useCallback(() => Date.now() + offset.current, []);
 
-  return useMemo(() => ({ snapshot, status, command, submit, now }), [snapshot, status, command, submit, now]);
+  return useMemo(() => ({ snapshot, status, command, submit, rename, now }), [snapshot, status, command, submit, rename, now]);
 }

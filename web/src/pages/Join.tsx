@@ -1,16 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Loader2, ScanLine } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AmbientBackdrop, BreathingGlow } from '@/components/Ambient';
 import { Logo } from '@/components/Logo';
-import { QrScanner } from '@/components/QrScanner';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ApiError, api } from '@/lib/api';
-import { credentialForPin, saveCredential } from '@/lib/storage';
+import { credentialForPin, lastName, rememberName, saveCredential } from '@/lib/storage';
 import { prettyPin } from '@/lib/joinUrl';
+
+// The scanner (and its decoder) is only downloaded when someone taps Scan, keeping the page people land on after
+// scanning the projector's QR code as light as possible.
+const QrScanner = lazy(() => import('@/components/QrScanner').then((m) => ({ default: m.QrScanner })));
 
 type Step = { kind: 'pin' } | { kind: 'name'; pin: string; title: string } | { kind: 'working' };
 
@@ -19,7 +22,7 @@ export default function JoinPage() {
   const params = useParams();
   const navigate = useNavigate();
   const [pin, setPin] = useState((params.pin ?? '').replace(/\D/g, '').slice(0, 6));
-  const [name, setName] = useState('');
+  const [name, setName] = useState(lastName);
   const [step, setStep] = useState<Step>(params.pin ? { kind: 'working' } : { kind: 'pin' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,6 +34,7 @@ export default function JoinPage() {
     try {
       const res = await api.join({ pin: p, name: nm, token: stored?.token });
       saveCredential(p, { sessionId: res.sessionId, participantId: res.participantId, token: res.token, name: res.name });
+      rememberName(res.name);
       navigate(`/play/${res.sessionId}`, { replace: true });
     } catch (e) {
       throw e;
@@ -154,7 +158,7 @@ export default function JoinPage() {
               <p className="text-[1.0625rem] text-ink-2">Pick a display name. No account needed.</p>
             </div>
             <Field error={error}>
-              <Input autoFocus value={name} onChange={(e) => { setName(e.target.value); setError(null); }} maxLength={24} autoComplete="nickname" aria-label="Your name" placeholder="Your name" aria-invalid={!!error} data-testid="name-input" className="h-16 rounded-2xl text-center text-[1.5rem] font-bold" />
+              <Input autoFocus onFocus={(e) => e.currentTarget.select()} value={name} onChange={(e) => { setName(e.target.value); setError(null); }} maxLength={24} autoComplete="nickname" aria-label="Your name" placeholder="Your name" aria-invalid={!!error} data-testid="name-input" className="h-16 rounded-2xl text-center text-[1.5rem] font-bold" />
             </Field>
             <Button type="submit" variant="primary" size="xl" disabled={busy || !name.trim()} data-testid="name-submit">
               {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null} Join session
@@ -163,7 +167,7 @@ export default function JoinPage() {
           </motion.form>
         )}
       </AnimatePresence>
-      <QrScanner open={scanning} onClose={() => setScanning(false)} onCode={onScanned} />
+      {scanning && <Suspense fallback={null}><QrScanner open onClose={() => setScanning(false)} onCode={onScanned} /></Suspense>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { joinAsParticipant, openProjector, readPin } from './helpers';
+import { confirmStart, joinAsParticipant, openProjector, readPin } from './helpers';
 
 const DECK = {
   schemaVersion: 1,
@@ -41,8 +41,7 @@ test('import JSON → Companion session: launch any activity, standby between, r
 
   // Start in Companion mode -----------------------------------------------------------------------------
   await presenter.getByTestId('editor-start').click();
-  await presenter.getByTestId('mode-companion').click();
-  await presenter.getByTestId('start-session-confirm').click();
+  await confirmStart(presenter, { mode: 'companion', names: true });
   await expect(presenter).toHaveURL(/\/session\/.+/);
   await expect(presenter.getByTestId('activity-launcher')).toBeVisible();
   await expect(presenter.getByTestId('ctl-next')).toHaveCount(0); // no rigid sequence in Companion

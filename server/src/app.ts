@@ -75,7 +75,9 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
   api.get('/health', (_req, res) => res.json({ ok: true, version: VERSION }));
 
   api.get('/config', (_req, res) => {
-    const body: ClientConfig = { publicUrl: config.publicUrl, lanUrls: lanUrls(config.port), authRequired: auth.studioProtected, version: VERSION };
+    // Inside a container the interface addresses are internal (172.x) and useless to phones, so only
+    // offer LAN addresses when running directly on a developer machine.
+    const body: ClientConfig = { publicUrl: config.publicUrl, lanUrls: config.production ? [] : lanUrls(config.port), authRequired: auth.studioProtected, version: VERSION };
     res.json(body);
   });
 

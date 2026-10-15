@@ -244,6 +244,31 @@ export class SessionService {
     });
   }
 
+  /** A participant changes their own display name (same rules as joining). Returns the accepted name. */
+  async rename(sessionId: string, participantId: string, rawName: string): Promise<string> {
+    const rt = await this.runtime(sessionId);
+    return this.withLock(rt, async () => {
+      if (rt.status !== 'live') throw new AppError(410, 'SESSION_ENDED', 'This session has ended.');
+      const p = rt.participants.get(participantId);
+      if (!p || p.removed) throw new AppError(403, 'REMOVED', 'You are no longer part of this session.');
+      const name = cleanText(rawName);
+      if (!name) throw new AppError(400, 'INVALID', 'Enter a name.');
+      if (name.length > MAX_NAME) throw new AppError(400, 'INVALID', `Keep your name under ${MAX_NAME} characters.`);
+      if (this.filter.isBlocked(name)) throw new AppError(422, 'MODERATED', 'Please choose a different name.');
+      if (name === p.name) return name;
+      try {
+        await this.prisma.participant.update({ where: { id: participantId }, data: { name, nameKey: nameKey(name) } });
+      } catch (e) {
+        if (isUnique(e)) throw new AppError(409, 'NAME_TAKEN', 'That name is already taken. Try another.');
+        throw e;
+      }
+      p.name = name;
+      rt.standings = null;
+      this.emit(rt.id, 'control'); // everyone (presenter roster, leaderboards, this phone) sees the new name
+      return name;
+    });
+  }
+
   async authParticipant(sessionId: string, token: string): Promise<{ participantId: string } | null> {
     const rt = await this.runtime(sessionId).catch(() => null);
     if (!rt) return null;

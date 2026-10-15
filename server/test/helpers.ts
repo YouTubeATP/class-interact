@@ -129,7 +129,7 @@ export async function joinSession(ctx: TestContext, pin: string, name?: string, 
   return { ...r.body, status: r.status, code: r.body?.error?.code };
 }
 
-export async function participant(ctx: TestContext, s: Session, name: string) {
+export async function participant(ctx: TestContext, s: Session, name?: string) {
   const j = await joinSession(ctx, s.pin, name);
   if (j.status !== 200) throw new Error(`join failed: ${JSON.stringify(j)}`);
   const client = await new Client(ctx.url, { role: 'participant', sessionId: s.id, token: j.token }).connect();

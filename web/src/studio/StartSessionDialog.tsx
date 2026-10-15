@@ -13,7 +13,7 @@ const MODES: { id: SessionMode; icon: typeof MonitorPlay; title: string; body: s
 
 export function StartSessionDialog({ open, onOpenChange, title, onStart }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; onStart: (o: { mode: SessionMode; collectNames: boolean }) => Promise<void> }) {
   const [mode, setMode] = useState<SessionMode>('standalone');
-  const [collectNames, setCollectNames] = useState(true);
+  const [collectNames, setCollectNames] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
     <DialogContent open={open} onOpenChange={onOpenChange} title="Start a live session" description={`“${title}” — participants join with one code and stay connected the whole time.`}>
@@ -28,7 +28,7 @@ export function StartSessionDialog({ open, onOpenChange, title, onStart }: { ope
             </button>
           ))}
         </div>
-        <SwitchRow label="Ask participants for a name" hint="Turn off to give everyone a friendly random name." checked={collectNames} onChange={setCollectNames} />
+        <SwitchRow label="Ask participants for a name" hint={collectNames ? 'They type a name before entering. Best when you need to know who is who, e.g. leaderboards.' : 'Scanning the code takes them straight in with a friendly name they can change any time.'} checked={collectNames} onChange={setCollectNames} />
         <p className="text-[0.8125rem] text-ink-3">You can switch between Standalone and Companion at any time during the session.</p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

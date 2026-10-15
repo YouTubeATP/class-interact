@@ -37,3 +37,12 @@ export async function openProjector(browser: Browser, dashboard: Page): Promise<
 export async function waitSaved(page: Page) {
   await expect(page.getByTestId('save-state')).toHaveAttribute('data-state', 'saved');
 }
+
+/** Confirms the "Start a live session" dialog. Names are off by default, so flows that type a name switch them on. */
+export async function confirmStart(page: Page, opts: { mode?: 'standalone' | 'companion'; names?: boolean } = {}) {
+  const { mode = 'standalone', names = true } = opts;
+  await page.getByTestId(`mode-${mode}`).click();
+  const toggle = page.getByRole('switch', { name: /Ask participants for a name/ });
+  if ((await toggle.getAttribute('aria-checked')) !== String(names)) await toggle.click();
+  await page.getByTestId('start-session-confirm').click();
+}
