@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import {
-  CONTENT_LAYOUTS, nextId, openMaxLength,
+  CONTENT_LAYOUTS, nextId, openMaxLength, resolveContentLayout,
   type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type Slide, type SurveyConfig, type SurveyQuestion, type WordcloudConfig,
 } from '@classinteract/shared';
 import { Button } from '@/components/ui/button';
@@ -48,10 +48,12 @@ function Behaviour({ slide, patch, issues, live = true, share = true }: { slide:
 
 function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'content' }>>) {
   const c = slide as ContentConfig & { id: string };
+  // title slides are just a big heading (and optional subtitle), so there is nowhere to show a callout
+  const isTitle = resolveContentLayout(c) === 'title';
   return (
     <div className="grid gap-6">
       <Section title="Content" hint="Pick a layout, or leave it on Automatic and the best one is chosen from what you add.">
-        <SelectField label="Layout" value={(c.layout ?? 'auto') as string} onChange={(v) => patch({ layout: v === 'auto' ? undefined : (v as ContentConfig['layout']) })} options={[{ value: 'auto', label: 'Automatic' }, ...CONTENT_LAYOUTS.map((l) => ({ value: l, label: LAYOUT_LABELS[l] }))]} />
+        <SelectField label="Layout" value={(c.layout ?? 'auto') as string} onChange={(v) => patch({ layout: v === 'auto' ? undefined : (v as ContentConfig['layout']), ...(v === 'title' ? { callout: undefined } : {}) })} options={[{ value: 'auto', label: 'Automatic' }, ...CONTENT_LAYOUTS.map((l) => ({ value: l, label: LAYOUT_LABELS[l] }))]} />
         {errorAt(issues, 'image') && c.layout && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'image')}</p>}
         <TextField label="Title" value={c.title} onChange={(title) => patch({ title })} issues={issues} path="title" maxLength={160} testId="content-title" />
         <TextField label="Body" value={c.body} onChange={(body) => patch({ body })} issues={issues} path="body" multiline rows={5} hint="Blank line for a new paragraph. Start lines with “- ” for bullets. **bold** works too." testId="content-body" />
@@ -59,9 +61,15 @@ function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 
       <Section title="Steps" hint="Numbered cards — good for instructions and procedures.">
         <StepsEditor steps={c.steps} onChange={(steps) => patch({ steps })} issues={issues} />
       </Section>
-      <Section title="Callout">
-        <SwitchRow label="Highlight an important note" checked={!!c.callout} onChange={(on) => patch({ callout: on ? { tone: 'info', text: 'Important:' } : undefined })} />
-        {c.callout && (
+      <Section title="Callout" hint={isTitle ? 'Title slides do not show callouts. Choose another layout to add one.' : undefined}>
+        <SwitchRow label="Highlight an important note" checked={!!c.callout && !isTitle} disabled={isTitle} onChange={(on) => patch({ callout: on ? { tone: 'info', text: 'Important:' } : undefined })} />
+        {isTitle && c.callout && (
+          <p className="flex flex-wrap items-center gap-2 text-[0.8125rem] text-warn" role="status">
+            This slide has a callout that is not shown on a title slide.
+            <button type="button" className="font-semibold underline" onClick={() => patch({ callout: undefined })} data-testid="remove-hidden-callout">Remove it</button>
+          </p>
+        )}
+        {c.callout && !isTitle && (
           <div className="grid gap-3 sm:grid-cols-[9rem_1fr]">
             <SelectField label="Style" value={c.callout.tone} onChange={(tone) => patch({ callout: { ...c.callout!, tone } })} options={[{ value: 'info', label: 'Info' }, { value: 'warning', label: 'Warning' }, { value: 'success', label: 'Success' }]} />
             <TextField label="Text" value={c.callout.text} onChange={(text) => patch({ callout: { ...c.callout!, text } })} issues={issues} path="callout.text" maxLength={400} />

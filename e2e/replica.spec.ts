@@ -84,7 +84,16 @@ test('the dashboard replica matches the projector, and long slides never overflo
   await phone.page.goto(`/join/${pin}`);
   await expect(phone.page.getByTestId('waiting-lobby')).toBeVisible();
 
-  const settle = () => projector.waitForTimeout(1800);
+  // wait for animations to finish: both screens must report the same layout twice in a row
+  const settle = async () => {
+    let last = '';
+    for (let i = 0; i < 40; i++) {
+      await projector.waitForTimeout(300);
+      const now = JSON.stringify([await geometry(projector, '[data-testid="projector"]'), await geometry(dash, '[data-testid="dashboard-stage"]')]);
+      if (now === last) return;
+      last = now;
+    }
+  };
   const compare = async (label: string) => {
     await settle();
     const p = await geometry(projector, '[data-testid="projector"]');

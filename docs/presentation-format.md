@@ -62,7 +62,7 @@ Interactive slides also share these (with defaults):
 ### `content`: title, text, steps, image
 
 `title`, `body` (blank line = paragraph, `- ` = bullet, `**bold**`), `steps` (numbered cards),
-`callout` (`{ "tone": "info|warning|success", "text" }`), `image`.
+`callout` (`{ "tone": "info|warning|success", "text" }`; not shown on title slides, so the editor disables it there), `image`.
 
 `layout` is optional. Without it a template is chosen from what you provide:
 
