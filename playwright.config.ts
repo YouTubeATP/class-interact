@@ -30,15 +30,19 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: dev
-    ? {
-        // predev migrates and seeds this throwaway database, then Vite (E2E_PORT, default 5173) proxies to the API (E2E_API_PORT, default 3001)
-        command: 'npm run dev',
-        url: `http://localhost:${port}/api/health`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        stdout: 'pipe',
-        env: { DATABASE_URL: `file:${join(devData, 'dev.db')}`, DATA_DIR: devData, RATE_LIMIT: 'false', WEB_PORT: port, PORT: apiPort },
-      }
+    ? [
+        // the AI assistant's stand-in model (the production-build server script starts its own)
+        { command: 'node scripts/fake-llm.mjs 4010', port: 4010, reuseExistingServer: !process.env.CI, timeout: 30_000 },
+        {
+          // predev migrates and seeds this throwaway database, then Vite (E2E_PORT, default 5173) proxies to the API (E2E_API_PORT, default 3001)
+          command: 'npm run dev',
+          url: `http://localhost:${port}/api/health`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          stdout: 'pipe',
+          env: { DATABASE_URL: `file:${join(devData, 'dev.db')}`, DATA_DIR: devData, RATE_LIMIT: 'false', WEB_PORT: port, PORT: apiPort, AIMLAPI_KEY: 'e2e-not-a-real-key', AI_BASE_URL: 'http://127.0.0.1:4010/v1', AI_MODEL: 'fake-model' },
+        },
+      ]
     : {
         command: 'node scripts/e2e-server.mjs',
         url: `http://localhost:${port}/api/health`,

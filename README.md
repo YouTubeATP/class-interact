@@ -150,6 +150,41 @@ and `/socket.io` open for participants and projectors.
 | `SESSION_IDLE_HOURS` | `24` | Live sessions with no activity are ended |
 | `AUTO_SEED` | `false` (`true` in Docker) | Import demos when the library is empty |
 | `EXTRA_BLOCKED_WORDS` | none | Extra words to reject in names and answers |
+| `AIMLAPI_KEY` | unset | Turns on the AI assistant in the editor. Server-side only |
+| `AI_MODEL` | `deepseek/deepseek-v4.1-flash` | Model the assistant uses |
+| `AI_BASE_URL` | `https://api.aimlapi.com/v1` | Any OpenAI-compatible endpoint |
+
+## The AI assistant
+
+With an API key set, the editor gets an **AI assistant** button: a chat panel that builds and edits the open
+presentation for you. Ask for "a 6 slide lesson about the water cycle with a quiz and a matching question" and the
+slides appear in the editor as it works; ask it to turn a quiz into a select-all question, reorder slides or retheme the
+deck. Every turn can be undone in one click ("Undo AI changes"), and everything it makes goes through the same
+validation and autosave as anything you type.
+
+```bash
+# .env  (the key stays on the server and is never sent to a browser)
+AIMLAPI_KEY=your-key
+# optional: AI_MODEL=deepseek/deepseek-v4.1-flash   AI_BASE_URL=https://api.aimlapi.com/v1
+```
+
+Without a key the button is not shown. It is built with [assistant-ui](https://www.assistant-ui.com) and the Vercel
+AI SDK, and talks to [AIMLAPI](https://aimlapi.com) by default (any OpenAI-compatible service works).
+
+- **What it can do.** Six tools, nothing more: read the deck, set title/description/theme, add slides (several at once),
+  update a slide, delete a slide, move a slide. It cannot start sessions, see participants' answers, touch other
+  presentations or reach anything outside the editor. The tool list and the instructions live on the server, so a
+  browser cannot add tools or change them.
+- **It cannot make a broken deck.** The tools run in your browser against the same validator as JSON import. A rejected
+  call comes back to the model with the validator's messages (for example `correctOptionId "zzz" does not match any
+  option. Valid ids: a, b`) and it corrects itself.
+- **What is sent to the AI service.** Your messages, plus the slide contents it reads or writes. Nothing about sessions,
+  participants or results. Use a self-hosted OpenAI-compatible endpoint if that matters to you.
+- **Cost and abuse.** The route needs Studio sign-in (set `STUDIO_PASSWORD` on anything public), is rate limited,
+  caps history and tool steps per request, and stops the upstream call when you close the panel.
+- **Testing.** Tests never call a real model: `scripts/fake-llm.mjs` is a scripted OpenAI-compatible server used by the
+  integration and end-to-end tests. To try the real thing against a running server, use
+  `npm run ai:smoke -w server -- "Make a 4 slide deck about fractions"`.
 
 ## The presentation format
 
@@ -203,7 +238,7 @@ e2e/      Playwright scenarios against the built app
 ## Testing
 
 ```bash
-npm test          # shared (76), server integration with real Socket.IO clients and SQLite (37), web (8)
+npm test          # shared (91), server integration with real Socket.IO clients and SQLite (46), web (8)
 npm run test:e2e  # Playwright: the full 10-step session, Companion mode + JSON import, MSG demo, export round trip,
                   # the in-page QR scanner (a real QR image played through a fake camera), and the scan-to-session link, and the dashboard-replica-matches-projector layout check
 ```

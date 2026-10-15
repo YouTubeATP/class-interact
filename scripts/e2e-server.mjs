@@ -5,12 +5,18 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startFakeLlm } from './fake-llm.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = mkdtempSync(join(tmpdir(), 'ci-e2e-'));
 const port = process.env.E2E_PORT ?? '4173';
+// The AI assistant talks to a scripted stand-in, never to a real service: no key, no cost, same answers every time.
+const fakeLlm = await startFakeLlm();
 const env = {
   ...process.env,
+  AIMLAPI_KEY: 'e2e-not-a-real-key',
+  AI_BASE_URL: fakeLlm.url,
+  AI_MODEL: 'fake-model',
   NODE_ENV: 'production',
   PORT: port,
   DATA_DIR: dir,
@@ -26,7 +32,7 @@ const mig = spawnSync(process.execPath, [join(root, 'server/scripts/prisma.mjs')
 if (mig.status !== 0) process.exit(mig.status ?? 1);
 
 const child = spawn(process.execPath, [join(root, 'server/dist/index.js')], { env, stdio: 'inherit', cwd: join(root, 'server') });
-const stop = () => { child.kill('SIGTERM'); try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ } };
+const stop = () => { child.kill('SIGTERM'); void fakeLlm.close(); try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ } };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 child.on('exit', (code) => process.exit(code ?? 0));

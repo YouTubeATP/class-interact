@@ -1,5 +1,6 @@
-import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, Loader2, Play } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, Loader2, Play, Sparkles } from 'lucide-react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { defaultConfig, nextId, parsePresentationDoc, type PresentationDoc, type SessionMode, type Slide, type SlideType } from '@classinteract/shared';
@@ -10,6 +11,7 @@ import { DialogContent } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { useClientConfig } from '@/lib/joinUrl';
 import { PreviewPane } from '@/preview/PreviewPane';
 import { SlideForm, SlideIdField } from './editor/forms';
 import { JsonPanel } from './editor/JsonPanel';
@@ -18,6 +20,9 @@ import { SlideList } from './editor/SlideList';
 import type { FieldIssue } from './editor/fields';
 import { StartSessionDialog } from './StartSessionDialog';
 import { StudioHeader } from './StudioRoutes';
+
+// The AI chat (assistant-ui and the AI SDK) is only downloaded when someone opens it.
+const AiAssistant = lazy(() => import('./ai/AiAssistant'));
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'invalid' | 'error';
 
@@ -48,6 +53,8 @@ export default function EditorPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [aiOpen, setAiOpen] = useState(false);
+  const config = useClientConfig();
   const lastSaved = useRef('');
   const docRef = useRef<PresentationDoc | null>(null);
   docRef.current = doc;
@@ -105,6 +112,10 @@ export default function EditorPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [saveState]);
 
+  // the assistant edits through the same document and autosave path as everything else
+  const applyAiDoc = useCallback((d: PresentationDoc) => { docRef.current = d; setDoc(d); }, []);
+  const focusSlide = useCallback((slideId: string) => { setSelected(slideId); setTab('edit'); }, []);
+
   const update = useCallback((fn: (d: PresentationDoc) => PresentationDoc) => setDoc((d) => (d ? fn(d) : d)), []);
   const patchSlide = (slideId: string, p: Partial<Slide>) => update((d) => ({ ...d, slides: d.slides.map((s) => (s.id === slideId ? ({ ...s, ...p } as Slide) : s)) }));
 
@@ -152,12 +163,13 @@ export default function EditorPage() {
   };
 
   return (
-    <div className="flex h-dvh flex-col bg-paper">
+    <div className={cn('flex h-dvh flex-col bg-paper transition-[padding] duration-200', aiOpen && 'lg:pr-[26rem]')}>
       <StudioHeader />
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
         <Button asChild variant="ghost" size="sm"><Link to="/studio"><ArrowLeft className="size-4" aria-hidden /> Presentations</Link></Button>
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight" data-testid="editor-title">{doc.title || 'Untitled'}</h1>
         <SaveBadge state={saveState} problems={errors.length} onRetry={() => setRetry((n) => n + 1)} />
+        {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
         <Button variant="secondary" onClick={() => setPreviewOpen(true)} data-testid="preview-open"><Eye className="size-4" aria-hidden /> Preview</Button>
         <Button variant="secondary" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'}><Download className="size-4" aria-hidden /> Export JSON</Button>
         <Button variant="primary" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start"><Play className="size-4" aria-hidden /> Start session</Button>
@@ -229,6 +241,9 @@ export default function EditorPage() {
       <DialogContent open={previewOpen} onOpenChange={setPreviewOpen} wide title="Preview" description="Step through the presentation exactly as the room and phones will see it.">
         <div className="max-h-[75vh] overflow-y-auto pr-1"><PreviewPane doc={doc} index={previewIndex} large onIndexChange={(i) => doc.slides[i] && setSelected(doc.slides[i].id)} /></div>
       </DialogContent>
+      <AnimatePresence>
+        {aiOpen && <Suspense fallback={null}><AiAssistant docRef={docRef} applyDoc={applyAiDoc} focusSlide={focusSlide} onClose={() => setAiOpen(false)} /></Suspense>}
+      </AnimatePresence>
       <StartSessionDialog open={startOpen} onOpenChange={setStartOpen} title={doc.title} onStart={start} />
     </div>
   );
