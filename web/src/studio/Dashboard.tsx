@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/dropdown';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { prettyPin, useJoinInfo } from '@/lib/joinUrl';
+import { chooseLanHost, prettyPin, useJoinInfo } from '@/lib/joinUrl';
 import { useSession } from '@/lib/session-client';
 import { projectorViewOfPresenter } from '@/render/model';
 import { StageView } from '@/render/StageView';
@@ -113,6 +113,23 @@ function Live({ info }: { info: SessionControlInfo }) {
               <span className="truncate text-ink-3" title={join.url}>{join.host}/join/{session.pin}</span>
               <Button variant="ghost" size="sm" onClick={() => void copy('join', join.url)}>{copied === 'join' ? <Check className="size-4 text-ok" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied === 'join' ? 'Copied' : 'Copy'}</Button>
             </div>
+            {join.alternatives.length > 0 && (
+              <details className="rounded-xl bg-ink/5 px-3 py-2 text-xs text-ink-2" data-testid="network-help">
+                <summary className="cursor-pointer font-semibold text-ink">Phone can’t open the link?</summary>
+                <div className="mt-2 grid gap-2 leading-snug">
+                  <p>The phone must be on the <b>same Wi-Fi</b> as this computer (not mobile data), and the firewall must allow Node.js on private networks.</p>
+                  {join.alternatives.length > 1 && (
+                    <label className="grid gap-1 font-semibold text-ink">
+                      This computer’s network address
+                      <select className="h-9 rounded-lg border border-line bg-surface px-2 text-sm font-medium" value={join.base.replace(/^https?:\/\//, '').split(':')[0]} onChange={(e) => chooseLanHost(e.target.value)} data-testid="lan-select">
+                        {join.alternatives.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span className="font-normal text-ink-3">Usually the one starting 192.168. Pick another if the QR code does not work.</span>
+                    </label>
+                  )}
+                </div>
+              </details>
+            )}
             {join.localhostWarning && <p className="rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn" role="alert">The QR code points to localhost, which phones cannot reach. Set PUBLIC_URL on the server or open this page using your computer’s network address.</p>}
             {info.projectorCode && !ended && (
               <div className="grid gap-1 rounded-2xl bg-ink/5 px-3.5 py-3" data-testid="projector-code-card">
