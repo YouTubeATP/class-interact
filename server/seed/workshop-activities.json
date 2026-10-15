@@ -1,0 +1,68 @@
+{
+  "format": "classinteract.presentation",
+  "schemaVersion": 1,
+  "title": "Workshop activity kit",
+  "description": "A few ready-to-run interactive activities with no slides — made for Companion Mode, where you teach in Canva, PowerPoint or Google Slides and launch these on demand.",
+  "theme": { "palette": "lavender", "background": "soft" },
+  "slides": [
+    {
+      "id": "icebreaker",
+      "type": "wordcloud",
+      "question": "In one or two words, how are you feeling about today?",
+      "maxLength": 30,
+      "maxWords": 3,
+      "maxSubmissions": 1
+    },
+    {
+      "id": "experience",
+      "type": "poll",
+      "question": "How much experience do you have with this topic?",
+      "options": [
+        { "id": "none", "text": "None yet" },
+        { "id": "some", "text": "A little" },
+        { "id": "lots", "text": "Quite a lot" }
+      ],
+      "anonymous": true
+    },
+    {
+      "id": "knowledge-check",
+      "type": "quiz",
+      "question": "Which planet is closest to the Sun?",
+      "options": [
+        { "id": "a", "text": "Venus" },
+        { "id": "b", "text": "Mercury" },
+        { "id": "c", "text": "Mars" }
+      ],
+      "correctOptionId": "b",
+      "timeLimitSec": 30,
+      "speedBonus": true
+    },
+    {
+      "id": "confidence",
+      "type": "rating",
+      "question": "How confident do you feel about what we just covered?",
+      "min": 1,
+      "max": 5,
+      "minLabel": "Not yet",
+      "maxLabel": "Totally"
+    },
+    {
+      "id": "questions",
+      "type": "open",
+      "question": "What questions do you still have?",
+      "mode": "short",
+      "maxSubmissions": 3,
+      "moderation": "premoderate"
+    },
+    {
+      "id": "exit-survey",
+      "type": "survey",
+      "title": "Before you go",
+      "questions": [
+        { "id": "useful", "kind": "rating", "question": "How useful was today?", "min": 1, "max": 5, "minLabel": "Not useful", "maxLabel": "Very useful", "required": true },
+        { "id": "pace", "kind": "choice", "question": "The pace was…", "options": [{ "id": "slow", "text": "Too slow" }, { "id": "right", "text": "About right" }, { "id": "fast", "text": "Too fast" }], "required": true },
+        { "id": "more", "kind": "text", "question": "What would you like more of?", "mode": "paragraph" }
+      ]
+    }
+  ]
+}

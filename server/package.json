@@ -1,0 +1,42 @@
+{
+  "name": "@classinteract/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
+    "build": "tsup",
+    "start": "node --env-file-if-exists=../.env dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "node scripts/prisma.mjs generate",
+    "db:migrate": "node scripts/prisma.mjs migrate deploy",
+    "db:migrate:dev": "node scripts/prisma.mjs migrate dev",
+    "db:seed": "tsx --env-file-if-exists=../.env prisma/seed.ts",
+    "db:reset": "node scripts/prisma.mjs migrate reset --force"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@classinteract/shared": "*",
+    "@prisma/client": "^6.19.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "obscenity": "^0.4.3",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "prisma": "^6.19.0",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

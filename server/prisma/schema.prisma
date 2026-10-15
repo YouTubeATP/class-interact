@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A reusable presentation: metadata + theme. Its ordered slides are `Activity` rows.
+model Presentation {
+  id            String     @id @default(cuid())
+  title         String
+  description   String     @default("")
+  /// JSON: { palette, background }
+  theme         String
+  schemaVersion Int        @default(1)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  activities    Activity[]
+  sessions      Session[]
+}
+
+/// One slide / activity of a presentation. `key` is the slide id inside the JSON document.
+model Activity {
+  id             String       @id @default(cuid())
+  presentationId String
+  key            String
+  position       Int
+  type           String
+  /// JSON: the slide's configuration (the slide document minus `id` and `type`)
+  config         String
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+
+  @@unique([presentationId, key])
+  @@index([presentationId, position])
+}
+
+/// A live (or finished) run of a presentation. Slides are copied into SessionActivity so that
+/// editing or deleting the presentation never changes a session's results.
+model Session {
+  id             String            @id @default(cuid())
+  presentationId String?
+  title          String
+  theme          String
+  mode           String            @default("standalone")
+  collectNames   Boolean           @default(true)
+  /// live | ended
+  status         String            @default("live")
+  pin            String
+  /// Equal to `pin` while live, NULL once ended — so a PIN is unique among live sessions only.
+  livePin        String?           @unique
+  /// JSON: SessionState (phase, activity index, visibility flags, timer)
+  state          String
+  createdAt      DateTime          @default(now())
+  endedAt        DateTime?
+  lastActivityAt DateTime          @default(now())
+  presentation   Presentation?     @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+  activities     SessionActivity[]
+  participants   Participant[]
+  submissions    Submission[]
+
+  @@index([status])
+}
+
+model SessionActivity {
+  id              String       @id @default(cuid())
+  sessionId       String
+  key             String
+  position        Int
+  type            String
+  config          String
+  completed       Boolean      @default(false)
+  answerRevealed  Boolean      @default(false)
+  session         Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submissions     Submission[]
+
+  @@unique([sessionId, key])
+  @@index([sessionId, position])
+}
+
+model Participant {
+  id          String       @id @default(cuid())
+  sessionId   String
+  name        String
+  nameKey     String
+  /// SHA-256 of the participant's secret token (the token itself is never stored)
+  tokenHash   String       @unique
+  removed     Boolean      @default(false)
+  joinedAt    DateTime     @default(now())
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@unique([sessionId, nameKey])
+}
+
+model Submission {
+  id                String          @id @default(cuid())
+  sessionId         String
+  sessionActivityId String
+  participantId     String
+  /// 0..maxSubmissions-1. Together with the unique index below this makes double submissions impossible.
+  slot              Int
+  /// JSON payload (shape depends on the activity type)
+  payload           String
+  /// Normalised text key (word clouds). NULL for other types; unique per participant when set.
+  key               String?
+  /// visible | pending | hidden
+  status            String          @default("visible")
+  correct           Boolean?
+  score             Int             @default(0)
+  responseMs        Int?
+  createdAt         DateTime        @default(now())
+  session           Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  activity          SessionActivity @relation(fields: [sessionActivityId], references: [id], onDelete: Cascade)
+  participant       Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionActivityId, participantId, slot])
+  @@unique([sessionActivityId, participantId, key])
+  @@index([sessionId])
+  @@index([sessionActivityId, status])
+}
