@@ -51,7 +51,7 @@ export function Controls({ snap, run, now }: { snap: PresenterSnapshot; run: (ty
   );
 
   return (
-    <div className="grid gap-4 rounded-card border border-line bg-surface p-4" data-testid="controls" data-phase={state.phase}>
+    <div className="grid gap-4 rounded-card border border-line bg-surface p-4" data-testid="controls" data-tour="dash-controls" data-phase={state.phase}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         {inActivity && interactive ? <PhaseTrack phase={state.phase} /> : <span className="text-sm font-semibold text-ink-3">{state.phase === 'lobby' ? 'Waiting room' : state.phase === 'standby' ? 'Participants are on standby' : state.phase === 'ended' ? 'Session ended' : 'Content slide'}</span>}
         <div className="flex items-center gap-3">

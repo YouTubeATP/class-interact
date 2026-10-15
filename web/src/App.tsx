@@ -7,6 +7,7 @@ import PlayPage from '@/pages/Play';
 // The studio is only for presenters; keep it out of the bundle phones download.
 const StudioRoutes = lazy(() => import('@/studio/StudioRoutes'));
 const ProjectPage = lazy(() => import('@/pages/Project'));
+const HelpPage = lazy(() => import('@/help/ParticipantHelp'));
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/" element={<JoinPage />} />
         <Route path="/join" element={<JoinPage />} />
         <Route path="/join/:pin" element={<JoinPage />} />
+        <Route path="/help" element={<HelpPage />} />
         <Route path="/play/:sessionId" element={<PlayPage />} />
         <Route path="/project/:sessionId" element={<ProjectPage />} />
         <Route path="/*" element={<StudioRoutes />} />

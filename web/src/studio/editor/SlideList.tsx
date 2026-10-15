@@ -64,7 +64,7 @@ export function SlideList({ slides, selected, issueIndexes, onSelect, onReorder,
       <div className="flex items-center justify-between px-1">
         <h2 className="text-[0.8125rem] font-bold text-ink-2">Slides <span className="tabular font-semibold text-ink-3">({slides.length})</span></h2>
         <Menu>
-          <MenuTrigger asChild><Button variant="soft" size="sm" data-testid="add-slide"><Plus className="size-3.5" aria-hidden /> Add</Button></MenuTrigger>
+          <MenuTrigger asChild><Button variant="soft" size="sm" data-testid="add-slide" data-tour="ed-add"><Plus className="size-3.5" aria-hidden /> Add</Button></MenuTrigger>
           <MenuContent className="w-72">
             <MenuItem onSelect={() => onAdd('content')} data-testid="add-content"><TypeItem type="content" /></MenuItem>
             <MenuSeparator />

@@ -1,9 +1,12 @@
-import { LogOut, Presentation } from 'lucide-react';
+import { BookOpen, CircleHelp, Compass, LogOut, Presentation, Smartphone } from 'lucide-react';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { Notice, Spinner } from '@/components/Status';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/dropdown';
+import { tourForPath } from '@/tour/routes';
+import { useTour } from '@/tour/TourProvider';
 import { useClientConfig } from '@/lib/joinUrl';
 import { STUDIO_TOKEN_KEY, store } from '@/lib/storage';
 import LoginPage from './Login';
@@ -12,6 +15,7 @@ import LibraryPage from './Library';
 const EditorPage = lazy(() => import('./Editor'));
 const DashboardPage = lazy(() => import('./Dashboard'));
 const ResultsPage = lazy(() => import('./Results'));
+const StudioHelp = lazy(() => import('@/help/StudioHelp'));
 
 /** Studio pages require sign-in only when the server has STUDIO_PASSWORD set. */
 function RequireStudio({ children }: { children: ReactNode }) {
@@ -33,6 +37,24 @@ function RequireStudio({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Help menu: replay the tour for this page, or open the help centre. */
+function HelpMenu() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { start } = useTour();
+  const tour = tourForPath(pathname);
+  return (
+    <Menu>
+      <MenuTrigger asChild><Button variant="ghost" size="sm" aria-label="Help" data-testid="help-menu" data-tour="help"><CircleHelp className="size-4" aria-hidden /> <span className="max-sm:sr-only">Help</span></Button></MenuTrigger>
+      <MenuContent>
+        {tour && <MenuItem icon={<Compass className="size-4" />} onSelect={() => setTimeout(() => start(tour), 150)} data-testid="help-tour">Tour of this page</MenuItem>}
+        <MenuItem icon={<BookOpen className="size-4" />} onSelect={() => navigate('/studio/help')} data-testid="help-centre">Help centre</MenuItem>
+        <MenuItem icon={<Smartphone className="size-4" />} onSelect={() => navigate('/help')} data-testid="help-participants">What participants see</MenuItem>
+      </MenuContent>
+    </Menu>
+  );
+}
+
 export function StudioHeader({ children }: { children?: ReactNode }) {
   const cfg = useClientConfig();
   const navigate = useNavigate();
@@ -45,6 +67,7 @@ export function StudioHeader({ children }: { children?: ReactNode }) {
       </nav>
       <div className="ml-auto flex items-center gap-2">
         {children}
+        <HelpMenu />
         {cfg?.authRequired && (
           <Button variant="ghost" size="sm" onClick={() => { store.remove(STUDIO_TOKEN_KEY); navigate('/login'); }}><LogOut className="size-4" aria-hidden /> Sign out</Button>
         )}
@@ -62,6 +85,7 @@ export default function StudioRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/studio" element={<RequireStudio><LibraryPage /></RequireStudio>} />
+      <Route path="/studio/help" element={<RequireStudio><Suspense fallback={<Loading />}><StudioHelp /></Suspense></RequireStudio>} />
       <Route path="/studio/:id" element={<RequireStudio><Suspense fallback={<Loading />}><EditorPage /></Suspense></RequireStudio>} />
       <Route path="/session/:id" element={<RequireStudio><Suspense fallback={<Loading />}><DashboardPage /></Suspense></RequireStudio>} />
       <Route path="/results/:id" element={<RequireStudio><Suspense fallback={<Loading />}><ResultsPage /></Suspense></RequireStudio>} />

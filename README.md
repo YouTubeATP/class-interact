@@ -34,6 +34,16 @@ approval), rating scale, multi-question survey, and content slides (five layout 
 **Animation** is built in with framer-motion: activity transitions, animated results, a word cloud that
 re-packs as answers arrive, leaderboard reordering, and confirmations. It respects the OS "reduce motion" setting.
 
+**Help and live tours.** There are two help pages, switchable from each other: **For participants** (`/help`, public,
+plain language: joining, the activity types, what participants cannot do, troubleshooting) and **For presenters**
+(`/studio/help`, behind the Studio sign-in: building, the AI assistant, running a session, the three kinds of code,
+results, sharing, troubleshooting). Both are linked from the page footers, the join page and the Studio's **Help** menu.
+The **live tours** light up the real screen step by step (library, editor, session controls, and the join page for
+participants). The Studio offers its tour once on first visit; afterwards use **Help → Tour of this page** on any Studio
+page, or the buttons in the help pages. Tours work on phones (the editor tour switches panes for you), from the keyboard
+(arrow keys, Esc) and are lazy-loaded, so phones joining a session never download them. To add a step, edit
+`web/src/tour/tours.ts` and put a `data-tour="name"` attribute on the element to explain.
+
 ## Quick start (development)
 
 Requires Node 20.12+ (Node 22 recommended).

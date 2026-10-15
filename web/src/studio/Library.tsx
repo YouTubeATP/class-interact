@@ -17,6 +17,7 @@ import { ConfirmDialog, PromptDialog } from './dialogs';
 import { ImportDialog } from './ImportDialog';
 import { StartSessionDialog } from './StartSessionDialog';
 import { SiteFooter } from '@/components/Footer';
+import { TourOffer } from '@/tour/TourOffer';
 import { StudioHeader } from './StudioRoutes';
 
 type Dialog =
@@ -52,7 +53,7 @@ function DeckCard({ p, i, onAction }: { p: PresentationSummary; i: number; onAct
           {p.sessionCount > 0 && <Badge>{plural(p.sessionCount, 'session')} run</Badge>}
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <Button variant="primary" size="sm" className="flex-1" onClick={() => onAction('start')} disabled={p.slideCount === 0} data-testid="start-session"><Play className="size-3.5" aria-hidden /> Start session</Button>
+          <Button variant="primary" size="sm" className="flex-1" onClick={() => onAction('start')} disabled={p.slideCount === 0} data-testid="start-session" data-tour={i === 0 ? 'lib-start' : undefined}><Play className="size-3.5" aria-hidden /> Start session</Button>
           <Button asChild variant="secondary" size="sm"><Link to={`/studio/${p.id}`} data-testid="edit-presentation"><Pencil className="size-3.5" aria-hidden /> Edit</Link></Button>
           <Menu>
             <MenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`More actions for ${p.title}`}><MoreHorizontal className="size-4" /></Button></MenuTrigger>
@@ -113,19 +114,20 @@ export default function LibraryPage() {
     <div className="flex min-h-dvh flex-col bg-paper">
       <StudioHeader />
       <main className="mx-auto grid w-full max-w-7xl flex-1 content-start gap-10 px-4 py-8 sm:px-6">
+        <TourOffer id="library">New here? Take a one-minute tour of the Studio.</TourOffer>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="grid gap-1.5">
             <h1 className="display text-[2.4rem]">Presentations</h1>
             <p className="max-w-xl text-ink-2">Build once, then run it live as a full presentation or as interactive activities alongside your own slides.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setDialog({ kind: 'import' })} data-testid="import-open"><FileUp className="size-4" aria-hidden /> Import JSON</Button>
-            <Button variant="primary" onClick={() => setDialog({ kind: 'new' })} data-testid="new-presentation"><Plus className="size-4" aria-hidden /> New presentation</Button>
+            <Button variant="secondary" onClick={() => setDialog({ kind: 'import' })} data-testid="import-open" data-tour="lib-import"><FileUp className="size-4" aria-hidden /> Import JSON</Button>
+            <Button variant="primary" onClick={() => setDialog({ kind: 'new' })} data-testid="new-presentation" data-tour="lib-new"><Plus className="size-4" aria-hidden /> New presentation</Button>
           </div>
         </div>
 
         {live.length > 0 && (
-          <section aria-label="Live sessions" className="grid gap-3">
+          <section aria-label="Live sessions" className="grid gap-3" data-tour="lib-live">
             <h2 className="flex items-center gap-2 text-lg"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-ok opacity-60" /><span className="relative inline-flex size-2.5 rounded-full bg-ok" /></span> Live now</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {live.map((s) => (
@@ -141,7 +143,7 @@ export default function LibraryPage() {
           </section>
         )}
 
-        <section aria-label="Your presentations">
+        <section aria-label="Your presentations" data-tour="lib-decks">
           {error ? (
             <Notice title="Could not load presentations" action={<Button onClick={() => void load()}>Try again</Button>}>{error}</Notice>
           ) : decks === null ? (
@@ -155,7 +157,7 @@ export default function LibraryPage() {
           )}
         </section>
 
-        <section aria-label="Past sessions" className="grid gap-3">
+        <section aria-label="Past sessions" className="grid gap-3" data-tour="lib-past">
           <h2 className="text-xl">Past sessions</h2>
           {sessions === null ? (
             <Spinner />
@@ -203,7 +205,7 @@ export default function LibraryPage() {
           )}
         </section>
       </main>
-      <SiteFooter className="pb-6 pt-2" />
+      <SiteFooter className="pb-6 pt-2" help="/studio/help" />
 
       <PromptDialog open={dialog?.kind === 'new'} onOpenChange={(o) => !o && setDialog(null)} title="New presentation" label="Title" confirm="Create" initial="" onSubmit={async (title) => { const r = await api.presentations.create(title); navigate(`/studio/${r.id}`); }} />
       <ImportDialog open={dialog?.kind === 'import'} onOpenChange={(o) => !o && setDialog(null)} onImported={(id, warnings) => { toast.success('Presentation imported'); warnings.forEach((w) => toast.message(w)); navigate(`/studio/${id}`); }} />

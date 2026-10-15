@@ -133,7 +133,7 @@ export default function JoinPage() {
             <div className="grid gap-2">
               <h1 className="display text-[2.6rem]">Join a session</h1>
               <p className="text-[1.0625rem] text-ink-2">Enter the code on the screen, or scan the QR code with your camera.</p>
-              <p className="text-sm text-ink-3">Presenting? Type your projector code here to turn this screen into the projector.</p>
+              <p className="text-sm text-ink-3">Presenting? Type your projector code here to turn this screen into the projector. <Link to="/help" className="font-semibold text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-accent" data-testid="join-help">New here? See how it works.</Link></p>
             </div>
             <Field error={error}>
               <div className="relative">
@@ -148,6 +148,7 @@ export default function JoinPage() {
                 onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(null); }}
                 aria-invalid={!!error}
                 data-testid="pin-input"
+                data-tour="join-code"
                 className="tabular relative h-16 rounded-2xl text-center text-[2rem] font-extrabold tracking-[0.12em] placeholder:font-semibold placeholder:tracking-normal"
               />
               </div>
@@ -156,7 +157,7 @@ export default function JoinPage() {
               {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null} Continue <ArrowRight className="size-5" aria-hidden />
             </Button>
             <div className="flex items-center gap-3 text-sm font-semibold text-ink-3" aria-hidden><span className="h-px flex-1 bg-line-2" />or<span className="h-px flex-1 bg-line-2" /></div>
-            <Button variant="secondary" size="xl" onClick={() => setScanning(true)} data-testid="scan-open"><ScanLine className="size-5" aria-hidden /> Scan QR code</Button>
+            <Button variant="secondary" size="xl" onClick={() => setScanning(true)} data-testid="scan-open" data-tour="join-scan"><ScanLine className="size-5" aria-hidden /> Scan QR code</Button>
           </motion.form>
         )}
 

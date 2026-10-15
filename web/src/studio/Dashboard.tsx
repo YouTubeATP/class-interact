@@ -75,7 +75,7 @@ function Live({ info }: { info: SessionControlInfo }) {
         <h1 className="min-w-0 basis-full truncate text-lg font-bold tracking-tight sm:flex-1 sm:basis-auto" data-testid="session-title">{session.title}</h1>
         {ended ? <Badge variant="neutral" data-testid="session-status">Ended</Badge> : <Badge variant="ok" data-testid="session-status"><Radio className="size-3" aria-hidden /> Live</Badge>}
         {!ended && (
-          <div className="flex rounded-xl bg-ink/6 p-1" role="radiogroup" aria-label="Presenting mode">
+          <div className="flex rounded-xl bg-ink/6 p-1" role="radiogroup" aria-label="Presenting mode" data-tour="dash-mode">
             {MODES.map((m) => (
               <button key={m.id} type="button" role="radio" aria-checked={session.mode === m.id} onClick={() => session.mode !== m.id && void send({ cmd: 'setMode', mode: m.id })} data-testid={`mode-switch-${m.id}`}
                 className={cn('inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.8125rem] font-semibold transition-colors', session.mode === m.id ? 'bg-surface text-ink shadow-sm' : 'text-ink-2 hover:text-ink')}>
@@ -84,7 +84,7 @@ function Live({ info }: { info: SessionControlInfo }) {
             ))}
           </div>
         )}
-        <Button asChild variant="primary"><a href={projectorUrl} target="_blank" rel="noreferrer" data-testid="open-projector"><MonitorPlay className="size-4" aria-hidden /> Open projector <ArrowUpRight className="size-3.5" aria-hidden /></a></Button>
+        <Button asChild variant="primary"><a href={projectorUrl} target="_blank" rel="noreferrer" data-testid="open-projector" data-tour="dash-projector"><MonitorPlay className="size-4" aria-hidden /> Open projector <ArrowUpRight className="size-3.5" aria-hidden /></a></Button>
         <Menu>
           <MenuTrigger asChild><Button variant="secondary" aria-label="Copy links"><Link2 className="size-4" aria-hidden /> Links</Button></MenuTrigger>
           <MenuContent>
@@ -92,7 +92,7 @@ function Live({ info }: { info: SessionControlInfo }) {
             <MenuItem icon={<Copy className="size-4" />} onSelect={() => void copy('proj', projectorUrl)}>Copy projector link</MenuItem>
           </MenuContent>
         </Menu>
-        {!ended && <Button variant="danger-soft" onClick={() => setConfirmEnd('end')} data-testid="end-session"><Power className="size-4" aria-hidden /> End session</Button>}
+        {!ended && <Button variant="danger-soft" onClick={() => setConfirmEnd('end')} data-testid="end-session" data-tour="dash-end"><Power className="size-4" aria-hidden /> End session</Button>}
       </div>
 
       {ended && (
@@ -107,7 +107,7 @@ function Live({ info }: { info: SessionControlInfo }) {
 
       <div className="mx-auto grid max-w-[110rem] gap-5 p-4 sm:p-6 lg:grid-cols-[20.5rem_minmax(0,1fr)] xl:grid-cols-[20.5rem_minmax(0,1fr)_25rem]">
         <aside className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5', state.phase !== 'lobby' && 'max-lg:order-2')} aria-label="Session">
-          <div data-testid="join-card" className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
+          <div data-testid="join-card" data-tour="dash-join" className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
             <div style={{ fontSize: '0.82rem' }}><Ticket pin={session.pin} url={join.url} host={join.host} variant="card" className="ring-1 ring-line" /></div>
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="truncate text-ink-3" title={join.url}>{join.host}/join/{session.pin}</span>
@@ -143,7 +143,7 @@ function Live({ info }: { info: SessionControlInfo }) {
             )}
             <Roster snap={snapshot} onKick={(id, name) => setKick({ id, name })} />
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4" data-tour="dash-flow">
             <h2 className="text-[0.9375rem] font-bold">{session.mode === 'standalone' ? 'Lesson flow' : 'Launch an activity'}</h2>
             {session.mode === 'companion' && <p className="-mt-1 text-[0.8125rem] leading-snug text-ink-3">Teach in your other app. Launch any activity here whenever you need it, then return to standby. Participants stay connected.</p>}
             {session.mode === 'standalone'
@@ -158,12 +158,12 @@ function Live({ info }: { info: SessionControlInfo }) {
               <h2 className="text-[0.9375rem] font-bold">On the projector</h2>
               <span className="text-xs font-semibold text-ink-3">{state.phase === 'lobby' ? 'Join screen' : state.phase === 'standby' ? 'Standby screen' : state.leaderboardVisible ? 'Leaderboard' : ended ? 'Closing screen' : 'Live view'}</span>
             </div>
-            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-[#0d1124]" data-testid="dashboard-stage"><StageView m={model} /></div>
+            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-[#0d1124]" data-testid="dashboard-stage" data-tour="dash-stage"><StageView m={model} /></div>
           </section>
           {!ended && <Controls snap={snapshot} run={run} now={now} />}
         </main>
 
-        <aside className={cn('grid content-start gap-3 lg:col-span-2 xl:col-span-1', state.phase !== 'lobby' && 'max-lg:order-3')} aria-label="Private presenter view">
+        <aside className={cn('grid content-start gap-3 lg:col-span-2 xl:col-span-1', state.phase !== 'lobby' && 'max-lg:order-3')} aria-label="Private presenter view" data-tour="dash-private">
           <h2 className="text-[0.9375rem] font-bold">Presenter only</h2>
           <PrivatePanel snap={snapshot} onModerate={(c) => void send({ cmd: 'moderate', ...c })} />
         </aside>

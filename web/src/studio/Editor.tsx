@@ -35,7 +35,7 @@ function SaveBadge({ state, problems, onRetry }: { state: SaveState; problems: n
     error: { icon: <AlertTriangle className="size-3.5" aria-hidden />, text: 'Could not save', cls: 'bg-bad-soft text-bad' },
   }[state];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold', map.cls)} role="status" data-testid="save-state" data-state={state}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold', map.cls)} role="status" data-testid="save-state" data-state={state} data-tour="ed-save">
       {map.icon} {map.text}
       {state === 'error' && <button className="underline" onClick={onRetry}>Retry</button>}
     </span>
@@ -173,15 +173,15 @@ export default function EditorPage() {
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight" data-testid="editor-title">{doc.title || 'Untitled'}</h1>
         <SaveBadge state={saveState} problems={errors.length} onRetry={() => setRetry((n) => n + 1)} />
         <div className="flex w-full gap-2 lg:w-auto">
-          {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} className="max-lg:flex-1" onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
-          <Button variant="secondary" className="max-lg:hidden" onClick={() => setPreviewOpen(true)} data-testid="preview-open"><Eye className="size-4" aria-hidden /> Preview</Button>
-          <Button variant="secondary" className="max-lg:flex-1" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'}><Download className="size-4" aria-hidden /> Export<span className="max-sm:hidden"> JSON</span></Button>
-          <Button variant="primary" className="max-lg:flex-[1.3]" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start"><Play className="size-4" aria-hidden /> Start <span className="max-sm:hidden">session</span></Button>
+          {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} className="max-lg:flex-1" onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open" data-tour="ed-ai"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
+          <Button variant="secondary" className="max-lg:hidden" onClick={() => setPreviewOpen(true)} data-testid="preview-open" data-tour="ed-preview-btn"><Eye className="size-4" aria-hidden /> Preview</Button>
+          <Button variant="secondary" className="max-lg:flex-1" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'} data-tour="ed-export"><Download className="size-4" aria-hidden /> Export<span className="max-sm:hidden"> JSON</span></Button>
+          <Button variant="primary" className="max-lg:flex-[1.3]" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start" data-tour="ed-start"><Play className="size-4" aria-hidden /> Start <span className="max-sm:hidden">session</span></Button>
         </div>
       </div>
 
       <div className="grid flex-1 lg:min-h-0 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[17.5rem_minmax(0,1fr)_minmax(24rem,31rem)]">
-        <aside className={cn(pane === 'slides' ? 'block' : 'hidden', 'relative border-line p-4 lg:block lg:overflow-y-auto lg:border-r')} aria-label="Slides">
+        <aside className={cn(pane === 'slides' ? 'block' : 'hidden', 'relative border-line p-4 lg:block lg:overflow-y-auto lg:border-r')} aria-label="Slides" data-tour="ed-slides">
           <SlideList
             slides={doc.slides}
             selected={selected}
@@ -194,7 +194,7 @@ export default function EditorPage() {
           />
         </aside>
 
-        <main className={cn(pane === 'edit' ? 'block' : 'hidden', 'relative lg:block lg:min-h-0 lg:overflow-y-auto')}>
+        <main className={cn(pane === 'edit' ? 'block' : 'hidden', 'relative lg:block lg:min-h-0 lg:overflow-y-auto')} data-tour="ed-form">
           <div className="mx-auto max-w-2xl px-5 py-6">
             <Tabs value={tab} onValueChange={(v) => setTab(v as 'edit' | 'json')}>
               <div className="mb-6 flex items-center justify-between gap-3">
@@ -237,7 +237,7 @@ export default function EditorPage() {
           </div>
         </main>
 
-        <aside className={cn(pane === 'preview' ? 'block' : 'hidden', 'relative bg-surface/60 p-4 lg:hidden xl:block xl:overflow-y-auto xl:border-l xl:border-line')} aria-label="Live preview">
+        <aside className={cn(pane === 'preview' ? 'block' : 'hidden', 'relative bg-surface/60 p-4 lg:hidden xl:block xl:overflow-y-auto xl:border-l xl:border-line')} aria-label="Live preview" data-tour="ed-preview">
           <h2 className="mb-3 text-[0.8125rem] font-bold text-ink-2">Live preview</h2>
           <PreviewPane doc={doc} index={previewIndex} onIndexChange={(i) => doc.slides[i] && setSelected(doc.slides[i].id)} />
         </aside>
