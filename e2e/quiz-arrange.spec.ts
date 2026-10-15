@@ -9,6 +9,19 @@ const pairs = [
 ];
 const order = ['Mouse', 'Cat', 'Dog', 'Horse'];
 
+/**
+ * Press "Lock in" and wait until it has registered. A scripted mouse drag finishes in a few milliseconds, and the drag
+ * library swallows a click that lands right after it (a person never clicks that fast), so allow one more press.
+ */
+async function lockIn(page: Page) {
+  await page.waitForTimeout(250);
+  await expect(async () => {
+    const button = page.getByTestId('quiz-submit');
+    if (await button.isVisible()) await button.click();
+    await expect(page.getByTestId('received')).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 async function rowTexts(page: Page) {
   return (await page.getByTestId('order-row').allInnerTexts()).map((t) => t.trim());
 }
@@ -77,7 +90,7 @@ test('matching and ordering: tap or drag on a phone, graded with partial credit,
   for (const [left, right] of Object.entries(swapped)) await dragMatch(dragger.page, left, right);
   await expect(dragger.page.getByRole('button', { name: 'Answer for Japan: Lima' })).toBeVisible();
   await expect(dragger.page.getByTestId('quiz-submit')).toBeEnabled();
-  await dragger.page.getByTestId('quiz-submit').click();
+  await lockIn(dragger.page);
   await expect(dash.getByTestId('answered')).toContainText('2 of 2 answered');
 
   // nothing on the projector shows a pairing yet
