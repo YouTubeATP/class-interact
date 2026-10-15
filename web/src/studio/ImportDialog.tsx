@@ -62,7 +62,7 @@ export function ImportDialog({ open, onOpenChange, onImported }: { open: boolean
   };
 
   return (
-    <DialogContent open={open} wide title="Import presentation" description="Paste ClassInteract JSON or choose a .json file. Missing optional settings get sensible defaults.">
+    <DialogContent open={open} onOpenChange={onOpenChange} wide title="Import presentation" description="Paste ClassInteract JSON or choose a .json file. Missing optional settings get sensible defaults.">
       <div className="grid gap-3">
         <Textarea value={text} onChange={(e) => { setText(e.target.value); setIssues([]); }} placeholder={EXAMPLE} spellCheck={false} className="min-h-64 font-mono text-[0.8125rem] leading-relaxed" aria-label="Presentation JSON" data-testid="import-json" />
         {issues.length > 0 && <IssueList issues={issues} />}

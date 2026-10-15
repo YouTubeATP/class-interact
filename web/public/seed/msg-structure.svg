@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="t d">
   <title id="t">Structure of glutamate</title>
   <desc id="d">Five-carbon chain: carboxyl group, carbon with an amino group, two CH2 groups, and a carboxylate group paired with a sodium ion.</desc>
-  <rect width="640" height="400" rx="28" fill="#F5F6FA"/>
-  <g stroke="#161B33" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <g stroke="#161B33" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <!-- carbon backbone -->
     <path d="M150 250 L230 205 L310 250 L390 205 L470 250"/>
     <!-- C1: =O and -OH -->

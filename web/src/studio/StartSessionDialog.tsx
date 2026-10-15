@@ -16,7 +16,7 @@ export function StartSessionDialog({ open, onOpenChange, title, onStart }: { ope
   const [collectNames, setCollectNames] = useState(true);
   const [busy, setBusy] = useState(false);
   return (
-    <DialogContent open={open} title="Start a live session" description={`“${title}” — participants join with one code and stay connected the whole time.`}>
+    <DialogContent open={open} onOpenChange={onOpenChange} title="Start a live session" description={`“${title}” — participants join with one code and stay connected the whole time.`}>
       <div className="grid gap-5">
         <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Session mode">
           {MODES.map((m) => (

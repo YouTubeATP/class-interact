@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trophy, Users } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import type { ReactNode } from 'react';
 import { resolveContentLayout, type ContentConfig, type OpenConfig, type PollConfig, type QuizConfig, type RatingConfig, type SurveyConfig, type WordcloudConfig } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
@@ -146,6 +147,7 @@ function ActivityView({ m }: { m: StageModel }) {
   const q = questionText(m);
   const size = q.length > 120 ? 'text-[2.9em]' : q.length > 70 ? 'text-[3.5em]' : 'text-[4.3em]';
   const showTimer = state.phase === 'open' && state.deadlineAt;
+  const image = (a.config as { image?: { url: string; alt: string; fit: 'cover' | 'contain' } }).image;
   return (
     <div className="absolute inset-0 grid grid-rows-[auto_auto_1fr_auto] px-[4.2%] pb-[3%] pt-[3.4%]">
       <div className="flex items-center justify-between gap-[1.5em]">
@@ -158,8 +160,11 @@ function ActivityView({ m }: { m: StageModel }) {
           {showTimer && <TimerRing openedAt={state.openedAt} deadlineAt={state.deadlineAt} now={m.now} className="w-[6.4em] text-[1em]" />}
         </div>
       </div>
-      <h2 className={cn('display mt-[1.6em] max-w-[88%]', size)} data-testid="stage-question">{q}</h2>
-      <div className="mt-[1.8em] min-h-0 pr-[1%]">
+      <div className="relative">
+        <h2 className={cn('display mt-[1.6em]', image ? 'max-w-[64%]' : 'max-w-[88%]', size)} data-testid="stage-question">{q}</h2>
+        {image && <SafeImage src={image.url} alt={image.alt} fit={image.fit} className="absolute right-0 top-[1.2em] z-0 h-[17.5em] w-[26em] rounded-[1.2em] ring-1 ring-line" />}
+      </div>
+      <div className={cn('min-h-0 pr-[1%]', image ? 'mt-[2.6em]' : 'mt-[1.8em]')}>
         <ActivityBody m={m} />
       </div>
       <div className="flex min-h-[5.6em] items-end justify-between pt-[1em]">
@@ -211,7 +216,7 @@ function LeaderboardView({ m }: { m: StageModel }) {
         <span className="grid size-[4em] place-items-center rounded-full bg-[#ffe08a] text-[#5d4100]"><Trophy className="size-[2em]" aria-hidden /></span>
         <h2 className="display text-[4.6em]">Leaderboard</h2>
       </div>
-      <Leaderboard standings={m.leaderboard ?? []} limit={m.session.status === 'ended' ? 8 : 7} className="content-start text-[0.82em]" />
+      <Leaderboard standings={m.leaderboard ?? []} limit={7} className="content-start text-[1.1em]" />
     </div>
   );
 }
@@ -224,7 +229,7 @@ function EndedView({ m }: { m: StageModel }) {
         <h1 className="display text-[6.6em]" data-testid="ended-heading">That’s a wrap</h1>
         <p className="text-[2.1em] font-medium text-ink-2">Thank you for taking part.</p>
       </div>
-      {m.leaderboard && m.leaderboard.length > 0 ? <Leaderboard standings={m.leaderboard} limit={5} className="text-[0.8em]" /> : <span />}
+      {m.leaderboard && m.leaderboard.length > 0 ? <Leaderboard standings={m.leaderboard} limit={5} className="text-[1em]" /> : <span />}
     </div>
   );
 }

@@ -8,9 +8,10 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
-/** Controlled modal with an animated surface. Pass `open` so exit animations can play. */
-export function DialogContent({ open, title, description, children, className, wide }: { open: boolean; title: string; description?: string; children: ReactNode; className?: string; wide?: boolean }) {
+/** Controlled modal (Radix Dialog) with an animated surface; exit animations play because it stays mounted while closing. */
+export function DialogContent({ open, onOpenChange, title, description, children, className, wide }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; description?: string; children: ReactNode; className?: string; wide?: boolean }) {
   return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
     <AnimatePresence>
       {open && (
         <DialogPrimitive.Portal forceMount>
@@ -40,5 +41,6 @@ export function DialogContent({ open, title, description, children, className, w
         </DialogPrimitive.Portal>
       )}
     </AnimatePresence>
+    </DialogPrimitive.Root>
   );
 }

@@ -226,7 +226,7 @@ export default function EditorPage() {
         </aside>
       </div>
 
-      <DialogContent open={previewOpen} wide title="Preview" description="Step through the presentation exactly as the room and phones will see it.">
+      <DialogContent open={previewOpen} onOpenChange={setPreviewOpen} wide title="Preview" description="Step through the presentation exactly as the room and phones will see it.">
         <div className="max-h-[75vh] overflow-y-auto pr-1"><PreviewPane doc={doc} index={previewIndex} large onIndexChange={(i) => doc.slides[i] && setSelected(doc.slides[i].id)} /></div>
       </DialogContent>
       <StartSessionDialog open={startOpen} onOpenChange={setStartOpen} title={doc.title} onStart={start} />

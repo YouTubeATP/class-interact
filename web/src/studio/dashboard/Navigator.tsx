@@ -44,7 +44,7 @@ export function ActivityLauncher({ snap, onGoto, onStandby }: { snap: PresenterS
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3" data-testid="activity-launcher">
       <Button variant={onStandbyNow ? 'soft' : 'secondary'} size="lg" className="w-full" onClick={onStandby} disabled={!snap.available.includes('standby')} data-testid="standby">
-        <CirclePause className="size-4" aria-hidden /> {onStandbyNow ? 'Participants are on standby' : 'Back to standby'}
+        <CirclePause className="size-4" aria-hidden /> {snap.state.phase === 'lobby' ? 'Participants are in the lobby' : onStandbyNow ? 'Participants are on standby' : 'Back to standby'}
       </Button>
       <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {items.map((o) => {

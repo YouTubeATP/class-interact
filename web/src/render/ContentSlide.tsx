@@ -13,10 +13,11 @@ const calloutStyle = {
 
 const rise = (i: number) => ({ initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { type: 'spring' as const, stiffness: 240, damping: 26, delay: 0.08 + i * 0.07 } });
 
-function Callout({ c }: { c: NonNullable<ContentConfig['callout']> }) {
+function Callout({ c, clearTicket = false }: { c: NonNullable<ContentConfig['callout']>; clearTicket?: boolean }) {
   const s = calloutStyle[c.tone];
   return (
-    <motion.div {...rise(5)} className={cn('flex items-start gap-[0.7em] rounded-[0.9em] px-[1em] py-[0.8em] font-semibold', s.cls)}>
+    // on the projector the join ticket sits bottom-right; keep the callout clear of it
+    <motion.div {...rise(5)} style={clearTicket ? { marginRight: '19.5cqw' } : undefined} className={cn('flex items-start gap-[0.7em] rounded-[0.9em] px-[1em] py-[0.8em] font-semibold', s.cls)}>
       <s.icon className="mt-[0.2em] size-[1.1em] shrink-0" aria-hidden />
       <span>{c.text}</span>
     </motion.div>
@@ -99,7 +100,7 @@ export function ContentSlide({ config, compact = false }: { config: ContentConfi
         {title && <motion.h2 {...rise(0)} className="display text-[4.6em]">{title}</motion.h2>}
         {body && <motion.div {...rise(1)}><RichText text={body} className="max-w-[50em] text-[2em] text-ink-2" /></motion.div>}
         {steps.length > 0 && <div className="text-[1.95em]"><Steps steps={steps} cols={many ? 2 : 1} /></div>}
-        {callout && <div className="text-[1.9em]"><Callout c={callout} /></div>}
+        {callout && <div className="text-[1.9em]"><Callout c={callout} clearTicket /></div>}
       </div>
     );
   }
@@ -110,7 +111,7 @@ export function ContentSlide({ config, compact = false }: { config: ContentConfi
       {title && <motion.h2 {...rise(0)} className="display text-[4.8em]">{title}</motion.h2>}
       {body && <motion.div {...rise(1)}><RichText text={body} className="max-w-[46em] text-[2.3em] leading-snug text-ink-2" bulletClassName="gap-[0.5em]" /></motion.div>}
       {steps.length > 0 && <div className="text-[1.95em]"><Steps steps={steps} cols={steps.length > 4 ? 2 : 1} /></div>}
-      {callout && <div className="text-[1.9em]"><Callout c={callout} /></div>}
+      {callout && <div className="text-[1.9em]"><Callout c={callout} clearTicket /></div>}
     </div>
   );
 }

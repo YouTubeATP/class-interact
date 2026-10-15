@@ -22,7 +22,7 @@ export function PromptDialog({ open, onOpenChange, title, label, initial = '', c
   };
 
   return (
-    <DialogContent open={open} title={title}>
+    <DialogContent open={open} onOpenChange={onOpenChange} title={title}>
       <form onSubmit={submit} className="grid gap-5">
         <Field label={label} error={error} htmlFor="prompt-value">
           <Input id="prompt-value" autoFocus value={value} maxLength={maxLength} onChange={(e) => setValue(e.target.value)} data-testid="prompt-input" />
@@ -41,7 +41,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirm,
 }) {
   const [busy, setBusy] = useState(false);
   return (
-    <DialogContent open={open} title={title} description={description}>
+    <DialogContent open={open} onOpenChange={onOpenChange} title={title} description={description}>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
         <Button variant={danger ? 'danger' : 'primary'} disabled={busy} data-testid="confirm-submit" onClick={async () => { setBusy(true); try { await onConfirm(); } finally { setBusy(false); } }}>

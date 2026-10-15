@@ -44,7 +44,7 @@ export function Controls({ snap, run, now }: { snap: PresenterSnapshot; run: (ty
   else if (inActivity && interactive && state.phase === 'ready') primary = { label: 'Open responses', action: 'open', icon: <Unlock className="size-5" aria-hidden /> };
   else if (inActivity && interactive && state.phase === 'open') primary = { label: 'Close responses', action: 'close', icon: <Lock className="size-5" aria-hidden /> };
   else if (inActivity && interactive && state.phase === 'closed') primary = hasAnswer ? { label: 'Reveal answer', action: 'revealCorrect', icon: <Eye className="size-5" aria-hidden /> } : { label: 'Show results', action: 'revealResults', icon: <BarChart3 className="size-5" aria-hidden /> };
-  else if (can('next') && state.phase !== 'ended') primary = { label: 'Next', action: 'next', icon: <ChevronRight className="size-5" aria-hidden /> };
+  else if (standalone && can('next') && state.phase !== 'ended') primary = { label: 'Next', action: 'next', icon: <ChevronRight className="size-5" aria-hidden /> };
 
   const Btn = ({ action, children, variant = 'secondary', testId }: { action: ActionType; children: ReactNode; variant?: 'secondary' | 'soft' | 'primary'; testId?: string }) => (
     <Button variant={variant} size="md" disabled={!can(action)} onClick={() => run(action)} data-testid={testId ?? `ctl-${action}`}>{children}</Button>
@@ -65,15 +65,16 @@ export function Controls({ snap, run, now }: { snap: PresenterSnapshot; run: (ty
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="lg" disabled={!can('previous')} onClick={() => run('previous')} aria-label="Previous" data-testid="ctl-previous"><ChevronLeft className="size-5" aria-hidden /> Previous</Button>
+        {standalone && <Button variant="secondary" size="lg" disabled={!can('previous')} onClick={() => run('previous')} aria-label="Previous" data-testid="ctl-previous"><ChevronLeft className="size-5" aria-hidden /> Previous</Button>}
         {primary && (
           <Button variant="primary" size="lg" className="min-w-44 flex-1" onClick={() => run(primary!.action)} disabled={!can(primary.action)} data-testid="ctl-primary">
             {primary.icon} {primary.label}
           </Button>
         )}
-        {!(primary?.action === 'next') && state.phase !== 'ended' && (
+        {standalone && !(primary?.action === 'next') && state.phase !== 'ended' && (
           <Button variant="secondary" size="lg" disabled={!can('next')} onClick={() => run('next')} data-testid="ctl-next">Next <ChevronRight className="size-5" aria-hidden /></Button>
         )}
+        {!standalone && !primary && inActivity && <p className="text-sm text-ink-3">Launch another activity from the list, or send participants back to standby.</p>}
       </div>
 
       {inActivity && interactive && (

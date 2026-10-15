@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import type { Ack, MySubmission, ParticipantSnapshot, PublicActivity } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { TimerBar } from '@/components/Countdown';
+import { SafeImage } from '@/components/SafeImage';
 import { cn } from '@/lib/cn';
 
 export interface ParticipantCtx {
@@ -63,6 +64,10 @@ export function ActivityShell({ title, children, footer }: { title: string; chil
         </div>
         {state.phase === 'open' && state.deadlineAt && <TimerBar openedAt={state.openedAt} deadlineAt={state.deadlineAt} now={now} />}
         <h2 className="display text-[1.65rem] leading-[1.12]" data-testid="participant-question">{title}</h2>
+        {(activity.config as { image?: { url: string; alt: string; fit: 'cover' | 'contain' } }).image && (() => {
+          const img = (activity.config as { image: { url: string; alt: string; fit: 'cover' | 'contain' } }).image;
+          return <SafeImage src={img.url} alt={img.alt} fit={img.fit} className="aspect-[16/10] w-full rounded-2xl ring-1 ring-line" />;
+        })()}
       </div>
       <div className="mt-5 flex flex-1 flex-col gap-4">{children}</div>
       {footer && <div className="safe-bottom sticky bottom-0 -mx-4 mt-6 bg-gradient-to-t from-paper from-70% to-transparent px-4 pt-6">{footer}</div>}
