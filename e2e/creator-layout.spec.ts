@@ -82,7 +82,7 @@ test.describe('phone', () => {
     await expect(page.getByTestId('ai-panel')).toBeVisible();
     await expectNoHorizontalScroll(page);
     const box = (await page.getByTestId('ai-panel').boundingBox())!;
-    expect(box.width).toBeLessThanOrEqual(390);
+    expect(box.width).toBeLessThanOrEqual(390.5); // exactly the screen width, give or take sub-pixel rounding
     await expect(page.getByTestId('ai-input')).toBeInViewport();
     await page.getByTestId('ai-close').click();
     await expect(page.getByTestId('ai-panel')).toHaveCount(0);
