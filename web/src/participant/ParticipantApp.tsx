@@ -67,6 +67,7 @@ export function ParticipantApp({ snap, status, submit, rename, now }: { snap: Pa
     [submit, activity],
   );
 
+  const online = status === 'connected';
   let key: string = state.phase;
   let view: React.ReactNode;
   if (state.phase === 'lobby' || state.phase === 'standby') view = <WaitingView kind={state.phase} />;
@@ -88,8 +89,8 @@ export function ParticipantApp({ snap, status, submit, rename, now }: { snap: Pa
   // Each view gets its own context value, captured when it was created. AnimatePresence keeps the
   // *exiting* view mounted for a moment; a shared provider would hand it the next activity's data.
   const ctx = activity
-    ? { snap, activity, mine, now, send }
-    : { snap, activity: null as never, mine: [] as MySubmission[], now, send: async () => ({ ok: false as const, code: 'NO_ACTIVITY', message: 'Nothing to answer yet.' }) };
+    ? { snap, activity, mine, now, send, online }
+    : { snap, activity: null as never, mine: [] as MySubmission[], now, online, send: async () => ({ ok: false as const, code: 'NO_ACTIVITY', message: 'Nothing to answer yet.' }) };
   const node = <PCtx.Provider value={ctx}>{view}</PCtx.Provider>;
   const tone = activity && state.phase !== 'lobby' && state.phase !== 'standby' && state.phase !== 'ended' ? activity.type : 'content';
   return (

@@ -2,7 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { Ack, PresenterCommand, Snapshot, SocketAuth } from '@classinteract/shared';
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'denied' | 'notfound' | 'removed';
+const RECONNECT_GRACE_MS = 12000;
+
+function whenConnected(s: Socket, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); s.off('connect', done); resolve(); };
+    const timer = setTimeout(done, ms);
+    s.on('connect', done);
+  });
+}
+
+export type ConnectionStatus ='connecting' | 'connected' | 'reconnecting' | 'denied' | 'notfound' | 'removed';
 
 /**
  * One persistent, authenticated socket per screen. The server is authoritative: every (re)connect
@@ -22,7 +32,7 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
     setSnapshot(null);
     appliedAt.current = 0;
     setStatus('connecting');
-    const socket = io({ auth: JSON.parse(authKey), transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 400, reconnectionDelayMax: 4000, timeout: 8000 });
+    const socket = io({ auth: JSON.parse(authKey), transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 400, reconnectionDelayMax: 2000, timeout: 8000 });
     socketRef.current = socket;
 
     socket.on('connect', () => setStatus('connected'));
@@ -60,9 +70,12 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
   const statusRef = useRef(status);
   statusRef.current = status;
 
-  const request = useCallback(<R,>(event: string, payload: unknown): Promise<Ack<R extends object ? R : object>> => {
+  const request = useCallback(async <R,>(event: string, payload: unknown): Promise<Ack<R extends object ? R : object>> => {
+    const s = socketRef.current;
+    // A phone that just woke up, or a server that just restarted, is usually a moment from being back. Hold a student's
+    // answer for a few seconds instead of dropping the tap. Presenter commands fail at once so they are never applied late.
+    if (s && !s.connected && event !== 'presenter') await whenConnected(s, RECONNECT_GRACE_MS);
     return new Promise((resolve) => {
-      const s = socketRef.current;
       if (!s || !s.connected) return resolve({ ok: false, code: 'OFFLINE', message: 'You are offline. Reconnecting…' });
       let done = false;
       const timer = setTimeout(() => { if (!done) { done = true; resolve({ ok: false, code: 'TIMEOUT', message: 'The server took too long to answer. Try again.' }); } }, 10_000);

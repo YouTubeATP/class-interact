@@ -142,6 +142,35 @@ need it. For defence in depth you can also put a Cloudflare Access policy on `/s
 `/results*` and `/api/studio*` while leaving `/join*`, `/play*`, `/project*`, `/api/join*`, `/api/config`
 and `/socket.io` open for participants and projectors.
 
+### Running it in a lesson
+
+What has been tested (`server/test/resilience.test.ts`, `e2e/reconnect.spec.ts`, and a manual `kill -9` of the production
+build with a real browser): 30 phones joining and answering in the same instant (every answer counted exactly once; a
+stress run at 150 phones also had no errors), double taps, two dashboards jabbing the controls at once, the quiz timer and
+the presenter closing at the same moment, malformed messages, a phone that locks and comes back, and **the server being
+killed mid-quiz**. After a restart the same people reconnect with the same answers, and the quiz deadline still applies. A
+student who taps an answer while their phone is reconnecting has it held for up to 12 seconds and sent as soon as the
+connection returns.
+
+Before class:
+
+1. **Use the Cloudflare Tunnel (or another public address), not the school Wi-Fi.** Many school networks isolate devices
+   from each other, so phones cannot reach a laptop directly even on the same Wi-Fi. Set `PUBLIC_URL` so the QR code uses
+   the public address, and set `STUDIO_PASSWORD`.
+2. **Do one test join from a phone on the school's network** a few minutes before the lesson. Typing the 6-digit code on the
+   join page always works if a QR scan does not.
+3. **Keep the laptop awake and plugged in.** Turn off sleep for the lesson, and pause Windows Update so it cannot restart the
+   machine. If the app does restart, nothing is lost: keep the window open or run it under a supervisor (Docker's
+   `restart: unless-stopped`, or [pm2](https://pm2.keymetrics.io/) on Windows) so it comes back by itself.
+4. Set `NODE_ENV=production` in `.env` when serving through a tunnel: it turns on the strict browser security headers.
+5. **Back up the `data` folder** (the SQLite database, uploads and signing secret) now and then.
+6. Run through your presentation once in **Preview**, and keep the **projector code** handy in case the projector window
+   needs to be reopened on another computer.
+
+Rough capacity: a single process on a laptop handles a class of 30 with ease; each answer takes a few milliseconds, and
+even 150 simultaneous phones were served without errors. The AI assistant is the only part that depends on an outside
+service, so build presentations before class rather than during it.
+
 ### Configuration
 
 | Variable | Default | Purpose |

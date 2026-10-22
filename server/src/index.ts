@@ -42,6 +42,11 @@ async function main() {
     );
   }
 
+  // A lesson must not end because one request hit an unexpected error somewhere. Nothing restarts this process on a
+  // teacher's laptop, so log what happened and keep serving; the session state is safely in the database either way.
+  process.on('unhandledRejection', (reason) => console.error('[process] unhandled rejection (continuing)', reason));
+  process.on('uncaughtException', (err) => console.error('[process] uncaught exception (continuing)', err));
+
   const stop = async () => {
     await ctx.close();
     await prisma.$disconnect();

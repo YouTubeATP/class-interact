@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Loader2 } from 'lucide-react';
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Ack, MySubmission, ParticipantSnapshot, PublicActivity } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { TimerBar } from '@/components/Countdown';
@@ -14,6 +14,8 @@ export interface ParticipantCtx {
   mine: MySubmission[];
   now: () => number;
   send: (payload: unknown) => Promise<Ack<{ submission: MySubmission }>>;
+  /** Whether this phone is connected right now */
+  online: boolean;
 }
 
 export const PCtx = createContext<ParticipantCtx | null>(null);
@@ -25,9 +27,10 @@ export const useP = () => {
 
 /** Submit helper with pending + error state. Vibrates lightly on success where supported. */
 export function useSubmit() {
-  const { send } = useP();
+  const { send, online } = useP();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const offlineError = useRef(false);
   const run = useCallback(
     async (payload: unknown): Promise<boolean> => {
       setPending(true);
@@ -38,11 +41,14 @@ export function useSubmit() {
         try { navigator.vibrate?.(14); } catch { /* not supported */ }
         return true;
       }
+      offlineError.current = ack.code === 'OFFLINE' || ack.code === 'TIMEOUT';
       setError(ack.message);
       return false;
     },
     [send],
   );
+  // "You are offline" is only true until the phone is back; do not leave it on screen afterwards
+  useEffect(() => { if (online && offlineError.current) { offlineError.current = false; setError(null); } }, [online]);
   return { run, pending, error, clearError: () => setError(null) };
 }
 
