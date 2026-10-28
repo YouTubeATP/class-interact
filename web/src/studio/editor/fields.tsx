@@ -35,15 +35,29 @@ export function Section({ title, children, hint }: { title: string; children: Re
   );
 }
 
-export function TextField({ label, value, onChange, issues, path, multiline, rows, hint, maxLength, placeholder, testId }: {
+export function TextField({ label, value, onChange, issues, path, multiline, rows, hint, maxLength, placeholder, testId, mono }: {
   label: string; value: string; onChange: (v: string) => void; issues: FieldIssue[]; path: string; multiline?: boolean; rows?: number; hint?: string; maxLength?: number; placeholder?: string; testId?: string;
+  /** Monospace with tab support: for text that may contain code. */
+  mono?: boolean;
 }) {
   const err = errorAt(issues, path);
   const id = `f-${path}-${label}`.replace(/\W+/g, '-');
   return (
     <Field label={label} error={err} hint={hint} htmlFor={id}>
       {multiline ? (
-        <Textarea id={id} value={value} rows={rows ?? 3} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-invalid={!!err} data-testid={testId} />
+        <Textarea id={id} value={value} rows={rows ?? 3} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-invalid={!!err} data-testid={testId} spellCheck={!mono}
+          className={mono ? 'font-mono text-[0.8125rem] leading-relaxed' : undefined}
+          onKeyDown={mono ? (e) => {
+            // Tab indents inside a code block (Shift+Tab and Esc then Tab still leave the field)
+            if (e.key !== 'Tab' || e.shiftKey) return;
+            const el = e.currentTarget;
+            const before = el.value.slice(0, el.selectionStart);
+            if ((before.match(/```/g) ?? []).length % 2 === 0) return;
+            e.preventDefault();
+            const at = el.selectionStart;
+            onChange(el.value.slice(0, at) + '    ' + el.value.slice(el.selectionEnd));
+            requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = at + 4; });
+          } : undefined} />
       ) : (
         <Input id={id} value={value} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-invalid={!!err} data-testid={testId} />
       )}

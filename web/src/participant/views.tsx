@@ -12,8 +12,12 @@ import { ContentSlide } from '@/render/ContentSlide';
 import { ResultsView } from '@/render/ResultsView';
 import { ScaleBox } from '@/render/ScaleBox';
 import { Leaderboard } from '@/render/viz/Leaderboard';
+import { TeamBoard } from '@/render/viz/TeamBoard';
 import { OptionTile, type TileState } from '@/render/viz/OptionTile';
 import { MatchPlay, OrderPlay } from './QuizPlay';
+import { HotspotImage } from '@/render/viz/Hotspot';
+import { RichInline } from '@/components/RichText';
+import { quizAnswerLabel, quizAnswerLines } from '@/lib/quiz';
 import { ActivityShell, BigButton, ErrorLine, Received, WaitingDots, useP, useSubmit } from './common';
 
 /** Aggregated results, when the presenter has chosen to share them with the room. */
@@ -84,13 +88,25 @@ export function EndedView() {
 
 export function LeaderboardView() {
   const { snap } = useP();
+  if (snap.state.leaderboardMode === 'team' && snap.teamBoard?.length) {
+    return (
+      <div className="grid gap-5" data-testid="participant-team-board">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-full bg-gold text-gold-ink"><Trophy className="size-5" aria-hidden /></span>
+          <h2 className="display text-[1.65rem]">Team leaderboard</h2>
+        </div>
+        <ScaleBox pct={3.1}><TeamBoard teams={snap.teamBoard} meTeamId={snap.me.team?.id} /></ScaleBox>
+        {snap.me.team && <p className="rounded-2xl bg-accent-soft px-4 py-3 text-center font-semibold text-accent-ink">Your team: {snap.me.team.name}{snap.me.team.rank ? `, #${snap.me.team.rank}` : ''}</p>}
+      </div>
+    );
+  }
   const list = snap.leaderboard ?? [];
   const me = snap.me.standing;
   const inTop = me && list.some((s) => s.participantId === me.participantId);
   return (
     <div className="grid gap-5" data-testid="participant-leaderboard">
       <div className="flex items-center gap-3">
-        <span className="grid size-11 place-items-center rounded-full bg-[#ffe08a] text-[#5d4100]"><Trophy className="size-5" aria-hidden /></span>
+        <span className="grid size-11 place-items-center rounded-full bg-gold text-gold-ink"><Trophy className="size-5" aria-hidden /></span>
         <h2 className="display text-[1.65rem]">Leaderboard</h2>
       </div>
       <ScaleBox pct={3.1}><Leaderboard standings={list} meId={snap.me.id} limit={7} /></ScaleBox>
@@ -110,13 +126,13 @@ export function ContentView() {
 // Quiz
 // ------------------------------------------------------------------------------------
 
-function QuizFeedback({ correct, score, fraction }: { correct: boolean | null; score: number | null; fraction: number }) {
+function QuizFeedback({ correct, score, fraction, detail }: { correct: boolean | null; score: number | null; fraction: number; detail?: string | null }) {
   const { snap, activity } = useP();
   const c = activity.config as QuizConfig;
   const scored = c.scored;
   const standing = snap.me.standing;
   const partly = correct === false && fraction > 0;
-  const tone = correct ? 'bg-ok-soft text-[#0b4a30]' : partly ? 'bg-warn-soft text-[#6b4300]' : correct === false ? 'bg-bad-soft text-[#7a1428]' : 'bg-surface ring-1 ring-line';
+  const tone = correct ? 'bg-ok-soft text-ok-ink' : partly ? 'bg-warn-soft text-warn-ink' : correct === false ? 'bg-bad-soft text-bad-ink' : 'bg-surface ring-1 ring-line';
   const badge = correct ? 'bg-ok' : partly ? 'bg-warn' : correct === false ? 'bg-bad' : 'bg-ink-3';
   return (
     <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 22 }} className={cn('grid justify-items-center gap-2 rounded-3xl px-5 py-6 text-center', tone)} data-testid="quiz-feedback" role="status">
@@ -129,7 +145,9 @@ function QuizFeedback({ correct, score, fraction }: { correct: boolean | null; s
         <p className="tabular text-lg font-bold">+<AnimatedNumber value={score} format={(n) => n.toLocaleString()} /> points</p>
       )}
       {scored && snap.me.totalScore > 0 && <p className="text-sm font-semibold opacity-80">Total {snap.me.totalScore.toLocaleString()}{standing ? ` · rank ${standing.rank}` : ''}</p>}
-      {c.explanation && <p className="mt-1 max-w-sm text-[0.9375rem] leading-snug">{c.explanation}</p>}
+      {detail && <p className="max-w-sm text-sm font-semibold opacity-85" data-testid="grading-detail">{detail}</p>}
+      {!correct && quizAnswerLines(c).length > 0 && ['text', 'numeric'].includes(quizKind(c)) && <p className="max-w-sm text-sm"><b>{quizAnswerLabel(c)}:</b> {quizAnswerLines(c).join(' · ')}</p>}
+      {c.explanation && <p className="mt-1 max-w-sm text-[0.9375rem] leading-snug"><RichInline text={c.explanation} /></p>}
     </motion.div>
   );
 }
@@ -142,6 +160,10 @@ export function QuizView() {
   const kind = quizKind(c);
   const multiple = kind === 'multiple';
   const arranged = kind === 'match' || kind === 'order';
+  const typed = kind === 'text' || kind === 'numeric';
+  const hotspot = kind === 'hotspot';
+  const [typedText, setTypedText] = useState('');
+  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
   const view = c.view;
   const [picked, setPicked] = useState<string[]>([]);
   const [matches, setMatches] = useState<Record<string, string>>({});
@@ -169,10 +191,11 @@ export function QuizView() {
     void submit.run({ optionId: id }).then((ok) => { if (!ok) setPicked([]); });
   };
   const lefts = view?.lefts.length ?? 0;
-  const ready = kind === 'match' ? Object.keys(matches).length === lefts : kind === 'order' ? order.length > 0 : picked.length > 0;
-  const lockIn = () => void submit.run(kind === 'match' ? { matches } : kind === 'order' ? { order } : { optionIds: picked });
-  const lockLabel = kind === 'multiple' ? (picked.length ? `Lock in ${picked.length} ${picked.length === 1 ? 'answer' : 'answers'}` : 'Lock in answer') : kind === 'match' && !ready ? `Match all ${lefts} to lock in` : 'Lock in answer';
-  const needsButton = (multiple || arranged) && canAnswer;
+  const ready = kind === 'match' ? Object.keys(matches).length === lefts : kind === 'order' ? order.length > 0 : typed ? typedText.trim().length > 0 : hotspot ? !!point : picked.length > 0;
+  const lockIn = () => void submit.run(kind === 'match' ? { matches } : kind === 'order' ? { order } : typed ? { text: typedText } : hotspot ? point : { optionIds: picked });
+  const lockLabel = hotspot && !point ? 'Tap the image to choose a spot' : kind === 'multiple' ? (picked.length ? `Lock in ${picked.length} ${picked.length === 1 ? 'answer' : 'answers'}` : 'Lock in answer') : kind === 'match' && !ready ? `Match all ${lefts} to lock in` : 'Lock in answer';
+  const needsButton = (multiple || arranged || typed || hotspot) && canAnswer;
+  const unit = c.view?.unit || c.numeric?.unit;
   // what to show once locked: the person's own arrangement, from the server's copy
   const shownMatches: Record<string, string> = answer?.payload?.matches ?? matches;
   const shownOrder: string[] = answer?.payload?.order ?? order;
@@ -180,17 +203,43 @@ export function QuizView() {
   return (
     <ActivityShell
       title={c.question}
+      noImage={hotspot}
       footer={needsButton ? <BigButton disabled={!ready || submit.pending} loading={submit.pending} onClick={lockIn} data-testid="quiz-submit">{lockLabel}</BigButton> : undefined}
     >
+      {typed && (phase === 'open' || answer) && (
+        <form onSubmit={(e) => { e.preventDefault(); if (ready && canAnswer) lockIn(); }} className="grid gap-2">
+          <div className="relative">
+            <Input
+              value={answer ? String(answer.payload?.text ?? '') : typedText}
+              onChange={(e) => { setTypedText(e.target.value); submit.clearError(); }}
+              disabled={!canAnswer}
+              inputMode={kind === 'numeric' ? 'decimal' : 'text'}
+              autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="send" maxLength={200}
+              placeholder={kind === 'numeric' ? 'Your number' : 'Your answer'}
+              aria-label={kind === 'numeric' ? `Your answer${unit ? ` in ${unit}` : ''}` : 'Your answer'}
+              className={cn('h-14 rounded-2xl text-[1.125rem] font-semibold', unit && 'pr-16', kind === 'text' && 'font-mono')}
+              data-testid="typed-input"
+            />
+            {unit && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-semibold text-ink-3">{unit}</span>}
+          </div>
+          {kind === 'numeric' && canAnswer && <p className="text-sm text-ink-3">Decimals like 3.5, negatives like -2, fractions like 3/4.</p>}
+        </form>
+      )}
+      {hotspot && c.image && (
+        <div className="grid gap-2">
+          {canAnswer && <p className="text-sm font-semibold text-ink-3" data-testid="hotspot-hint">Tap the right spot on the image, then lock in. You can tap again to move it.</p>}
+          <HotspotImage url={c.image.url} alt={c.image.alt} picked={answer ? (answer.payload as { x: number; y: number }) : point} onPick={canAnswer ? setPoint : undefined} regions={correctVisible ? c.regions : []} testId="hotspot-picker" />
+        </div>
+      )}
       {multiple && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-multi-hint">Select all that apply</p>}
       {kind === 'match' && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-match-hint">Match every item</p>}
       {kind === 'order' && phase === 'open' && !answer && <p className="text-sm font-semibold text-ink-3" data-testid="quiz-order-hint">Put them in order, first at the top</p>}
       {kind === 'match' && view && <MatchPlay view={view} value={shownMatches} onChange={setMatches} locked={!canAnswer} answerMap={correctVisible && answer ? view.answerMap : undefined} />}
       {kind === 'order' && view && <OrderPlay view={view} value={shownOrder} onChange={setOrder} locked={!canAnswer} answerOrder={correctVisible && answer ? view.answerOrder : undefined} />}
-      {!arranged && (
+      {!arranged && !typed && !hotspot && (
         <div className="grid gap-3" role={multiple ? 'group' : undefined} aria-label={multiple ? 'Answers, select all that apply' : undefined}>
           {c.options.map((o, i) => (
-            <OptionTile key={o.id} size="phone" index={i} text={o.text} state={tile(o.id)} checkbox={multiple} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
+            <OptionTile key={o.id} size="phone" index={i} text={<RichInline text={o.text} />} state={tile(o.id)} checkbox={multiple} delay={i * 0.05} disabled={!canAnswer} onClick={phase === 'open' && !answer ? () => pick(o.id) : undefined} />
           ))}
         </div>
       )}
@@ -198,9 +247,9 @@ export function QuizView() {
       {phase === 'ready' && <p className="text-center font-semibold text-ink-3">Get ready. Answers open soon.</p>}
       {phase === 'open' && answer && <Received title="Answer locked in" hint="Waiting for everyone else…" />}
       {phase === 'closed' && (answer ? <p className="text-center font-semibold text-ink-2" data-testid="waiting-reveal">Answers are closed. Waiting for the reveal…</p> : <p className="text-center font-semibold text-ink-2">Time’s up. No answer recorded.</p>)}
-      {correctVisible && <QuizFeedback correct={answer ? answer.correct : null} score={answer?.score ?? null} fraction={answer ? gradeQuiz(c, answer.payload) : 0} />}
-      {!arranged && <SharedResults mine={{ optionIds: chosen }} />}
-      {arranged && <SharedResults />}
+      {correctVisible && <QuizFeedback correct={answer ? answer.correct : null} score={answer?.score ?? null} fraction={answer ? gradeQuiz(c, answer.payload) : 0} detail={answer?.detail} />}
+      {!arranged && !typed && !hotspot && <SharedResults mine={{ optionIds: chosen }} />}
+      {(arranged || typed || hotspot) && <SharedResults />}
     </ActivityShell>
   );
 }

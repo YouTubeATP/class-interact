@@ -5,6 +5,8 @@ import { BarList } from './viz/BarList';
 import { OpenCards } from './viz/OpenCards';
 import { RatingChart } from './viz/RatingChart';
 import { WordCloud } from './viz/WordCloud';
+import { HotspotImage } from './viz/Hotspot';
+import { RichInline } from '@/components/RichText';
 import { Users } from 'lucide-react';
 
 /** Renders aggregated results for any activity type. Sized in `em`; wrap in <ScaleBox>. */
@@ -14,11 +16,28 @@ export function ResultsView({ type, config, results, mine, correctIds, fill }: {
     case 'quiz': {
       const c = config as QuizConfig;
       const kind = quizKind(c);
+      if (results.kind === 'answers') {
+        if (!results.answers.length) return <EmptyResults />;
+        return (
+          <div className="grid gap-[0.6em]" data-testid="answers-results">
+            {results.correctCount !== null && <p className="text-[1.3em] font-semibold text-ink-2"><span className="tabular font-extrabold text-ink">{results.correctCount}</span> of {results.total} correct</p>}
+            <BarList total={results.total} items={results.answers.slice(0, 10).map((a) => ({ id: a.key, label: `${a.label}${a.correct === true ? '  ✓' : a.correct === false ? '  ✗' : ''}`, count: a.count }))} />
+          </div>
+        );
+      }
+      if (results.kind === 'points') {
+        return (
+          <div className="grid gap-[0.6em]" data-testid="points-results">
+            {results.correctCount !== null && <p className="text-[1.3em] font-semibold text-ink-2"><span className="tabular font-extrabold text-ink">{results.correctCount}</span> of {results.total} inside a correct region</p>}
+            {c.image && <HotspotImage url={c.image.url} alt={c.image.alt} points={results.points} regions={c.regions} maxHeight="22em" testId="hotspot-results" />}
+          </div>
+        );
+      }
       if (kind === 'match' || kind === 'order') {
         // bars show how many people got each pair / position right. The studio has the authored config; the audience
         // only has the tokens, and learns the answer from the revealed view.
         const items = kind === 'match'
-          ? (c.view?.lefts ?? c.pairs.map((p, i) => ({ id: `L${i}`, text: p.left }))).map((l) => ({ id: l.id, label: l.text, count: results.counts[l.id] ?? 0 }))
+          ? (c.view?.lefts ?? c.pairs.map((p, i) => ({ id: `L${i}`, text: p.left }))).map((l) => ({ id: l.id, label: l.text, count: (results as ChoiceTally).counts[l.id] ?? 0 }))
           : Object.keys(results.counts).map((id, p) => {
               const known = c.items.length ? c.items[p]?.text : c.view?.answerOrder ? c.view.items.find((i) => i.id === c.view!.answerOrder![p])?.text : undefined;
               return { id, label: `${p + 1}. ${known ?? 'Position ' + (p + 1)}`, count: results.counts[id] ?? 0 };
@@ -30,11 +49,11 @@ export function ResultsView({ type, config, results, mine, correctIds, fill }: {
           </div>
         );
       }
-      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: o.text + (correctIds?.includes(o.id) ? '  ✓' : ''), count: results.counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
+      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: <><RichInline text={o.text} />{correctIds?.includes(o.id) ? <span aria-label="correct answer">  ✓</span> : null}</>, count: (results as ChoiceTally).counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
     }
     case 'poll': {
       const c = config as PollConfig;
-      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: o.text, count: results.counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
+      return <BarList total={results.total} items={c.options.map((o) => ({ id: o.id, label: <RichInline text={o.text} />, count: results.counts[o.id] ?? 0 }))} mine={mine?.optionIds} />;
     }
     case 'wordcloud':
       return results.terms.length ? <div className={cn(fill ? 'size-full' : 'h-[26em]')}><WordCloud terms={results.terms} mine={mine?.terms} /></div> : <EmptyResults />;

@@ -78,7 +78,7 @@ export function QrScanner({ open, onClose, onCode }: { open: boolean; onClose: (
   return (
     <AnimatePresence>
       {open && (
-        <motion.div role="dialog" aria-modal="true" aria-label="Scan the QR code" data-testid="scan-overlay" className="fixed inset-0 z-50 grid bg-ink" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <motion.div role="dialog" aria-modal="true" aria-label="Scan the QR code" data-testid="scan-overlay" className="fixed inset-0 z-50 grid bg-stage-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
           <video ref={video} playsInline muted autoPlay className="absolute inset-0 size-full object-cover" />
 
           {!problem && (
@@ -98,7 +98,7 @@ export function QrScanner({ open, onClose, onCode }: { open: boolean; onClose: (
           )}
 
           {problem && (
-            <div className="relative grid place-content-center justify-items-center gap-4 bg-ink px-8 text-center text-white" data-testid="scan-problem" role="alert">
+            <div className="relative grid place-content-center justify-items-center gap-4 bg-stage-bg px-8 text-center text-white" data-testid="scan-problem" role="alert">
               <span className="grid size-14 place-items-center rounded-2xl bg-white/10"><CameraOff className="size-7" aria-hidden /></span>
               <p className="max-w-xs text-[1.0625rem] leading-snug">{COPY[problem]}</p>
               <Button variant="secondary" size="lg" onClick={onClose}>Type the code instead</Button>

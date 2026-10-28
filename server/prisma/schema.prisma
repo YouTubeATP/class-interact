@@ -55,6 +55,10 @@ model Session {
   liveProjectorCode String?        @unique
   /// JSON: SessionState (phase, activity index, visibility flags, timer)
   state          String
+  /// JSON: SessionFeatures (Q&A, pulse, teams, projector look and sound, self-paced, …). '{}' = defaults.
+  features       String            @default("{}")
+  /// A rehearsal with simulated participants: excluded from analytics and cross-session reports.
+  rehearsal      Boolean           @default(false)
   createdAt      DateTime          @default(now())
   endedAt        DateTime?
   lastActivityAt DateTime          @default(now())
@@ -62,6 +66,12 @@ model Session {
   activities     SessionActivity[]
   participants   Participant[]
   submissions    Submission[]
+  runs           ActivityRun[]
+  teams          Team[]
+  questions      AudienceQuestion[]
+  pulses         PulseSignal[]
+  pulseEvents    PulseEvent[]
+  grants         AccessGrant[]
 
   @@index([status])
 }
@@ -80,6 +90,7 @@ model SessionActivity {
   seed            String       @default("")
   session         Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   submissions     Submission[]
+  runs            ActivityRun[]
 
   @@unique([sessionId, key])
   @@index([sessionId, position])
@@ -94,16 +105,148 @@ model Participant {
   tokenHash   String       @unique
   removed     Boolean      @default(false)
   joinedAt    DateTime     @default(now())
+  /// Team mode (optional)
+  teamId      String?
+  /// "Remember me" identity across sessions (opt-in, continuity sessions only)
+  learnerId   String?
+  /// A rehearsal's simulated participant
+  simulated   Boolean      @default(false)
   session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   submissions Submission[]
+  team        Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  learner     Learner?     @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  votes       QuestionVote[]
 
   @@unique([sessionId, nameKey])
+  @@index([learnerId])
+}
+
+/// One run of an activity in a session. The first run is created with the session; "run again" adds more, each
+/// with its own responses, reveal state, moderation and scoring rule.
+model ActivityRun {
+  id                String          @id @default(cuid())
+  sessionId         String
+  sessionActivityId String
+  /// 1, 2, 3…
+  number            Int
+  /// counted | practice | replace | add
+  scoring           String          @default("counted")
+  answerRevealed    Boolean         @default(false)
+  completed         Boolean         @default(false)
+  startedAt         DateTime        @default(now())
+  /// JSON: word-cloud term merges { termKey: groupKey }
+  merges            String          @default("{}")
+  session           Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  activity          SessionActivity @relation(fields: [sessionActivityId], references: [id], onDelete: Cascade)
+  submissions       Submission[]
+
+  @@unique([sessionActivityId, number])
+  @@index([sessionId])
+}
+
+model Team {
+  id           String        @id @default(cuid())
+  sessionId    String
+  name         String
+  color        String
+  position     Int
+  session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participants Participant[]
+
+  @@index([sessionId])
+}
+
+/// Audience Q&A, independent of the slides.
+model AudienceQuestion {
+  id            String         @id @default(cuid())
+  sessionId     String
+  participantId String?
+  anonymous     Boolean        @default(false)
+  /// Copied when asked (null when anonymous), so renaming later does not rewrite history
+  authorName    String?
+  text          String
+  /// pending | visible | hidden | dismissed
+  status        String         @default("visible")
+  pinned        Boolean        @default(false)
+  answered      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  answeredAt    DateTime?
+  session       Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  votes         QuestionVote[]
+
+  @@index([sessionId])
+}
+
+model QuestionVote {
+  id            String           @id @default(cuid())
+  questionId    String
+  participantId String
+  createdAt     DateTime         @default(now())
+  question      AudienceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, participantId])
+}
+
+/// Each participant's current understanding signal. Shown to the presenter only as counts.
+model PulseSignal {
+  sessionId     String
+  participantId String
+  /// got | unsure | lost
+  value         String
+  updatedAt     DateTime @default(now())
+  session       Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, participantId])
+}
+
+/// Anonymous log of pulse changes (no participant id), for the trend line.
+model PulseEvent {
+  id        Int      @id @default(autoincrement())
+  sessionId String
+  /// the new value, or "" when cleared
+  value     String
+  /// the previous value, or ""
+  previous  String
+  at        DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, at])
+}
+
+/// Revocable access link for a co-presenter or moderator. Only the SHA-256 of the token is stored.
+model AccessGrant {
+  id        String    @id @default(cuid())
+  sessionId String
+  /// copresenter | moderator
+  role      String
+  label     String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+/// Optional, opt-in identity that lets a person be recognised across sessions. Holds no name and no contact details:
+/// only a hash of the random key kept on the person's device, and an optional label the presenter gives it.
+model Learner {
+  id            String        @id @default(cuid())
+  keyHash       String        @unique
+  /// The person agreed that the teacher may see their own progress (otherwise only class-level aggregates)
+  shareProgress Boolean       @default(false)
+  label         String        @default("")
+  createdAt     DateTime      @default(now())
+  lastSeenAt    DateTime      @default(now())
+  participants  Participant[]
 }
 
 model Submission {
   id                String          @id @default(cuid())
   sessionId         String
   sessionActivityId String
+  runId             String
   participantId     String
   /// 0..maxSubmissions-1. Together with the unique index below this makes double submissions impossible.
   slot              Int
@@ -116,13 +259,19 @@ model Submission {
   correct           Boolean?
   score             Int             @default(0)
   responseMs        Int?
+  /// Typed / numeric / hotspot answers the grader was unsure about: pending | accepted | rejected (NULL otherwise)
+  review            String?
+  /// Plain-language grading explanation
+  detail            String?
   createdAt         DateTime        @default(now())
   session           Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   activity          SessionActivity @relation(fields: [sessionActivityId], references: [id], onDelete: Cascade)
+  run               ActivityRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
   participant       Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
-  @@unique([sessionActivityId, participantId, slot])
-  @@unique([sessionActivityId, participantId, key])
+  @@unique([runId, participantId, slot])
+  @@unique([runId, participantId, key])
   @@index([sessionId])
   @@index([sessionActivityId, status])
+  @@index([runId, status])
 }

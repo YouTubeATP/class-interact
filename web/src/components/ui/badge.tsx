@@ -7,9 +7,9 @@ const badgeVariants = cva('inline-flex items-center gap-1.5 rounded-full px-2.5 
     variant: {
       neutral: 'bg-ink/6 text-ink-2',
       accent: 'bg-accent-soft text-accent-ink',
-      ok: 'bg-ok-soft text-ok',
-      warn: 'bg-warn-soft text-warn',
-      bad: 'bg-bad-soft text-bad',
+      ok: 'bg-ok-soft text-ok-ink',
+      warn: 'bg-warn-soft text-warn-ink',
+      bad: 'bg-bad-soft text-bad-ink',
       tone: 'bg-tone text-tone-ink',
     },
   },

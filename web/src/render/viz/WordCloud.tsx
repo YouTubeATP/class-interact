@@ -88,7 +88,9 @@ export function WordCloud({ terms, className, mine = [] }: { terms: Term[]; clas
     const measure: Measure = (text, size) => {
       el.style.fontSize = `${size * scale}px`; // measure at the real on-screen size
       el.textContent = text;
-      return el.getBoundingClientRect().width / scale || 0; // and convert back into virtual units
+      // offsetWidth is layout width: unlike getBoundingClientRect it ignores ancestor transforms (a stage mid-entrance
+      // is scaled down), and it is in the same units as the ResizeObserver box. Then convert back into virtual units.
+      return el.offsetWidth / scale || 0;
     };
     const laid = layoutCloud(terms.slice(0, 80), VIRTUAL_W, box.h / scale, measure);
     el.textContent = ''; // the probe must not leave a stray copy of the last word in the page
@@ -98,15 +100,18 @@ export function WordCloud({ terms, className, mine = [] }: { terms: Term[]; clas
 
   return (
     <div ref={ref} className={cn('relative size-full min-h-[6em]', className)} role="img" aria-label={`Word cloud: ${terms.slice(0, 8).map((t) => t.label).join(', ')}`}>
-      {/* off-screen probe: text is measured with the exact font the words are drawn in */}
-      <span ref={probe} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap font-extrabold leading-[1.12] tracking-tight" />
+      {/* off-screen probe: text is measured with the exact font the words are drawn in. transition-none matters: the
+          reduced-motion rule gives every element a tiny transition, and a font-size transition makes the probe read stale widths */}
+      <span ref={probe} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap transition-none font-extrabold leading-[1.12] tracking-tight" />
       {placed.map((p) => (
         <motion.span
           key={p.key}
-          className="absolute left-0 top-0 whitespace-nowrap font-extrabold leading-[1.12] tracking-tight"
-          style={{ color: colorFor(p.key), textShadow: mine.includes(p.key) ? '0 0 0 currentColor' : undefined, textDecoration: mine.includes(p.key) ? 'underline' : undefined, textUnderlineOffset: '0.12em', textDecorationThickness: '0.07em' }}
-          initial={{ opacity: 0, scale: 0.4, x: p.x * scale, y: p.y * scale, fontSize: p.size * scale }}
-          animate={{ opacity: 1, scale: 1, x: p.x * scale, y: p.y * scale, fontSize: p.size * scale }}
+          className="absolute left-0 top-0 whitespace-nowrap font-extrabold transition-none leading-[1.12] tracking-tight"
+          // Position and size are plain styles, never animated: with reduced motion framer skips transform updates,
+          // which left words at stale spots on top of each other. Only the entrance (opacity and scale) animates.
+          style={{ left: p.x * scale, top: p.y * scale, fontSize: p.size * scale, color: colorFor(p.key), textShadow: mine.includes(p.key) ? '0 0 0 currentColor' : undefined, textDecoration: mine.includes(p.key) ? 'underline' : undefined, textUnderlineOffset: '0.12em', textDecorationThickness: '0.07em' }}
+          initial={{ opacity: 0, scale: 0.4 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 130, damping: 18, mass: 0.9 }}
         >
           {p.label}

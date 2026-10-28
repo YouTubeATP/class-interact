@@ -21,6 +21,7 @@ import {
   type WordcloudConfig,
 } from './schema';
 import { cleanText, countWords, normalizeKey } from './text';
+import { gradeHotspot, gradeNumeric, gradeText, normalizeTyped, parseNumber } from './grading';
 
 export type SubmissionStatus = 'visible' | 'pending' | 'hidden';
 
@@ -60,9 +61,23 @@ export interface TermsTally {
   total: number;
   terms: { key: string; label: string; count: number }[];
 }
+/** Typed and numeric answers, grouped. `correct` is null until the answer is revealed to this audience. */
+export interface AnswersTally {
+  kind: 'answers';
+  total: number;
+  correctCount: number | null;
+  answers: { key: string; label: string; count: number; correct: boolean | null }[];
+}
+/** Hotspot taps in normalised image coordinates. */
+export interface PointsTally {
+  kind: 'points';
+  total: number;
+  correctCount: number | null;
+  points: { x: number; y: number; correct: boolean | null }[];
+}
 
 export type Results =
-  | ({ type: 'quiz' } & ChoiceTally)
+  | ({ type: 'quiz' } & (ChoiceTally | AnswersTally | PointsTally))
   | ({ type: 'poll' } & ChoiceTally)
   | ({ type: 'wordcloud' } & TermsTally)
   | ({ type: 'open' } & TextTally)
@@ -78,6 +93,15 @@ export interface Behavior {
   timeLimitSec: number | null;
   autoOpen: boolean;
   maxSubmissions: number;
+}
+
+export interface Evaluation {
+  correct: boolean | null;
+  score: number;
+  /** Nearly right: the teacher should confirm (typed, numeric and hotspot answers only). */
+  review?: boolean;
+  /** Plain-language reason for the grade. */
+  detail?: string;
 }
 
 export type ValidationResult =
@@ -99,7 +123,7 @@ export interface ActivityDefinition<T extends SlideType = SlideType> {
   /** Free text inside a payload — the server runs its text-moderation filter over these. */
   extractText(config: ConfigByType[T], payload: any): string[];
   /** `seed` is the activity's private shuffle seed (match / order questions grade in terms of shuffled tokens). */
-  evaluate(config: ConfigByType[T], payload: any, ctx: { elapsedMs: number; seed?: string }): { correct: boolean | null; score: number };
+  evaluate(config: ConfigByType[T], payload: any, ctx: { elapsedMs: number; seed?: string }): Evaluation;
   aggregate(config: ConfigByType[T], subs: AggSubmission[], ctx?: { seed?: string }): Results;
   /** Strips speaker notes and (until revealed) the correct answer. Safe to send to the audience. */
   publicConfig(config: ConfigByType[T], opts: { revealCorrect: boolean; seed?: string }): ConfigByType[T];
@@ -237,7 +261,33 @@ export function scoreQuiz(c: Pick<QuizConfig, 'scored' | 'points' | 'speedBonus'
  *   order     share of positions holding the right item
  * With `partialCredit` off, multiple / match / order are all-or-nothing.
  */
-type QuizLike = Pick<QuizConfig, 'options' | 'correctOptionId' | 'correctOptionIds' | 'partialCredit' | 'pairs' | 'items' | 'view'> & { kind?: QuizKind };
+type QuizLike = Pick<QuizConfig, 'options' | 'correctOptionId' | 'correctOptionIds' | 'partialCredit' | 'pairs' | 'items' | 'view'> &
+  Partial<Pick<QuizConfig, 'acceptedAnswers' | 'caseSensitive' | 'whitespace' | 'numeric' | 'regions'>> & { kind?: QuizKind };
+
+/** Full grade (with explanation) for typed, numeric and hotspot answers; null for the other kinds. */
+export function gradeOpenQuiz(c: QuizLike, payload: any): ReturnType<typeof gradeText> | null {
+  const kind = quizKind(c);
+  if (kind === 'text') return gradeText({ acceptedAnswers: c.acceptedAnswers ?? [], caseSensitive: c.caseSensitive ?? false, whitespace: c.whitespace ?? 'normalize' }, String(payload?.text ?? ''));
+  if (kind === 'numeric') {
+    if (!c.numeric) return { correct: false, review: false, detail: 'No correct number set.' };
+    const n = parseNumber(String(payload?.text ?? ''), c.numeric.unit);
+    return n === null ? { correct: false, review: false, detail: 'Not a number.' } : gradeNumeric(c.numeric, n);
+  }
+  if (kind === 'hotspot') {
+    if (typeof payload?.x !== 'number' || typeof payload?.y !== 'number') return { correct: false, review: false, detail: 'No point chosen.' };
+    return gradeHotspot(c.regions ?? [], payload.x, payload.y);
+  }
+  return null;
+}
+
+/** Grouping key for a typed or numeric answer (also stored with the submission so a review applies to the whole group). */
+export function typedAnswerKey(c: QuizLike, text: string): string {
+  if (quizKind(c) === 'numeric') {
+    const n = parseNumber(text, c.numeric?.unit);
+    return n === null ? normalizeTyped(text, { whitespace: 'ignore' }) : String(n);
+  }
+  return normalizeTyped(text, { caseSensitive: c.caseSensitive ?? false, whitespace: c.whitespace ?? 'normalize' }).slice(0, 200);
+}
 
 export const quizKind = (c: { kind?: QuizKind }): QuizKind => c.kind ?? 'single';
 
@@ -343,6 +393,8 @@ export function gradeQuiz(c: QuizLike, payload: any, seed = ''): number {
     const right = key.filter((id, p) => given[p] === id).length;
     return partial ? right / key.length : right === key.length ? 1 : 0;
   }
+  const open = gradeOpenQuiz(c, payload);
+  if (open) return open.correct ? 1 : 0;
   return payload?.optionId !== undefined && payload.optionId === c.correctOptionId ? 1 : 0;
 }
 
@@ -425,6 +477,20 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
         if (!isObj(raw) || !Array.isArray(raw.order) || raw.order.length !== n || raw.order.some((x) => typeof x !== 'string' || !tokens.has(x)) || new Set(raw.order).size !== n) return bad('Put every item in order before you lock in');
         return ok({ order: raw.order });
       }
+      if (kind === 'text' || kind === 'numeric') {
+        if (!isObj(raw) || typeof raw.text !== 'string') return bad(kind === 'numeric' ? 'Enter a number' : 'Type your answer');
+        const text = raw.text.normalize('NFKC').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+        if (!text) return bad(kind === 'numeric' ? 'Enter a number' : 'Type your answer');
+        if (text.length > 200) return bad('Keep it under 200 characters');
+        if (kind === 'numeric' && parseNumber(text, c.numeric?.unit) === null) return bad(`Enter a single number${c.numeric?.unit ? ` (in ${c.numeric.unit})` : ''}, like 3.5 or -2`);
+        return ok({ text }, typedAnswerKey(c, text));
+      }
+      if (kind === 'hotspot') {
+        const inUnit = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+        if (!isObj(raw) || !inUnit(raw.x) || !inUnit(raw.y)) return bad('Tap a point on the image');
+        const r4 = (v: number) => Math.round(v * 10000) / 10000;
+        return ok({ x: r4(raw.x), y: r4(raw.y) });
+      }
       const valid = new Set(c.options.map((o) => o.id));
       if (kind === 'multiple') {
         if (!isObj(raw) || !Array.isArray(raw.optionIds) || raw.optionIds.some((x) => typeof x !== 'string')) return bad('Tick at least one answer');
@@ -439,6 +505,8 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
     },
     extractText: () => [],
     evaluate(c, payload, { elapsedMs, seed }) {
+      const open = gradeOpenQuiz(c, payload);
+      if (open) return { correct: open.correct, score: open.correct ? scoreQuiz(c, true, elapsedMs) : 0, review: open.review, detail: open.detail };
       const fraction = gradeQuiz(c, payload, seed);
       const full = scoreQuiz(c, true, elapsedMs);
       return { correct: fraction === 1, score: Math.round(full * fraction) };
@@ -446,6 +514,27 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
     aggregate(c, subs, ctx) {
       const kind = quizKind(c);
       const visible = subs.filter((s) => s.status !== 'hidden');
+      if (kind === 'text' || kind === 'numeric') {
+        const groups = new Map<string, { count: number; correct: number; spellings: Map<string, number> }>();
+        for (const s of visible) {
+          if (typeof s.payload?.text !== 'string') continue;
+          const key = s.key ?? typedAnswerKey(c, s.payload.text);
+          const g = groups.get(key) ?? { count: 0, correct: 0, spellings: new Map() };
+          g.count++;
+          if (s.correct) g.correct++;
+          g.spellings.set(s.payload.text, (g.spellings.get(s.payload.text) ?? 0) + 1);
+          groups.set(key, g);
+        }
+        const answers = [...groups.entries()]
+          .map(([key, g]) => ({ key, label: [...g.spellings.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0], count: g.count, correct: g.correct * 2 >= g.count }))
+          .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+        const total = answers.reduce((n, a) => n + a.count, 0);
+        return { type: 'quiz', kind: 'answers', total, correctCount: visible.filter((s) => s.correct).length, answers: answers.slice(0, 60) };
+      }
+      if (kind === 'hotspot') {
+        const pts = visible.filter((s) => typeof s.payload?.x === 'number' && typeof s.payload?.y === 'number');
+        return { type: 'quiz', kind: 'points', total: pts.length, correctCount: pts.filter((s) => s.correct).length, points: pts.slice(0, 600).map((s) => ({ x: s.payload.x, y: s.payload.y, correct: s.correct })) };
+      }
       if (kind === 'match' || kind === 'order') {
         // counts[L<i>] / counts[P<p>]: how many people got that pair / position right
         const key = quizKey(c, ctx?.seed ?? '');
@@ -487,6 +576,14 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
         correctOptionId: revealCorrect ? c.correctOptionId : '',
         correctOptionIds: revealCorrect ? c.correctOptionIds : [],
         explanation: revealCorrect ? c.explanation : '',
+        // misconceptions say which options are wrong, and the rest is teaching metadata: never for the audience
+        options: c.options.map(({ misconception: _m, ...o }) => o),
+        concepts: undefined,
+        branch: undefined,
+        acceptedAnswers: revealCorrect ? c.acceptedAnswers : [],
+        numeric: revealCorrect ? c.numeric : undefined,
+        regions: revealCorrect ? c.regions : [],
+        ...(kind === 'numeric' && !revealCorrect ? { view: { lefts: [], rights: [], items: [], unit: c.numeric?.unit ?? '' } } : {}),
       };
       if (kind === 'match' || kind === 'order') {
         // the authored pairs / order are the answer, so the audience only ever gets the shuffled tokens
@@ -504,6 +601,8 @@ export const definitions: { [T in SlideType]: ActivityDefinition<T> } = {
           : (p.order as string[]).map((id) => text(v.items, id)).join(' > ');
         return [{ prompt: c.question, response }];
       }
+      if (kind === 'text' || kind === 'numeric') return [{ prompt: c.question, response: String(p.text ?? '') }];
+      if (kind === 'hotspot') return [{ prompt: c.question, response: `(${(p.x * 100).toFixed(1)}%, ${(p.y * 100).toFixed(1)}%)` }];
       const chosen: string[] = Array.isArray(p.optionIds) ? p.optionIds : [p.optionId];
       return [{ prompt: c.question, response: chosen.map((id) => c.options.find((o) => o.id === id)?.text ?? String(id)).join(' | ') }];
     },
@@ -667,7 +766,13 @@ export function getDefinition<T extends SlideType>(type: T): ActivityDefinition<
 }
 
 /** Audience-safe results: survey free text stays presenter-only (there is no per-answer moderation for surveys). */
-export function redactResults(results: Results): Results {
+export function redactResults(results: Results, opts: { revealCorrect?: boolean } = {}): Results {
+  if (results.type === 'quiz' && results.kind === 'answers' && !opts.revealCorrect) {
+    return { ...results, correctCount: null, answers: results.answers.map((a) => ({ ...a, correct: null })) };
+  }
+  if (results.type === 'quiz' && results.kind === 'points' && !opts.revealCorrect) {
+    return { ...results, correctCount: null, points: results.points.map((p) => ({ ...p, correct: null })) };
+  }
   if (results.type !== 'survey') return results;
   const questions: Record<string, ChoiceTally | RatingTally | TextTally> = {};
   for (const [id, q] of Object.entries(results.questions)) questions[id] = q.kind === 'text' ? { ...q, items: [] } : q;
@@ -695,7 +800,7 @@ export function defaultConfig<T extends SlideType>(type: T): ConfigByType[T] {
   const opts = (...t: string[]) => t.map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
   const configs: { [K in SlideType]: () => ConfigByType[K] } = {
     content: () => ({ ...base, title: 'New slide', body: '', steps: [] }),
-    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', kind: 'single', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', correctOptionIds: [], pairs: [], items: [], partialCredit: true, explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
+    quiz: () => ({ ...base, ...live, question: 'Which option is correct?', kind: 'single', options: opts('Option A', 'Option B', 'Option C', 'Option D'), correctOptionId: 'a', correctOptionIds: [], pairs: [], items: [], partialCredit: true, acceptedAnswers: [], caseSensitive: false, whitespace: 'normalize', regions: [], explanation: '', scored: true, points: 1000, speedBonus: false, showResultsToParticipants: true }),
     poll: () => ({ ...base, ...live, question: 'What do you think?', options: opts('Option A', 'Option B', 'Option C'), multiple: false, maxSelections: null, anonymous: false, liveResults: true, showResultsToParticipants: true }),
     wordcloud: () => ({ ...base, ...live, question: 'In one word or a few words…', maxLength: 40, maxWords: 5, maxSubmissions: 3, moderation: 'off', liveResults: true, showResultsToParticipants: true }),
     open: () => ({ ...base, ...live, question: 'What are your thoughts?', mode: 'short', maxSubmissions: 1, moderation: 'off', liveResults: true, showResultsToParticipants: false }),

@@ -27,7 +27,7 @@ export function MatchStage({ view, revealed }: { view: QuizView; revealed: boole
             <motion.li key={l.id} {...rise(i)} className="grid grid-cols-[1fr_auto_1fr] items-center gap-[0.8em] text-[1.9em] font-semibold">
               <span className="rounded-[0.7em] px-[0.8em] py-[0.45em]" style={{ background: c.bg, color: c.ink }}>{l.text}</span>
               <span className="grid size-[1.4em] place-items-center rounded-full bg-ok text-white"><Check className="size-[70%]" strokeWidth={3.2} aria-label="Correct match" /></span>
-              <span className="rounded-[0.7em] bg-ok-soft px-[0.8em] py-[0.45em] text-[#0b4a30]">{right?.text}</span>
+              <span className="rounded-[0.7em] bg-ok-soft px-[0.8em] py-[0.45em] text-ok-ink">{right?.text}</span>
             </motion.li>
           );
         })}
@@ -58,7 +58,7 @@ export function OrderStage({ view, revealed }: { view: QuizView; revealed: boole
   return (
     <ol className="grid gap-[0.7em] p-[0.15em]" data-testid={revealed && key ? 'stage-order-answer' : 'stage-order'}>
       {list.map((it, i) => (
-        <motion.li key={it.id} layout {...rise(i)} className={cn('flex items-center gap-[0.8em] rounded-[0.7em] px-[0.8em] py-[0.45em] text-[1.9em] font-semibold', revealed && key ? 'bg-ok-soft text-[#0b4a30]' : 'bg-surface ring-[0.1em] ring-line-2')}>
+        <motion.li key={it.id} layout {...rise(i)} className={cn('flex items-center gap-[0.8em] rounded-[0.7em] px-[0.8em] py-[0.45em] text-[1.9em] font-semibold', revealed && key ? 'bg-ok-soft text-ok-ink' : 'bg-surface ring-[0.1em] ring-line-2')}>
           {revealed && key ? <span className="tabular grid size-[1.4em] shrink-0 place-items-center rounded-full bg-ok text-[0.8em] font-extrabold text-white">{i + 1}</span> : <span aria-hidden className="size-[0.5em] shrink-0 rounded-full" style={{ background: swatch(i).strong }} />}
           {it.text}
         </motion.li>

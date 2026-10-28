@@ -17,6 +17,19 @@
 
 export type Phase = 'lobby' | 'standby' | 'ready' | 'open' | 'closed' | 'revealed' | 'completed' | 'ended';
 
+/** A pause screen over everything (projector and phones) that leaves the activity underneath untouched. */
+export interface BreakScreen {
+  kind: 'break' | 'prepare' | 'work';
+  title: string;
+  message: string;
+  startedAt: number;
+  /** When the countdown reaches zero (server time); null for an open-ended break. */
+  endsAt: number | null;
+}
+
+/** Something shown on the projector on top of the current screen. Phones are not affected. */
+export type Overlay = 'join' | 'qa' | 'pulse';
+
 export interface SessionState {
   phase: Phase;
   /** Index of the current (or, in standby, most recent) activity; -1 before anything has run. */
@@ -27,6 +40,12 @@ export interface SessionState {
   openedAt: number | null;
   deadlineAt: number | null;
   version: number;
+  // Added later; optional so states saved by older versions still load.
+  overlay?: Overlay | null;
+  /** A Q&A question shown large on the projector. */
+  highlightQuestionId?: string | null;
+  breakScreen?: BreakScreen | null;
+  leaderboardMode?: 'individual' | 'team';
 }
 
 export interface ActivityMeta {
@@ -56,12 +75,20 @@ export type Action =
   | { type: 'hideCorrect' }
   | { type: 'showLeaderboard' }
   | { type: 'hideLeaderboard' }
-  | { type: 'end' };
+  | { type: 'end' }
+  | { type: 'runAgain' }
+  | { type: 'showOverlay'; overlay: Overlay }
+  | { type: 'hideOverlay' }
+  | { type: 'highlightQuestion'; questionId: string | null }
+  | { type: 'startBreak'; kind: BreakScreen['kind']; title: string; message: string; minutes: number | null }
+  | { type: 'endBreak' }
+  | { type: 'setLeaderboardMode'; mode: 'individual' | 'team' };
 
 export type ActionType = Action['type'];
 export const ACTION_TYPES: ActionType[] = [
   'start', 'next', 'previous', 'goto', 'standby', 'open', 'close', 'complete',
   'revealResults', 'hideResults', 'revealCorrect', 'hideCorrect', 'showLeaderboard', 'hideLeaderboard', 'end',
+  'runAgain', 'showOverlay', 'hideOverlay', 'highlightQuestion', 'startBreak', 'endBreak', 'setLeaderboardMode',
 ];
 
 export type TransitionErrorCode =
@@ -76,6 +103,8 @@ export type TransitionResult =
       completedIndex: number | null;
       /** Activity whose answer-revealed flag changed. */
       answerRevealed: { index: number; value: boolean } | null;
+      /** A new run of the current activity starts (its earlier responses are kept, untouched). */
+      newRun: boolean;
     }
   | { ok: false; code: TransitionErrorCode; message: string };
 
@@ -115,12 +144,15 @@ export function transition(state: SessionState, action: Action, activities: Acti
     return ['open', 'closed', 'revealed', 'completed'].includes(state.phase) ? idx : null;
   };
 
-  const done = (s: SessionState, extra: { completedIndex?: number | null; answerRevealed?: { index: number; value: boolean } | null } = {}): TransitionResult => ({
+  const done = (s: SessionState, extra: { completedIndex?: number | null; answerRevealed?: { index: number; value: boolean } | null; newRun?: boolean } = {}): TransitionResult => ({
     ok: true,
     state: bump(s),
     completedIndex: extra.completedIndex ?? null,
     answerRevealed: extra.answerRevealed ?? null,
+    newRun: extra.newRun ?? false,
   });
+  // screen extras carry over between activities; the highlighted question and overlay stay until hidden
+  const extras = { overlay: state.overlay ?? null, highlightQuestionId: state.highlightQuestionId ?? null, breakScreen: state.breakScreen ?? null, leaderboardMode: state.leaderboardMode ?? 'individual' };
 
   const openState = (s: SessionState, m: ActivityMeta): SessionState => ({
     ...s,
@@ -143,6 +175,7 @@ export function transition(state: SessionState, action: Action, activities: Acti
       openedAt: null,
       deadlineAt: null,
       version: state.version,
+      ...extras,
     };
     if (m.interactive && m.completed) {
       s = { ...s, phase: 'completed', resultsVisible: true, correctVisible: m.answerRevealed };
@@ -185,7 +218,7 @@ export function transition(state: SessionState, action: Action, activities: Acti
       if (target < 0) {
         if (state.phase === 'standby') return err('AT_FIRST', 'This is the first slide.');
         // back to the lobby
-        return done({ ...initialState(), phase: 'lobby', version: state.version }, { completedIndex: leftIndex() });
+        return done({ ...initialState(), phase: 'lobby', version: state.version, ...extras }, { completedIndex: leftIndex() });
       }
       return enter(target);
     }
@@ -256,14 +289,54 @@ export function transition(state: SessionState, action: Action, activities: Acti
       return done({ ...state, leaderboardVisible: false });
 
     case 'end':
-      return done({ ...state, phase: 'ended', openedAt: null, deadlineAt: null, leaderboardVisible: false }, { completedIndex: leftIndex() });
+      return done({ ...state, phase: 'ended', openedAt: null, deadlineAt: null, leaderboardVisible: false, overlay: null, breakScreen: null, highlightQuestionId: null }, { completedIndex: leftIndex() });
+
+    case 'runAgain': {
+      const e = requireInteractive();
+      if (e) return e;
+      if (state.phase === 'ready') return err('INVALID_PHASE', 'This activity has not run yet. Open responses instead.');
+      if (state.phase === 'open') return err('ALREADY_OPEN', 'Close responses before running the activity again.');
+      return done({ ...openState(state, meta!), correctVisible: false }, { newRun: true });
+    }
+
+    case 'showOverlay':
+      if (state.overlay === action.overlay) return err('INVALID_PHASE', 'That is already on screen.');
+      return done({ ...state, overlay: action.overlay });
+
+    case 'hideOverlay':
+      if (!state.overlay) return err('INVALID_PHASE', 'Nothing to hide.');
+      return done({ ...state, overlay: null });
+
+    case 'highlightQuestion':
+      return done({ ...state, highlightQuestionId: action.questionId });
+
+    case 'startBreak': {
+      const minutes = action.minutes;
+      return done({
+        ...state,
+        breakScreen: { kind: action.kind, title: action.title, message: action.message, startedAt: now, endsAt: minutes ? now + Math.round(minutes * 60_000) : null },
+      });
+    }
+
+    case 'endBreak':
+      if (!state.breakScreen) return err('INVALID_PHASE', 'There is no break to end.');
+      return done({ ...state, breakScreen: null });
+
+    case 'setLeaderboardMode':
+      return done({ ...state, leaderboardMode: action.mode });
   }
 }
 
 /** Which actions would currently succeed (used to enable/disable presenter controls). `goto` is listed when any other slide exists. */
 export function availableActions(state: SessionState, activities: ActivityMeta[], now = Date.now()): ActionType[] {
   return ACTION_TYPES.filter((type) => {
-    const action: Action = type === 'goto' ? { type, index: activities.length > 1 && state.activityIndex === 0 ? 1 : 0 } : ({ type } as Action);
+    const action: Action =
+      type === 'goto' ? { type, index: activities.length > 1 && state.activityIndex === 0 ? 1 : 0 }
+      : type === 'showOverlay' ? { type, overlay: state.overlay === 'join' ? 'qa' : 'join' }
+      : type === 'highlightQuestion' ? { type, questionId: null }
+      : type === 'startBreak' ? { type, kind: 'break', title: '', message: '', minutes: null }
+      : type === 'setLeaderboardMode' ? { type, mode: 'individual' }
+      : ({ type } as Action);
     return transition(state, action, activities, now).ok;
   });
 }

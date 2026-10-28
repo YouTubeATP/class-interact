@@ -14,7 +14,8 @@ export const SCHEMA_VERSION = 1;
 export const DOCUMENT_FORMAT = 'classinteract.presentation';
 
 export const PALETTES = ['azure', 'lavender', 'mint', 'peach', 'rose', 'slate'] as const;
-export const BACKGROUNDS = ['soft', 'plain'] as const;
+export const BACKGROUNDS = ['soft', 'plain', 'gradient', 'grid'] as const;
+export const APPEARANCES = ['light', 'dark'] as const;
 export const CONTENT_LAYOUTS = ['title', 'text', 'image-text', 'full-image', 'instructions'] as const;
 /**
  * How a quiz question is answered.
@@ -22,8 +23,11 @@ export const CONTENT_LAYOUTS = ['title', 'text', 'image-text', 'full-image', 'in
  *   multiple  tick every option that applies (`correctOptionIds`); optional partial credit
  *   match     connect each left item to its right item (`pairs`)
  *   order     put `items` in the right order (the order they are written in is the answer)
+ *   text      type an answer, graded against `acceptedAnswers` (case and spacing rules configurable)
+ *   numeric   type a number, graded against `numeric.value` with an optional absolute and/or relative tolerance
+ *   hotspot   tap a point on the slide's image, graded against `regions` (normalised 0–1 coordinates)
  */
-export const QUIZ_KINDS = ['single', 'multiple', 'match', 'order'] as const;
+export const QUIZ_KINDS = ['single', 'multiple', 'match', 'order', 'text', 'numeric', 'hotspot'] as const;
 export type QuizKind = (typeof QUIZ_KINDS)[number];
 
 export const SLIDE_TYPES = ['content', 'quiz', 'poll', 'wordcloud', 'open', 'rating', 'survey'] as const;
@@ -55,6 +59,53 @@ export function checkImageUrl(url: string): string | null {
   return null;
 }
 
+/** Video and audio: YouTube and Vimeo embeds, or a direct https / uploaded file in a browser-playable format. */
+export const MEDIA_FILE_EXT = ['mp4', 'webm', 'ogv', 'mp3', 'ogg', 'oga', 'wav', 'm4a'] as const;
+
+export type MediaSource = { provider: 'youtube'; id: string } | { provider: 'vimeo'; id: string } | { provider: 'file'; url: string };
+
+/** Recognise a media URL. Only these providers are ever embedded; anything else is rejected at validation. */
+export function parseMediaUrl(url: string): MediaSource | null {
+  const u = url.trim();
+  if (u.startsWith('/uploads/') && !u.includes('..') && !u.includes('\\')) {
+    const ext = u.split('.').pop()?.toLowerCase() ?? '';
+    return (MEDIA_FILE_EXT as readonly string[]).includes(ext) ? { provider: 'file', url: u } : null;
+  }
+  let p: URL;
+  try { p = new URL(u); } catch { return null; }
+  if (p.protocol !== 'https:' || p.username || p.password) return null;
+  const host = p.hostname.replace(/^www\./, '').replace(/^m\./, '');
+  const ytId = (v: string | null | undefined) => (v && /^[A-Za-z0-9_-]{6,20}$/.test(v) ? v : null);
+  if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    const id = ytId(p.searchParams.get('v')) ?? ytId(p.pathname.match(/^\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1]);
+    return id ? { provider: 'youtube', id } : null;
+  }
+  if (host === 'youtu.be') {
+    const id = ytId(p.pathname.slice(1).split('/')[0]);
+    return id ? { provider: 'youtube', id } : null;
+  }
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const id = p.pathname.match(/(?:^|\/)(\d{5,12})(?:$|\/)/)?.[1];
+    return id ? { provider: 'vimeo', id } : null;
+  }
+  const ext = p.pathname.split('.').pop()?.toLowerCase() ?? '';
+  return (MEDIA_FILE_EXT as readonly string[]).includes(ext) ? { provider: 'file', url: u } : null;
+}
+
+/** WCAG relative luminance of a #rrggbb colour. */
+export function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+export function contrastRatio(a: string, b: string): number {
+  const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
 const text = (min: number, max: number, what = 'Text') =>
   z
     .string({ required_error: `${what} is required`, invalid_type_error: `${what} must be text` })
@@ -81,6 +132,20 @@ export const imageSchema = z
   .strict();
 export type SlideImage = z.infer<typeof imageSchema>;
 
+export const mediaSchema = z
+  .object({
+    url: z.string({ required_error: 'Media needs a "url"' }).trim().max(2000, 'Media URL is too long').superRefine((v, ctx) => {
+      if (!parseMediaUrl(v)) ctx.addIssue({ code: 'custom', message: `Use a YouTube or Vimeo link, or an https:// file ending in ${MEDIA_FILE_EXT.map((e) => '.' + e).join(', ')}` });
+    }),
+    kind: z.enum(['video', 'audio'], { errorMap: () => ({ message: 'Media kind must be "video" or "audio"' }) }).default('video'),
+    title: optionalText(160, 'Media title'),
+    start: z.number().int().min(0).max(86400).optional(),
+    /** Also show the player on participants' phones (off: it plays on the main screen only). */
+    phones: z.boolean().default(false),
+  })
+  .strict();
+export type SlideMedia = z.infer<typeof mediaSchema>;
+
 const timeLimit = z
   .number({ invalid_type_error: 'Time limit must be a number of seconds' })
   .int('Time limit must be a whole number of seconds')
@@ -93,6 +158,28 @@ const optionSchema = z
   .object({ id: itemId, text: text(1, 160, 'Option text') })
   .strict();
 
+const quizOptionSchema = z
+  .object({
+    id: itemId,
+    text: text(1, 160, 'Option text'),
+    /** Optional: the misunderstanding that usually leads someone to pick this (wrong) option. */
+    misconception: z.string().trim().max(120, 'Misconception is too long (maximum 120 characters)').optional(),
+  })
+  .strict();
+
+const regionSchema = z
+  .object({
+    id: itemId,
+    shape: z.enum(['rect', 'ellipse'], { errorMap: () => ({ message: 'Region shape must be "rect" or "ellipse"' }) }).default('rect'),
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    w: z.number().gt(0, 'Region width must be more than 0').max(1),
+    h: z.number().gt(0, 'Region height must be more than 0').max(1),
+    label: optionalText(80, 'Region label'),
+  })
+  .strict();
+export type HotspotRegion = z.infer<typeof regionSchema>;
+
 const pairSchema = z
   .object({ id: itemId, left: text(1, 120, 'Left item'), right: text(1, 120, 'Right item') })
   .strict();
@@ -104,11 +191,14 @@ const quizViewSchema = z.object({
   items: z.array(z.object({ id: z.string(), text: z.string() })),
   answerMap: z.record(z.string()).optional(),
   answerOrder: z.array(z.string()).optional(),
+  /** Numeric questions: the unit to show next to the answer box before the answer is revealed. */
+  unit: z.string().optional(),
 });
 
 const base = {
   notes: optionalText(4000, 'Speaker notes'),
   image: imageSchema.optional(),
+  media: mediaSchema.optional(),
 };
 
 const interactiveBase = {
@@ -138,12 +228,40 @@ export const quizShape = {
   question: text(1, 300, 'Question'),
   kind: z.enum(QUIZ_KINDS, { errorMap: () => ({ message: `Question kind must be one of: ${QUIZ_KINDS.join(', ')}` }) }).default('single'),
   // Which of the fields below apply depends on `kind` (checked in the quiz refiner). Unused ones are left out of exports.
-  options: z.array(optionSchema).max(6, 'A quiz can have at most 6 options').default([]),
+  options: z.array(quizOptionSchema).max(6, 'A quiz can have at most 6 options').default([]),
   correctOptionId: itemId.optional(),
   correctOptionIds: z.array(itemId).max(6).default([]),
   pairs: z.array(pairSchema).max(6, 'A matching question can have at most 6 pairs').default([]),
   items: z.array(optionSchema).max(6, 'An ordering question can have at most 6 items').default([]),
   partialCredit: z.boolean().default(true),
+  // typed answers
+  acceptedAnswers: z.array(text(1, 200, 'Accepted answer')).max(20, 'At most 20 accepted answers').default([]),
+  caseSensitive: z.boolean().default(false),
+  /** normalize: trim and collapse runs of spaces; ignore: remove all whitespace (good for code and formulas); exact: compare as typed */
+  whitespace: z.enum(['normalize', 'ignore', 'exact']).default('normalize'),
+  // numeric answers
+  numeric: z
+    .object({
+      value: z.number({ required_error: 'The correct number is required', invalid_type_error: 'The correct answer must be a number' }).finite(),
+      tolerance: z.number().min(0, 'Tolerance cannot be negative').default(0),
+      tolerancePercent: z.number().min(0, 'Tolerance cannot be negative').max(100).default(0),
+      unit: optionalText(20, 'Unit'),
+    })
+    .strict()
+    .optional(),
+  // hotspot
+  regions: z.array(regionSchema).max(10, 'At most 10 correct regions').default([]),
+  /** Optional teaching metadata: the concepts this question checks. */
+  concepts: z.array(text(1, 60, 'Concept')).max(8, 'At most 8 concepts').optional(),
+  /** Optional: what to do next depending on how the class (or, self-paced, the person) did. */
+  branch: z
+    .object({
+      threshold: z.number().int().min(1).max(100).default(60),
+      below: z.string().regex(SLUG_RE).optional(),
+      atOrAbove: z.string().regex(SLUG_RE).optional(),
+    })
+    .strict()
+    .optional(),
   /** Generated for the audience; never authored. */
   view: quizViewSchema.optional(),
   explanation: optionalText(500, 'Explanation'),
@@ -193,6 +311,8 @@ export const ratingShape = {
   max: z.number().int().min(2).max(10, 'Scale can go up to 10').default(5),
   minLabel: optionalText(40, 'Low-end label'),
   maxLabel: optionalText(40, 'High-end label'),
+  /** Optional: this rating is a confidence check for these quiz slides (compared person by person in the results). */
+  confidenceFor: z.array(z.string().regex(SLUG_RE)).max(20).optional(),
   liveResults: z.boolean().default(true),
   showResultsToParticipants: z.boolean().default(true),
 };
@@ -306,6 +426,10 @@ export const refiners: Record<SlideType, (c: any, ctx: Ctx) => void> = {
     if (kind !== 'order' && c.items.length > 0) unused('items', '"order"');
     if (kind !== 'single' && c.correctOptionId !== undefined) unused('correctOptionId', '"single"');
     if (kind !== 'multiple' && c.correctOptionIds.length > 0) unused('correctOptionIds', '"multiple"');
+    if (kind !== 'text' && c.acceptedAnswers.length > 0) unused('acceptedAnswers', '"text"');
+    if (kind !== 'numeric' && c.numeric !== undefined) unused('numeric', '"numeric"');
+    if (kind !== 'hotspot' && c.regions.length > 0) unused('regions', '"hotspot"');
+    if (!choice && c.options.some((o: { misconception?: string }) => o.misconception)) fail(ctx, ['options'], 'Misconceptions belong to answer options');
 
     if (choice && c.options.length < 2) fail(ctx, ['options'], 'A quiz needs 2–6 options');
     if (kind === 'single') {
@@ -329,7 +453,19 @@ export const refiners: Record<SlideType, (c: any, ctx: Ctx) => void> = {
       });
     } else if (kind === 'order') {
       if (c.items.length < 2) fail(ctx, ['items'], 'An ordering question needs 2–6 items, written in the correct order');
+    } else if (kind === 'text') {
+      if (c.acceptedAnswers.length === 0) fail(ctx, ['acceptedAnswers'], 'A typed-answer question needs at least one accepted answer in "acceptedAnswers"');
+    } else if (kind === 'numeric') {
+      if (!c.numeric) fail(ctx, ['numeric'], 'A numeric question needs "numeric": { "value": … }');
+    } else if (kind === 'hotspot') {
+      if (!c.image) fail(ctx, ['image'], 'A hotspot question needs an "image" to click on');
+      if (c.regions.length === 0) fail(ctx, ['regions'], 'Mark at least one correct region in "regions"');
+      uniqueIds(ctx, c.regions, ['regions'], 'region');
+      c.regions.forEach((r: { x: number; y: number; w: number; h: number }, i: number) => {
+        if (r.x + r.w > 1.0001 || r.y + r.h > 1.0001) fail(ctx, ['regions', i], 'A region must stay inside the image (x + w and y + h at most 1)');
+      });
     }
+    if (c.branch && !c.branch.below && !c.branch.atOrAbove) fail(ctx, ['branch'], 'A branch needs a slide for "below" and/or "atOrAbove"');
     if (c.speedBonus && c.timeLimitSec === null) fail(ctx, ['speedBonus'], 'A speed bonus needs a countdown: set "timeLimitSec"');
     if (c.speedBonus && !c.scored) fail(ctx, ['speedBonus'], 'A speed bonus needs "scored": true');
   },
@@ -394,6 +530,25 @@ export const themeSchema = z
   .object({
     palette: z.enum(PALETTES, { errorMap: () => ({ message: `Palette must be one of: ${PALETTES.join(', ')}` }) }).default('azure'),
     background: z.enum(BACKGROUNDS, { errorMap: () => ({ message: `Background must be one of: ${BACKGROUNDS.join(', ')}` }) }).default('soft'),
+    /** Optional custom accent (#rrggbb). Must keep white text readable on it. */
+    accent: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, 'Accent must be a colour like #3347ff')
+      .refine((v) => contrastRatio(v, '#ffffff') >= 4.5, 'That accent is too light for white text on buttons. Pick a darker colour (contrast with white of at least 4.5:1).')
+      .optional(),
+    /** The presentation's own look on the projector. The presenter can still override it per session. */
+    appearance: z.enum(APPEARANCES).optional(),
+    logo: z
+      .object({
+        url: z.string().trim().superRefine((v, ctx) => {
+          const e = checkImageUrl(v);
+          if (e) ctx.addIssue({ code: 'custom', message: e });
+        }),
+        alt: optionalText(120, 'Logo description'),
+      })
+      .strict()
+      .optional(),
+    footer: z.string().trim().max(120, 'Footer is too long (maximum 120 characters)').optional(),
   })
   .strict();
 export type Theme = z.infer<typeof themeSchema>;
@@ -413,6 +568,20 @@ export const presentationDocSchema = z
     d.slides.forEach((s: any, i) => {
       if (seen.has(s.id)) fail(ctx, ['slides', i, 'id'], `Duplicate slide id "${s.id}" — slide ids must be unique`);
       seen.add(s.id);
+    });
+    // references between slides (branches, confidence pairing) must point at slides that exist
+    const byId = new Map(d.slides.map((s: any) => [s.id, s]));
+    d.slides.forEach((s: any, i) => {
+      for (const k of ['below', 'atOrAbove'] as const) {
+        const target = s.branch?.[k];
+        if (target !== undefined && !byId.has(target)) fail(ctx, ['slides', i, 'branch', k], `Branch target "${target}" is not a slide in this presentation`);
+        if (target === s.id) fail(ctx, ['slides', i, 'branch', k], 'A branch cannot point at its own slide');
+      }
+      (s.confidenceFor ?? []).forEach((id: string, j: number) => {
+        const t: any = byId.get(id);
+        if (!t) fail(ctx, ['slides', i, 'confidenceFor', j], `"${id}" is not a slide in this presentation`);
+        else if (t.type !== 'quiz') fail(ctx, ['slides', i, 'confidenceFor', j], `"${id}" is not a quiz, so there is no correctness to compare with`);
+      });
     });
   });
 

@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
+import { useAppearanceSync } from '@/lib/appearance';
 import { Spinner } from '@/components/Status';
 import JoinPage from '@/pages/Join';
 import PlayPage from '@/pages/Play';
@@ -10,6 +11,8 @@ const ProjectPage = lazy(() => import('@/pages/Project'));
 const HelpPage = lazy(() => import('@/help/ParticipantHelp'));
 
 export default function App() {
+  const { pathname } = useLocation();
+  useAppearanceSync(pathname);
   return (
     <Suspense fallback={<div className="grid min-h-dvh place-items-center"><Spinner className="size-7" /></div>}>
       <Routes>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { Ack, PresenterCommand, Snapshot, SocketAuth } from '@classinteract/shared';
+import type { Ack, AudienceQuestion, PresenterCommand, PulseValue, Snapshot, SocketAuth } from '@classinteract/shared';
 
 const RECONNECT_GRACE_MS = 12000;
 
@@ -12,7 +12,7 @@ function whenConnected(s: Socket, ms: number): Promise<void> {
   });
 }
 
-export type ConnectionStatus ='connecting' | 'connected' | 'reconnecting' | 'denied' | 'notfound' | 'removed';
+export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'denied' | 'notfound' | 'removed' | 'revoked';
 
 /**
  * One persistent, authenticated socket per screen. The server is authoritative: every (re)connect
@@ -40,13 +40,14 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
       if (reason === 'io server disconnect') return; // removed / kicked: handled by the 'removed' event
       setStatus('reconnecting');
     });
-    socket.io.on('reconnect_attempt', () => setStatus((s) => (s === 'denied' || s === 'removed' || s === 'notfound' ? s : 'reconnecting')));
+    socket.io.on('reconnect_attempt', () => setStatus((s) => (s === 'denied' || s === 'removed' || s === 'notfound' || s === 'revoked' ? s : 'reconnecting')));
     socket.on('connect_error', (err) => {
       if (err.message === 'UNAUTHORIZED') { setStatus('denied'); socket.disconnect(); }
       else if (err.message === 'NOT_FOUND') { setStatus('notfound'); socket.disconnect(); }
       else setStatus((s) => (s === 'connected' || s === 'reconnecting' ? 'reconnecting' : 'connecting'));
     });
     socket.on('removed', () => { setStatus('removed'); socket.disconnect(); });
+    socket.on('revoked', () => { setStatus('revoked'); socket.disconnect(); });
     socket.on('snapshot', (s: T) => {
       if (s.serverNow < appliedAt.current) return; // stale: a newer snapshot was already applied
       appliedAt.current = s.serverNow;
@@ -55,7 +56,7 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
     });
 
     // Phones suspend sockets when the screen locks; reconnect promptly when the tab is visible again.
-    const onVisible = () => { if (document.visibilityState === 'visible' && socket.disconnected && !['denied', 'removed', 'notfound'].includes(statusRef.current)) socket.connect(); };
+    const onVisible = () => { if (document.visibilityState === 'visible' && socket.disconnected && !['denied', 'removed', 'notfound', 'revoked'].includes(statusRef.current)) socket.connect(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
     return () => {
@@ -91,8 +92,11 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
   const rename = useCallback((name: string) => request<{ name: string }>('rename', { name }), [request]);
   const command = useCallback((cmd: PresenterCommand) => request('presenter', cmd), [request]);
   const submit = useCallback((activityId: string, payload: unknown) => request('submit', { activityId, payload }), [request]);
+  const ask = useCallback((text: string, anonymous: boolean) => request<{ question: AudienceQuestion }>('qa:ask', { text, anonymous }), [request]);
+  const vote = useCallback((id: string, on: boolean) => request<{ votes: number }>('qa:vote', { id, on }), [request]);
+  const pulse = useCallback((value: PulseValue | null) => request('pulse', { value }), [request]);
   /** Server time "now", corrected for this device's clock. */
   const now = useCallback(() => Date.now() + offset.current, []);
 
-  return useMemo(() => ({ snapshot, status, command, submit, rename, now }), [snapshot, status, command, submit, rename, now]);
+  return useMemo(() => ({ snapshot, status, command, submit, rename, now, ask, vote, pulse }), [snapshot, status, command, submit, rename, now, ask, vote, pulse]);
 }

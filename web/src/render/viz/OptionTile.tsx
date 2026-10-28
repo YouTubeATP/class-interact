@@ -7,7 +7,7 @@ export type TileState = 'idle' | 'selected' | 'correct' | 'wrong' | 'dim';
 
 /** An answer option. On the projector it is display-only; on phones it is the tap target. */
 export function OptionTile({ index, text, count, total, state = 'idle', onClick, disabled, delay = 0, size = 'stage', checkbox = false }: {
-  index: number; text: string; count?: number; total?: number; state?: TileState; onClick?: () => void; disabled?: boolean; delay?: number; size?: 'stage' | 'phone';
+  index: number; text: React.ReactNode; count?: number; total?: number; state?: TileState; onClick?: () => void; disabled?: boolean; delay?: number; size?: 'stage' | 'phone';
   /** Several answers can apply: shows a tick box that fills when selected. */
   checkbox?: boolean;
 }) {

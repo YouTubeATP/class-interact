@@ -1,4 +1,5 @@
-import { BookOpen, CircleHelp, Compass, LogOut, Presentation, Smartphone } from 'lucide-react';
+import { BookOpen, CircleHelp, Compass, LogOut, Presentation, Settings2, Smartphone, UsersRound } from 'lucide-react';
+import { AppearanceToggle, MuteButton } from '@/components/Preferences';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
@@ -16,6 +17,9 @@ const EditorPage = lazy(() => import('./Editor'));
 const DashboardPage = lazy(() => import('./Dashboard'));
 const ResultsPage = lazy(() => import('./Results'));
 const StudioHelp = lazy(() => import('@/help/StudioHelp'));
+const RemotePage = lazy(() => import('./Remote'));
+const LearnersPage = lazy(() => import('./Learners'));
+const SettingsPage = lazy(() => import('./Settings'));
 
 /** Studio pages require sign-in only when the server has STUDIO_PASSWORD set. */
 function RequireStudio({ children }: { children: ReactNode }) {
@@ -64,9 +68,13 @@ export function StudioHeader({ children }: { children?: ReactNode }) {
       <span className="hidden h-5 w-px bg-line-2 sm:block" aria-hidden />
       <nav className="hidden items-center gap-1 sm:flex" aria-label="Studio">
         <Link to="/studio" className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-ink-2 hover:bg-ink/6 hover:text-ink"><Presentation className="size-4" aria-hidden /> Presentations</Link>
+        <Link to="/learners" className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-ink-2 hover:bg-ink/6 hover:text-ink" data-testid="nav-learners"><UsersRound className="size-4" aria-hidden /> Across sessions</Link>
       </nav>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
         {children}
+        <MuteButton scope="studio" />
+        <AppearanceToggle scope="studio" compact />
+        <Button asChild variant="ghost" size="icon-sm" aria-label="Settings"><Link to="/settings" data-testid="nav-settings"><Settings2 className="size-4" aria-hidden /></Link></Button>
         <HelpMenu />
         {cfg?.authRequired && (
           <Button variant="ghost" size="sm" onClick={() => { store.remove(STUDIO_TOKEN_KEY); navigate('/login'); }}><LogOut className="size-4" aria-hidden /> Sign out</Button>
@@ -89,6 +97,10 @@ export default function StudioRoutes() {
       <Route path="/studio/:id" element={<RequireStudio><Suspense fallback={<Loading />}><EditorPage /></Suspense></RequireStudio>} />
       <Route path="/session/:id" element={<RequireStudio><Suspense fallback={<Loading />}><DashboardPage /></Suspense></RequireStudio>} />
       <Route path="/results/:id" element={<RequireStudio><Suspense fallback={<Loading />}><ResultsPage /></Suspense></RequireStudio>} />
+      <Route path="/learners" element={<RequireStudio><Suspense fallback={<Loading />}><LearnersPage /></Suspense></RequireStudio>} />
+      <Route path="/settings" element={<RequireStudio><Suspense fallback={<Loading />}><SettingsPage /></Suspense></RequireStudio>} />
+      {/* not behind the Studio password: a co-presenter's link carries its own revocable token */}
+      <Route path="/remote/:id" element={<Suspense fallback={<Loading />}><RemotePage /></Suspense>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

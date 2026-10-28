@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { SwitchRow } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { plural } from '@/lib/format';
+import { plainInline } from '@/components/rich/parse';
 
 /** Standalone: the whole sequence, click any slide to jump. */
 export function LessonFlow({ snap, onGoto }: { snap: PresenterSnapshot; onGoto: (i: number) => void }) {
@@ -22,7 +23,7 @@ export function LessonFlow({ snap, onGoto }: { snap: PresenterSnapshot; onGoto: 
               className={cn('flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors pointer-coarse:min-h-12 disabled:cursor-default', active ? 'border-accent bg-accent-soft' : 'border-transparent hover:bg-ink/5')}>
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-tone text-tone-ink"><m.icon className="size-4" aria-label={m.label} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.8125rem] font-semibold leading-tight">{o.title || m.label}</span>
+                <span className="block truncate text-[0.8125rem] font-semibold leading-tight">{plainInline(o.title) || m.label}</span>
                 <span className="tabular text-xs text-ink-3">{o.index + 1}{o.interactive && o.responses > 0 ? `  ·  ${plural(o.responses, 'response')}` : ''}</span>
               </span>
               {o.completed && !active && <Check className="size-4 shrink-0 text-ok" aria-label="Completed" />}
@@ -55,7 +56,7 @@ export function ActivityLauncher({ snap, onGoto, onStandby }: { snap: PresenterS
               <div className="flex items-start gap-2.5">
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-tone text-tone-ink"><m.icon className="size-[1.1rem]" aria-label={m.label} /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[0.8125rem] font-bold leading-snug">{o.title || m.label}</p>
+                  <p className="line-clamp-2 text-[0.8125rem] font-bold leading-snug">{plainInline(o.title) || m.label}</p>
                   <p className="text-xs text-ink-3">{active ? 'On screen now' : o.completed ? `Ran, ${plural(o.responses, 'response')}` : o.interactive ? 'Not run yet' : 'Content slide'}</p>
                 </div>
               </div>

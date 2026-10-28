@@ -50,7 +50,7 @@ export const TOURS: Record<TourId, Tour> = {
       { target: 'ed-save', pane: 'edit', title: 'It saves itself', body: 'Changes are saved as you type. If something cannot be saved, this badge tells you what to fix.' },
       { target: ['ed-preview', 'ed-preview-btn'], pane: 'preview', title: 'See what the room sees', body: 'A live preview of the projector. Step through the slides to check how they look.' },
       { target: 'ed-ai', pane: 'edit', title: 'Ask the AI', body: 'Describe what you want, such as "a five-question quiz on fractions", and the assistant builds the slides right here. You can undo it afterwards.', optional: true },
-      { target: 'ed-export', pane: 'edit', title: 'Keep a copy', body: 'Export downloads the whole presentation as a JSON file for backup, or to share with someone who has their own ClassInteract.' },
+      { target: 'ed-export', pane: 'edit', title: 'Keep a copy', body: 'More has the extras: import many questions at once from a spreadsheet or notes, rehearse privately with simulated participants, and export the presentation as JSON for backup or sharing.' },
       { target: 'ed-start', pane: 'edit', title: 'Run it live', body: 'Starts a session and takes you to the presenter controls. You will be asked whether to run it Standalone or as a Companion.' },
     ],
   },

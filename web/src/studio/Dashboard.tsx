@@ -1,8 +1,15 @@
-import { ArrowUpRight, Check, Copy, Download, Link2, MonitorPlay, Tv, PanelsTopLeft, Power, Radio } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, Check, Copy, Download, FlaskConical, Link2, MonitorPlay, QrCode, Smartphone, Tv, PanelsTopLeft, Power, Radio } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import type { ActionType, PresenterCommand, PresenterSnapshot, SessionControlInfo, SessionMode } from '@classinteract/shared';
+import type { PresenterSnapshot, SessionControlInfo, SessionMode } from '@classinteract/shared';
+import { useSessionAudio } from '@/audio/useSessionAudio';
+import { useClientConfig } from '@/lib/joinUrl';
+import { DialogContent } from '@/components/ui/dialog';
+import { QRCode } from '@/components/QRCode';
+import { ScreenControls } from './dashboard/ScreenControls';
+import { RehearsalBar, SelfPacedPanel } from './dashboard/RoomPanels';
+import { useStaff } from './dashboard/useStaff';
 import { Ticket } from '@/components/Ticket';
 import { ConnectionBanner, Notice, Spinner } from '@/components/Status';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +27,7 @@ import { ActivityLauncher, LessonFlow } from './dashboard/Navigator';
 import { PrivatePanel, Roster } from './dashboard/PrivatePanel';
 import { StudioHeader } from './StudioRoutes';
 
-const MODES: { id: SessionMode; label: string; icon: typeof MonitorPlay }[] = [
+const MODES: { id: Exclude<SessionMode, 'selfpaced'>; label: string; icon: typeof MonitorPlay }[] = [
   { id: 'standalone', label: 'Standalone', icon: MonitorPlay },
   { id: 'companion', label: 'Companion', icon: PanelsTopLeft },
 ];
@@ -31,14 +38,10 @@ function Live({ info }: { info: SessionControlInfo }) {
   const [confirmEnd, setConfirmEnd] = useState<'end' | null>(null);
   const [kick, setKick] = useState<{ id: string; name: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-
-  const send = useCallback(async (cmd: PresenterCommand) => {
-    const ack = await command(cmd);
-    if (!ack.ok) toast.error(ack.message);
-    return ack.ok;
-  }, [command]);
-  const run = useCallback((type: ActionType) => void send({ cmd: 'action', action: { type } as never }), [send]);
-  const goto = useCallback((index: number) => void send({ cmd: 'action', action: { type: 'goto', index } }), [send]);
+  const [remote, setRemote] = useState<string | null>(null);
+  const cfg = useClientConfig();
+  const { send, run, goto } = useStaff(snapshot, command);
+  useSessionAudio(snapshot, 'presenter', now);
 
   // keyboard: ← → move through the presentation
   useEffect(() => {
@@ -62,6 +65,13 @@ function Live({ info }: { info: SessionControlInfo }) {
 
   const { session, state } = snapshot;
   const ended = session.status === 'ended';
+  const selfPaced = session.mode === 'selfpaced';
+  const openRemote = async () => {
+    try {
+      const g = await api.sessions.createGrant(info.sessionId, 'copresenter', 'Phone remote');
+      setRemote(`${window.location.origin}${g.path}`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not create the remote link.'); }
+  };
   const projectorUrl = `${window.location.origin}/project/${info.sessionId}?k=${encodeURIComponent(info.projectorKey)}`;
   const copy = async (what: string, text: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1600); } catch { toast.error('Copy failed. Select the address manually.'); }
@@ -74,7 +84,9 @@ function Live({ info }: { info: SessionControlInfo }) {
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
         <h1 className="min-w-0 basis-full truncate text-lg font-bold tracking-tight sm:flex-1 sm:basis-auto" data-testid="session-title">{session.title}</h1>
         {ended ? <Badge variant="neutral" data-testid="session-status">Ended</Badge> : <Badge variant="ok" data-testid="session-status"><Radio className="size-3" aria-hidden /> Live</Badge>}
-        {!ended && (
+        {session.features.rehearsal && <Badge variant="warn"><FlaskConical className="size-3" aria-hidden /> Rehearsal</Badge>}
+        {selfPaced && <Badge variant="accent">Self-paced</Badge>}
+        {!ended && !selfPaced && (
           <div className="flex rounded-xl bg-ink/6 p-1" role="radiogroup" aria-label="Presenting mode" data-tour="dash-mode">
             {MODES.map((m) => (
               <button key={m.id} type="button" role="radio" aria-checked={session.mode === m.id} onClick={() => session.mode !== m.id && void send({ cmd: 'setMode', mode: m.id })} data-testid={`mode-switch-${m.id}`}
@@ -90,13 +102,15 @@ function Live({ info }: { info: SessionControlInfo }) {
           <MenuContent>
             <MenuItem icon={<Copy className="size-4" />} onSelect={() => void copy('join', join.url)}>Copy participant link</MenuItem>
             <MenuItem icon={<Copy className="size-4" />} onSelect={() => void copy('proj', projectorUrl)}>Copy projector link</MenuItem>
+            {!ended && <MenuItem icon={<Smartphone className="size-4" />} onSelect={() => void openRemote()} data-testid="open-remote">Control from my phone…</MenuItem>}
           </MenuContent>
         </Menu>
         {!ended && <Button variant="danger-soft" onClick={() => setConfirmEnd('end')} data-testid="end-session" data-tour="dash-end"><Power className="size-4" aria-hidden /> End session</Button>}
       </div>
 
+      <RehearsalBar snap={snapshot} send={send} />
       {ended && (
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-ink px-6 py-3 text-white" data-testid="ended-banner">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-ink px-6 py-3 text-paper" data-testid="ended-banner">
           <p className="font-semibold">This session has ended. Results are saved.</p>
           <div className="flex gap-2">
             <Button asChild variant="secondary" size="sm"><Link to={`/results/${info.sessionId}`}>View results</Link></Button>
@@ -109,6 +123,7 @@ function Live({ info }: { info: SessionControlInfo }) {
         <aside className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5', state.phase !== 'lobby' && 'max-lg:order-2')} aria-label="Session">
           <div data-testid="join-card" data-tour="dash-join" className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4">
             <div style={{ fontSize: '0.82rem' }}><Ticket pin={session.pin} url={join.url} host={join.host} variant="card" className="ring-1 ring-line" /></div>
+            {!ended && <Button variant={state.overlay === 'join' ? 'soft' : 'secondary'} size="sm" aria-pressed={state.overlay === 'join'} onClick={() => void send({ cmd: 'action', action: state.overlay === 'join' ? { type: 'hideOverlay' } : { type: 'showOverlay', overlay: 'join' } })} data-testid="join-card-show-qr"><QrCode className="size-4" aria-hidden /> {state.overlay === 'join' ? 'Hide the big join QR' : 'Show a big join QR on the projector'}</Button>}
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="truncate text-ink-3" title={join.url}>{join.host}/join/{session.pin}</span>
               <Button variant="ghost" size="sm" onClick={() => void copy('join', join.url)}>{copied === 'join' ? <Check className="size-4 text-ok" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied === 'join' ? 'Copied' : 'Copy'}</Button>
@@ -143,13 +158,13 @@ function Live({ info }: { info: SessionControlInfo }) {
             )}
             <Roster snap={snapshot} onKick={(id, name) => setKick({ id, name })} />
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4" data-tour="dash-flow">
+          {!selfPaced && <div className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-card border border-line bg-surface p-4" data-tour="dash-flow">
             <h2 className="text-[0.9375rem] font-bold">{session.mode === 'standalone' ? 'Lesson flow' : 'Launch an activity'}</h2>
             {session.mode === 'companion' && <p className="-mt-1 text-[0.8125rem] leading-snug text-ink-3">Teach in your other app. Launch any activity here whenever you need it, then return to standby. Participants stay connected.</p>}
             {session.mode === 'standalone'
               ? <LessonFlow snap={snapshot} onGoto={goto} />
               : <ActivityLauncher snap={snapshot} onGoto={goto} onStandby={() => run('standby')} />}
-          </div>
+          </div>}
         </aside>
 
         <main className={cn('grid min-w-0 content-start gap-4', state.phase !== 'lobby' && 'max-lg:order-1')}>
@@ -158,17 +173,27 @@ function Live({ info }: { info: SessionControlInfo }) {
               <h2 className="text-[0.9375rem] font-bold">On the projector</h2>
               <span className="text-xs font-semibold text-ink-3">{state.phase === 'lobby' ? 'Join screen' : state.phase === 'standby' ? 'Standby screen' : state.leaderboardVisible ? 'Leaderboard' : ended ? 'Closing screen' : 'Live view'}</span>
             </div>
-            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-[#0d1124]" data-testid="dashboard-stage" data-tour="dash-stage"><StageView m={model} /></div>
+            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg" data-testid="dashboard-stage" data-tour="dash-stage"><StageView m={model} /></div>
           </section>
-          {!ended && <Controls snap={snapshot} run={run} now={now} />}
+          {selfPaced ? <SelfPacedPanel snap={snapshot} send={send} /> : !ended && <Controls snap={snapshot} run={run} send={send} now={now} />}
+          {!ended && <ScreenControls snap={snapshot} send={send} />}
         </main>
 
         <aside className={cn('grid content-start gap-3 lg:col-span-2 xl:col-span-1', state.phase !== 'lobby' && 'max-lg:order-3')} aria-label="Private presenter view" data-tour="dash-private">
           <h2 className="text-[0.9375rem] font-bold">Presenter only</h2>
-          <PrivatePanel snap={snapshot} onModerate={(c) => void send({ cmd: 'moderate', ...c })} />
+          <PrivatePanel snap={snapshot} send={send} sessionId={info.sessionId} aiEnabled={!!cfg?.aiEnabled} />
         </aside>
       </div>
 
+      <DialogContent open={!!remote} onOpenChange={(o) => !o && setRemote(null)} title="Control from your phone" description="Scan with your phone’s camera. The remote has big buttons for slides, responses, results, the leaderboard and breaks. Revoke it any time under Access.">
+        {remote && (
+          <div className="grid justify-items-center gap-3" data-testid="remote-link">
+            <div className="w-56 rounded-xl bg-white p-2"><QRCode value={remote} label="QR code for the phone remote" className="w-full" /></div>
+            <code className="max-w-full break-all rounded-lg bg-ink/5 px-2 py-1 text-xs" data-testid="remote-url">{remote}</code>
+            <Button variant="secondary" size="sm" onClick={() => void copy('remote', remote)}><Copy className="size-4" aria-hidden /> {copied === 'remote' ? 'Copied' : 'Copy link'}</Button>
+          </div>
+        )}
+      </DialogContent>
       <ConfirmDialog open={confirmEnd === 'end'} onOpenChange={(o) => !o && setConfirmEnd(null)} title="End this session?" description="Participants will see the closing screen. Everyone’s responses are saved and you can still view results and export them." confirm="End session" onConfirm={async () => { await send({ cmd: 'action', action: { type: 'end' } }); setConfirmEnd(null); }} />
       <ConfirmDialog open={!!kick} onOpenChange={(o) => !o && setKick(null)} title={`Remove ${kick?.name ?? ''}?`} description="They are disconnected and their responses are hidden. They cannot rejoin with this device." confirm="Remove participant" onConfirm={async () => { if (kick) await send({ cmd: 'kick', participantId: kick.id }); setKick(null); }} />
     </div>

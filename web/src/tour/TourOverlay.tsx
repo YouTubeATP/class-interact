@@ -156,7 +156,7 @@ export default function TourOverlay({ id, onClose }: { id: TourId; onClose: (fin
       {ready && box ? (
         <div aria-hidden data-testid="tour-spot" className="pointer-events-none absolute rounded-2xl transition-[left,top,width,height] duration-200 ease-out motion-reduce:transition-none" style={{ left: box.left, top: box.top, width: box.width, height: box.height, boxShadow: '0 0 0 3px var(--accent), 0 0 0 100vmax rgb(13 17 36 / 0.6)' }} />
       ) : (
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#0d1124]/60" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-stage-bg/60" />
       )}
       <div
         ref={cardRef}

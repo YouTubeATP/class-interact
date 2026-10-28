@@ -23,6 +23,22 @@ export function sampleResults(type: SlideType, config: AnyConfig): Results {
   switch (type) {
     case 'quiz': {
       const c = config as QuizConfig;
+      if (quizKind(c) === 'text' || quizKind(c) === 'numeric') {
+        const right = quizKind(c) === 'text' ? c.acceptedAnswers[0] ?? 'answer' : String(c.numeric?.value ?? 0);
+        const wrong = quizKind(c) === 'text' ? ['not sure', `${right}s`] : [String((c.numeric?.value ?? 0) * 2), String((c.numeric?.value ?? 0) + 1)];
+        const subs = [...Array.from({ length: 8 }, () => ({ ...sub({ text: right }, right), correct: true })), ...wrong.flatMap((w, i) => Array.from({ length: 3 - i }, () => ({ ...sub({ text: w }, w), correct: false })))];
+        return def.aggregate(c, subs);
+      }
+      if (quizKind(c) === 'hotspot') {
+        const r = c.regions[0];
+        const pts = Array.from({ length: 14 }, (_, i) => {
+          const inside = i % 3 !== 0 && r;
+          const x = inside ? r.x + r.w * ((i * 37) % 100) / 100 : ((i * 53) % 100) / 100;
+          const y = inside ? r.y + r.h * ((i * 61) % 100) / 100 : ((i * 29) % 100) / 100;
+          return { ...sub({ x, y }), correct: !!inside };
+        });
+        return def.aggregate(c, pts);
+      }
       if (quizKind(c) === 'match' || quizKind(c) === 'order') {
         const keys = quizKind(c) === 'match' ? c.pairs.map((_, i) => `L${i}`) : c.items.map((_, i) => `P${i}`);
         return { type: 'quiz', kind: 'choice', total: 12, counts: Object.fromEntries(keys.map((k, i) => [k, Math.max(2, 11 - i * 2)])) };

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Copy, Download, FileUp, MoreHorizontal, Pencil, Play, Plus, Radio, Trash2 } from 'lucide-react';
+import { BarChart3, Copy, Download, FileUp, FlaskConical, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Radio, Trash2 } from 'lucide-react';
+import { TemplateDialog } from './TemplateDialog';
+import type { StartOptions } from './StartSessionDialog';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,6 +25,7 @@ import { StudioHeader } from './StudioRoutes';
 type Dialog =
   | { kind: 'new' }
   | { kind: 'import' }
+  | { kind: 'template' }
   | { kind: 'start'; p: PresentationSummary }
   | { kind: 'rename'; p: PresentationSummary }
   | { kind: 'delete'; p: PresentationSummary }
@@ -35,7 +38,7 @@ function DeckCard({ p, i, onAction }: { p: PresentationSummary; i: number; onAct
       <div data-palette={p.theme.palette} className="relative h-24 overflow-hidden bg-accent-soft">
         <div aria-hidden className="absolute -right-6 -top-10 size-36 rounded-full bg-accent/15" />
         <div className="absolute inset-x-4 bottom-3 flex flex-wrap gap-1.5">
-          {p.types.length === 0 && <span className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-semibold text-ink-2">Empty</span>}
+          {p.types.length === 0 && <span className="rounded-full bg-surface/70 px-2.5 py-1 text-xs font-semibold text-ink-2">Empty</span>}
           {p.types.map((t) => {
             const m = typeMeta[t];
             return <span key={t} data-tone={t} title={m.label} className="grid size-8 place-items-center rounded-full bg-tone text-tone-ink shadow-sm"><m.icon className="size-4" aria-label={m.label} /></span>;
@@ -103,7 +106,7 @@ export default function LibraryPage() {
     } catch (e) { fail(e); }
   };
 
-  const start = async (p: PresentationSummary, o: { mode: SessionMode; collectNames: boolean }) => {
+  const start = async (p: PresentationSummary, o: StartOptions) => {
     try {
       const s = await api.presentations.startSession(p.id, o);
       navigate(`/session/${s.id}`);
@@ -120,8 +123,9 @@ export default function LibraryPage() {
             <h1 className="display text-[2.4rem]">Presentations</h1>
             <p className="max-w-xl text-ink-2">Build once, then run it live as a full presentation or as interactive activities alongside your own slides.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setDialog({ kind: 'import' })} data-testid="import-open" data-tour="lib-import"><FileUp className="size-4" aria-hidden /> Import JSON</Button>
+            <Button variant="secondary" onClick={() => setDialog({ kind: 'template' })} data-testid="template-open"><LayoutTemplate className="size-4" aria-hidden /> Templates</Button>
             <Button variant="primary" onClick={() => setDialog({ kind: 'new' })} data-testid="new-presentation" data-tour="lib-new"><Plus className="size-4" aria-hidden /> New presentation</Button>
           </div>
         </div>
@@ -134,7 +138,7 @@ export default function LibraryPage() {
                 <div key={s.id} className="flex items-center justify-between gap-3 rounded-card border border-ok/30 bg-surface p-4" data-testid="live-session">
                   <div className="min-w-0">
                     <p className="truncate font-bold">{s.title}</p>
-                    <p className="text-sm text-ink-2">Code <span className="tabular font-bold text-ink">{s.pin ? prettyPin(s.pin) : ''}</span> · {plural(s.participantCount, 'participant')} · {s.mode === 'companion' ? 'Companion' : 'Standalone'}</p>
+                    <p className="text-sm text-ink-2">Code <span className="tabular font-bold text-ink">{s.pin ? prettyPin(s.pin) : ''}</span> · {plural(s.participantCount, 'participant')} · {s.mode === 'companion' ? 'Companion' : s.mode === 'selfpaced' ? 'Self-paced' : 'Standalone'}{s.rehearsal ? ' · rehearsal' : ''}</p>
                   </div>
                   <Button asChild variant="primary" size="sm"><Link to={`/session/${s.id}`}><Radio className="size-3.5" aria-hidden /> Open controls</Link></Button>
                 </div>
@@ -149,7 +153,7 @@ export default function LibraryPage() {
           ) : decks === null ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-72" />)}</div>
           ) : decks.length === 0 ? (
-            <Notice icon={<Plus className="size-7" />} title="Create your first presentation" action={<div className="flex gap-2"><Button variant="primary" onClick={() => setDialog({ kind: 'new' })}>New presentation</Button><Button onClick={() => setDialog({ kind: 'import' })}>Import JSON</Button></div>}>Add slides, quizzes, polls and word clouds, or import a presentation someone generated as JSON.</Notice>
+            <Notice icon={<Plus className="size-7" />} title="Create your first presentation" action={<div className="flex flex-wrap justify-center gap-2"><Button variant="primary" onClick={() => setDialog({ kind: 'new' })}>New presentation</Button><Button onClick={() => setDialog({ kind: 'template' })}>Start from a template</Button><Button onClick={() => setDialog({ kind: 'import' })}>Import JSON</Button></div>}>Add slides, quizzes, polls and word clouds, or import a presentation someone generated as JSON.</Notice>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {decks.map((p, i) => <DeckCard key={p.id} p={p} i={i} onAction={(a) => void action(p, a)} />)}
@@ -170,7 +174,7 @@ export default function LibraryPage() {
                 <li key={s.id} className="grid gap-2.5 rounded-card border border-line bg-surface p-4" data-testid="past-session-card">
                   <div className="grid gap-1">
                     <p className="font-semibold leading-snug">{s.title}</p>
-                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-ink-2"><Badge>{s.mode === 'companion' ? 'Companion' : 'Standalone'}</Badge> {formatDateTime(s.createdAt)}</p>
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-ink-2"><Badge>{s.mode === 'companion' ? 'Companion' : s.mode === 'selfpaced' ? 'Self-paced' : 'Standalone'}</Badge>{s.rehearsal && <Badge variant="warn">Rehearsal</Badge>} {formatDateTime(s.createdAt)}</p>
                     <p className="tabular text-[0.8125rem] text-ink-3">{plural(s.participantCount, 'participant')} · {plural(s.responseCount, 'response')}</p>
                   </div>
                   <div className="flex gap-2">
@@ -187,7 +191,7 @@ export default function LibraryPage() {
                 <tbody>
                   {past.map((s) => (
                     <tr key={s.id} className="border-b border-line last:border-0" data-testid="past-session">
-                      <td className="px-4 py-3"><span className="font-semibold">{s.title}</span> <Badge className="ml-1">{s.mode === 'companion' ? 'Companion' : 'Standalone'}</Badge></td>
+                      <td className="px-4 py-3"><span className="font-semibold">{s.title}</span> <Badge className="ml-1">{s.mode === 'companion' ? 'Companion' : s.mode === 'selfpaced' ? 'Self-paced' : 'Standalone'}</Badge>{s.rehearsal && <Badge variant="warn" className="ml-1"><FlaskConical className="size-3" aria-hidden /> Rehearsal</Badge>}</td>
                       <td className="px-4 py-3 text-ink-2">{formatDateTime(s.createdAt)}</td>
                       <td className="tabular px-4 py-3">{s.participantCount}</td>
                       <td className="tabular px-4 py-3">{s.responseCount}</td>
@@ -208,6 +212,7 @@ export default function LibraryPage() {
       <SiteFooter className="pb-6 pt-2" help="/studio/help" />
 
       <PromptDialog open={dialog?.kind === 'new'} onOpenChange={(o) => !o && setDialog(null)} title="New presentation" label="Title" confirm="Create" initial="" onSubmit={async (title) => { const r = await api.presentations.create(title); navigate(`/studio/${r.id}`); }} />
+      <TemplateDialog open={dialog?.kind === 'template'} onOpenChange={(o) => !o && setDialog(null)} onCreated={(id) => { toast.success('Presentation created from the template'); navigate(`/studio/${id}`); }} />
       <ImportDialog open={dialog?.kind === 'import'} onOpenChange={(o) => !o && setDialog(null)} onImported={(id, warnings) => { toast.success('Presentation imported'); warnings.forEach((w) => toast.message(w)); navigate(`/studio/${id}`); }} />
       <StartSessionDialog open={dialog?.kind === 'start'} onOpenChange={(o) => !o && setDialog(null)} title={dialog?.kind === 'start' ? dialog.p.title : ''} onStart={(o) => start((dialog as { p: PresentationSummary }).p, o)} />
       <PromptDialog open={dialog?.kind === 'rename'} onOpenChange={(o) => !o && setDialog(null)} title="Rename presentation" label="Title" confirm="Save" initial={dialog?.kind === 'rename' ? dialog.p.title : ''} onSubmit={async (title) => {

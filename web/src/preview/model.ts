@@ -1,4 +1,4 @@
-import { definitions, type ParticipantSnapshot, type PresentationDoc, type Slide, type SessionState } from '@classinteract/shared';
+import { DEFAULT_FEATURES, definitions, type ParticipantSnapshot, type PresentationDoc, type Slide, type SessionState } from '@classinteract/shared';
 import type { StageModel } from '@/render/model';
 import { sampleResults } from './sample';
 
@@ -35,9 +35,9 @@ function publicActivity(slide: Slide, index: number, view: PreviewView) {
 /** The same model the live projector uses, filled with sample data. */
 export function previewStageModel(doc: PresentationDoc, index: number, view: PreviewView, join: { url: string; host: string }): StageModel {
   const slide = doc.slides[index];
-  const base = { id: 'preview', title: doc.title, pin: '123456', mode: 'standalone' as const, status: 'live' as const, theme: doc.theme, collectNames: true, activityCount: doc.slides.length };
+  const base = { id: 'preview', title: doc.title, pin: '123456', mode: 'standalone' as const, status: 'live' as const, theme: doc.theme, collectNames: true, activityCount: doc.slides.length, features: DEFAULT_FEATURES };
   if (!slide) {
-    return { session: base, state: { phase: 'lobby', activityIndex: -1, resultsVisible: false, correctVisible: false, leaderboardVisible: false, openedAt: null, deadlineAt: null, version: 0 }, activity: null, counts: { participants: 12, online: 12, responses: 0, respondents: 0 }, results: null, leaderboard: null, recentNames: ['Ada', 'Grace', 'Alan', 'Katherine'], now: noop, join };
+    return { session: base, state: { phase: 'lobby', activityIndex: -1, resultsVisible: false, correctVisible: false, leaderboardVisible: false, openedAt: null, deadlineAt: null, version: 0 }, activity: null, counts: { participants: 12, online: 12, responses: 0, respondents: 0 }, results: null, leaderboard: null, recentNames: ['Ada', 'Grace', 'Alan', 'Katherine'], now: noop, join, appearance: doc.theme.appearance ?? 'light' };
   }
   const { id, type, ...config } = slide;
   const interactive = (definitions[type] as any).behavior(config).interactive;
@@ -53,6 +53,7 @@ export function previewStageModel(doc: PresentationDoc, index: number, view: Pre
     recentNames: [],
     now: noop,
     join,
+    appearance: doc.theme.appearance ?? 'light',
   };
 }
 
@@ -70,6 +71,12 @@ export function previewParticipantSnapshot(doc: PresentationDoc, index: number, 
     results: m.results && slide && (definitions[slide.type] as any).behavior(slide).shareResults ? m.results : null,
     leaderboard: null,
     recentNames: [],
-    me: { id: 'me', name: 'You', submissions: [], totalScore: 0, standing: null },
+    me: { id: 'me', name: 'You', submissions: [], totalScore: 0, standing: null, team: null, pulse: null, linked: false },
+    run: null,
+    teamBoard: null,
+    questions: null,
+    highlight: null,
+    pulse: null,
+    selfPaced: null,
   };
 }

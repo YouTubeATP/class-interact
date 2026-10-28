@@ -551,7 +551,8 @@ describe('ending a session', () => {
     const csv = await ctx.api(`/api/studio/sessions/${s.id}/export.csv`);
     expect(csv.status).toBe(200);
     const lines = csv.text.replace(/^﻿/, '').trim().split('\r\n');
-    expect(lines[0]).toBe('slide_number,slide_type,slide_title,question,participant,submitted_at,response,correct,score,response_time_s,moderation_status');
+    // the original columns stay first and in order; newer columns (run, team, grading) follow
+    expect(lines[0]).toBe('slide_number,slide_type,slide_title,question,participant,submitted_at,response,correct,score,response_time_s,moderation_status,run,run_scoring,team,review,grading_note');
     expect(lines).toHaveLength(4);
     expect(lines.some((l) => l.includes('Ann') && l.includes(',B,yes,'))).toBe(true);
     expect(lines.some((l) => l.includes('(anonymous)') && l.includes(',Yes,'))).toBe(true); // anonymous poll hides the name
