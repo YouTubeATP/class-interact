@@ -17,6 +17,7 @@ import { plural } from '@/lib/format';
 import { ScaleBox } from '@/render/ScaleBox';
 import { PulseChart } from '@/render/StageView';
 import { BarList } from '@/render/viz/BarList';
+import { RichInline } from '@/components/RichText';
 
 type Send = (c: PresenterCommand) => Promise<boolean>;
 
@@ -332,7 +333,7 @@ export function ComparePanel({ snap }: { snap: PresenterSnapshot }) {
           <section key={r.id} className="grid gap-2 rounded-xl border border-line p-3">
             <h4 className="flex items-center justify-between text-sm font-bold">Round {r.number} <span className="text-xs font-medium text-ink-3">{plural(r.respondents, 'person', 'people')}</span></h4>
             <p className="text-xs text-ink-3">{RUN_SCORING_LABEL[r.scoring]}</p>
-            <ScaleBox pct={4.2}><BarList total={Math.max(1, r.respondents)} items={distributionOf(r.results, labels)} /></ScaleBox>
+            <ScaleBox pct={4.2}><BarList total={Math.max(1, r.respondents)} items={distributionOf(r.results, labels).map((d) => ({ ...d, label: <RichInline text={d.label} /> }))} /></ScaleBox>
           </section>
         ))}
       </div>

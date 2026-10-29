@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Coffee, Hourglass, MessageCircleQuestion, ThumbsUp, Trophy, Users } from 'lucide-react';
 import { SafeImage } from '@/components/SafeImage';
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PULSE_LABEL, quizCorrectIds, quizKind, resolveContentLayout, type AudienceQuestion, type ContentConfig, type OpenConfig, type PollConfig, type PulseSummary, type QuizConfig, type RatingConfig, type SlideMedia, type SurveyConfig, type TeamStanding, type Theme, type WordcloudConfig } from '@classinteract/shared';
 import { useRemaining } from '@/components/Countdown';
 import { MediaPlayer } from '@/components/Media';
@@ -126,6 +126,43 @@ function questionText(m: StageModel): string {
   return m.activity!.type === 'survey' ? (c.title ?? '') : (c.question ?? '');
 }
 
+/** Measures the height left for an image (the rest of the slide body), so it fits instead of running off the stage. */
+function AvailableHeight({ children }: { children: (h: number) => ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [h, setH] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => setH(el.clientHeight);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return <div ref={ref} className="min-h-0">{h > 0 && children(h)}</div>;
+}
+
+const hotspotPoints = (m: StageModel) => (m.results?.type === 'quiz' && m.results.kind === 'points' ? m.results.points : []);
+
+function HotspotHint({ m }: { m: StageModel; c: QuizConfig }) {
+  const pts = hotspotPoints(m);
+  const correct = m.results?.type === 'quiz' && m.results.kind === 'points' && m.results.correctCount !== null ? m.results.correctCount : 0;
+  return (
+    <p className="text-[1.9em] font-bold text-ink-2" data-testid="stage-hotspot-hint">
+      {m.state.correctVisible ? <><span className="display tabular text-[1.6em] text-ink">{correct}</span> of {pts.length} tapped a correct spot</> : 'Tap the spot on your phone'}
+    </p>
+  );
+}
+
+function HotspotPicture({ m, c }: { m: StageModel; c: QuizConfig }) {
+  if (!c.image) return null;
+  return (
+    <AvailableHeight>
+      {(h) => <HotspotImage url={c.image!.url} alt={c.image!.alt} points={m.results ? hotspotPoints(m) : []} regions={m.state.correctVisible ? c.regions : []} maxHeight={`${h}px`} testId="stage-hotspot" />}
+    </AvailableHeight>
+  );
+}
+
 /** Typed, numeric and hotspot questions on the projector: the prompt, then the answers once results are shown. */
 function OpenQuizBody({ m, c }: { m: StageModel; c: QuizConfig }) {
   const kind = quizKind(c);
@@ -133,18 +170,17 @@ function OpenQuizBody({ m, c }: { m: StageModel; c: QuizConfig }) {
   const revealed = state.correctVisible;
   const key = revealed ? quizAnswerLines(c) : [];
   if (kind === 'hotspot' && c.image) {
-    const pts = results?.type === 'quiz' && results.kind === 'points' ? results.points : [];
     return (
       <div className="grid h-full grid-rows-[auto_minmax(0,1fr)] gap-[0.8em]">
-        <p className="text-[1.6em] font-bold text-ink-2" data-testid="stage-hotspot-hint">{revealed ? `${results?.type === 'quiz' && results.kind === 'points' && results.correctCount !== null ? results.correctCount : 0} of ${pts.length} tapped a correct spot` : 'Tap the spot on your phone'}</p>
-        <HotspotImage url={c.image.url} alt={c.image.alt} points={results ? pts : []} regions={revealed ? c.regions : []} maxHeight="30em" testId="stage-hotspot" />
+        <HotspotHint m={m} c={c} />
+        <HotspotPicture m={m} c={c} />
       </div>
     );
   }
   return (
     <div className="grid gap-[1.2em]">
       {!results && <p className="max-w-[40em] text-[2.1em] font-medium text-ink-2">{kind === 'numeric' ? `Type a number on your phone${c.view?.unit || c.numeric?.unit ? ` (in ${c.view?.unit || c.numeric?.unit})` : ''}.` : 'Type your answer on your phone.'}</p>}
-      {results && results.type === 'quiz' && <ResultsView type="quiz" config={c} results={results} />}
+      {results && results.type === 'quiz' && <ResultsView type="quiz" config={c} results={results} maxAnswers={revealed ? 4 : 5} />}
       <AnimatePresence>
         {revealed && key.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-[60em] rounded-[0.9em] bg-ok-soft px-[1em] py-[0.7em] text-[1.7em] font-semibold text-ok-ink" data-testid="stage-answer-key">
@@ -191,7 +227,7 @@ function ActivityBody({ m }: { m: StageModel }) {
       <div className="grid gap-[1.4em]">
         {quizKind(c) === 'multiple' && <p className="-mb-[0.4em] text-[1.6em] font-bold text-ink-2" data-testid="stage-multi-hint">Select all that apply</p>}
         {/* options that are only chemical structures sit side by side as tall cards, so the drawings can be large */}
-        <div className={cn('grid gap-[0.9em]', cards ? CARD_COLS[c.options.length] ?? 'grid-cols-3' : c.options.length > 3 ? 'grid-cols-2' : 'grid-cols-1')}>
+        <div className={cn('grid gap-[0.9em]', cards ? CARD_COLS[c.options.length] ?? 'grid-cols-3' : c.options.length > 4 ? 'grid-cols-2' : 'grid-cols-1')}>
           {c.options.map((o, i) => {
             const tile: TileState = correct.length ? (correct.includes(o.id) ? 'correct' : 'dim') : 'idle';
             return <OptionTile key={o.id} index={i} card={cards} text={<RichInline text={o.text} />} count={counts ? (counts[o.id] ?? 0) : undefined} total={total} state={tile} delay={i * 0.06} />;
@@ -265,14 +301,27 @@ function ActivityView({ m }: { m: StageModel }) {
           {showTimer && <TimerRing openedAt={state.openedAt} deadlineAt={state.deadlineAt} now={m.now} className="w-[6.4em] text-[1em]" />}
         </div>
       </div>
-      <div className="relative">
-        <h2 className={cn('display mt-[1.6em]', side ? 'max-w-[64%]' : 'max-w-[88%]', size)} style={{ ['--mol-bond-inline' as string]: '0.55em' }} data-testid="stage-question"><RichInline text={q} /></h2>
-        {image && <SafeImage src={image.url} alt={image.alt} fit={image.fit} className="absolute right-0 top-[1.2em] z-0 h-[17.5em] w-[26em] rounded-[1.2em] ring-1 ring-line" />}
-        {!image && media && <MediaPlayer media={media} compact className="absolute right-0 top-[1.2em] z-0 w-[26em] text-[1em]" />}
-      </div>
-      <div className={cn('min-h-0 pr-[1%]', side ? 'mt-[2.6em]' : 'mt-[1.8em]')}>
-        {hotspot ? <ActivityBody m={m} /> : <FitBox><ActivityBody m={m} /></FitBox>}
-      </div>
+      {hotspot ? (
+        // a picture question: the question and the result on the left, the picture as large as the space allows
+        <div className="row-span-2 mt-[2.4em] grid min-h-0 grid-cols-[minmax(0,38fr)_minmax(0,62fr)] gap-[3em]">
+          <div className="grid content-start gap-[1.4em]">
+            <h2 className="display text-[3.4em]" data-testid="stage-question"><RichInline text={q} /></h2>
+            <HotspotHint m={m} c={a.config as QuizConfig} />
+          </div>
+          <HotspotPicture m={m} c={a.config as QuizConfig} />
+        </div>
+      ) : (
+        <>
+          <div className="relative">
+            <h2 className={cn('display mt-[1.6em]', side ? 'max-w-[64%]' : 'max-w-[88%]', size)} style={{ ['--mol-bond-inline' as string]: '0.55em' }} data-testid="stage-question"><RichInline text={q} /></h2>
+            {image && <SafeImage src={image.url} alt={image.alt} fit={image.fit} className="absolute right-0 top-[1.2em] z-0 h-[17.5em] w-[26em] rounded-[1.2em] ring-1 ring-line" />}
+            {!image && media && <MediaPlayer media={media} compact className="absolute right-0 top-[1.2em] z-0 w-[26em] text-[1em]" />}
+          </div>
+          <div className={cn('min-h-0 pr-[1%]', side ? 'mt-[2.6em]' : 'mt-[1.8em]')}>
+            <FitBox><ActivityBody m={m} /></FitBox>
+          </div>
+        </>
+      )}
       <div className="flex items-end justify-between pt-[1em]" style={{ minHeight: `calc(${CORNER_BAND} - 3cqw)` /* the row sits above the 3% bottom padding */ }}>
         {a.interactive && state.phase !== 'ready' ? <ResponseMeter m={m} /> : <span />}
         <span aria-hidden />
@@ -432,19 +481,56 @@ function QaBoard({ m }: { m: StageModel }) {
 /** One question shown large over whatever is on screen. */
 function HighlightCard({ q }: { q: AudienceQuestion }) {
   return (
-    <motion.div className="absolute inset-x-[8%] bottom-[6%] z-30 rounded-[1.4em] bg-surface p-[1.6em] shadow-[0_1.4em_3em_-1em_var(--color-shadow)] ring-[0.18em] ring-accent" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} data-testid="stage-highlight">
+    <motion.div className="absolute bottom-[2.6%] left-[4.2%] right-[33%] z-30 rounded-[1.4em] bg-surface p-[1.6em] shadow-[0_1.4em_3em_-1em_var(--color-shadow)] ring-[0.18em] ring-accent" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} data-testid="stage-highlight">
       <p className="mb-[0.4em] flex items-center gap-[0.5em] text-[1.4em] font-bold text-accent-ink"><MessageCircleQuestion className="size-[1.1em]" aria-hidden /> Question from {q.authorName ?? 'the audience'} · {q.votes} {q.votes === 1 ? 'vote' : 'votes'}</p>
-      <p className="display text-[3.4em] leading-tight">{q.text}</p>
+      <p className="display text-[2.8em] leading-tight">{q.text}</p>
     </motion.div>
   );
 }
 
 const PULSE_COLOR = { got: 'var(--color-ok)', unsure: 'var(--color-warn)', lost: 'var(--color-bad)' } as const;
 
+/**
+ * How the mix has moved over time: one 100%-stacked chart (share of the room per minute), shown only once the mix has
+ * actually changed. A flat history is a single sentence, not a row of identical bars.
+ */
+function PulseTrend({ trend }: { trend: PulseSummary['trend'] }) {
+  const first = trend.findIndex((t) => t.got + t.unsure + t.lost > 0);
+  if (first < 0) return null;
+  const pts = trend.slice(first).map((t) => {
+    const n = Math.max(1, t.got + t.unsure + t.lost);
+    return { got: t.got / n, unsure: t.unsure / n, lost: t.lost / n };
+  });
+  const minutes = pts.length;
+  const changed = pts.some((p) => Math.abs(p.got - pts[0].got) > 0.005 || Math.abs(p.lost - pts[0].lost) > 0.005);
+  if (minutes < 2 || !changed) {
+    return <p className="text-[1.3em] font-semibold text-ink-3" data-testid="pulse-steady">{minutes < 2 ? 'The trend appears after a few minutes.' : `No change in the last ${minutes} minutes.`}</p>;
+  }
+  const W = 100;
+  const H = 30;
+  const x = (i: number) => (i / (minutes - 1)) * W;
+  // bands from the bottom: got, then unsure, then lost
+  const band = (lo: (p: (typeof pts)[number]) => number, hi: (p: (typeof pts)[number]) => number) => {
+    const top = pts.map((p, i) => `${x(i)},${H - hi(p) * H}`);
+    const bottom = pts.map((p, i) => `${x(i)},${H - lo(p) * H}`).reverse();
+    return [...top, ...bottom].join(' ');
+  };
+  return (
+    <figure className="grid gap-[0.4em]" data-testid="pulse-trend">
+      <figcaption className="text-[1.2em] font-semibold text-ink-2">Share of the room, minute by minute</figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-[7em] w-full overflow-visible" role="img" aria-label={`Understanding over the last ${minutes} minutes: now ${Math.round(pts[minutes - 1].got * 100)}% got it, ${Math.round(pts[minutes - 1].lost * 100)}% lost`}>
+        <polygon points={band(() => 0, (p) => p.got)} fill={PULSE_COLOR.got} stroke="var(--color-surface)" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
+        <polygon points={band((p) => p.got, (p) => p.got + p.unsure)} fill={PULSE_COLOR.unsure} stroke="var(--color-surface)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        <polygon points={band((p) => p.got + p.unsure, () => 1)} fill={PULSE_COLOR.lost} stroke="var(--color-surface)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="flex justify-between text-[1.1em] text-ink-3"><span>{minutes} min ago</span><span>now</span></div>
+    </figure>
+  );
+}
+
 /** How the room feels about the lesson so far: counts only, never names. */
 export function PulseChart({ pulse, className }: { pulse: PulseSummary; className?: string }) {
   const total = Math.max(1, pulse.total);
-  const max = Math.max(1, ...pulse.trend.map((t) => t.got + t.unsure + t.lost));
   return (
     <div className={cn('grid gap-[1.2em]', className)} data-testid="pulse-chart">
       <div className="grid grid-cols-3 gap-[1em]">
@@ -456,18 +542,7 @@ export function PulseChart({ pulse, className }: { pulse: PulseSummary; classNam
           </div>
         ))}
       </div>
-      {pulse.trend.some((t) => t.got + t.unsure + t.lost > 0) && (
-        <div className="flex h-[8em] items-end gap-[0.3em]" role="img" aria-label="Understanding over the last 20 minutes">
-          {pulse.trend.map((t) => {
-            const n = t.got + t.unsure + t.lost;
-            return (
-              <div key={t.t} className="flex h-full min-w-0 flex-1 flex-col-reverse overflow-hidden rounded-[0.25em]" style={{ height: `${Math.max(4, (n / max) * 100)}%` }}>
-                {(['got', 'unsure', 'lost'] as const).map((k) => <span key={k} style={{ height: n ? `${(t[k] / n) * 100}%` : 0, background: PULSE_COLOR[k] }} />)}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <PulseTrend trend={pulse.trend} />
     </div>
   );
 }
@@ -494,8 +569,9 @@ export function StageView({ m, background, testId }: { m: StageModel; background
           {view.node}
         </motion.div>
       </AnimatePresence>
-      {!view.key.startsWith('act:') && <Branding theme={theme} />}
-      {view.key.startsWith('act:') && <Branding theme={{ ...theme, logo: undefined }} />}
+      {/* the footer gives way to a highlighted audience question, which sits along the bottom */}
+      {!view.key.startsWith('act:') && <Branding theme={theme} footer={!m.highlight} />}
+      {view.key.startsWith('act:') && <Branding theme={{ ...theme, logo: undefined }} footer={!m.highlight} />}
       <AnimatePresence>
         {ov === 'qa' && m.questions && <QaBoard key="qa" m={m} />}
         {ov === 'pulse' && <PulseBoard key="pulse" m={m} />}

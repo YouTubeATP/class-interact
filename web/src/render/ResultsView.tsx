@@ -10,7 +10,9 @@ import { RichInline } from '@/components/RichText';
 import { Users } from 'lucide-react';
 
 /** Renders aggregated results for any activity type. Sized in `em`; wrap in <ScaleBox>. */
-export function ResultsView({ type, config, results, mine, correctIds, fill }: { type: SlideType; config: AnyConfig; results: Results; mine?: { optionIds?: string[]; value?: number; terms?: string[] }; correctIds?: string[] | null; fill?: boolean }) {
+export function ResultsView({ type, config, results, mine, correctIds, fill, maxAnswers = 10 }: { type: SlideType; config: AnyConfig; results: Results; mine?: { optionIds?: string[]; value?: number; terms?: string[] }; correctIds?: string[] | null; fill?: boolean;
+  /** How many typed answers to list (the projector shows fewer, larger rows). */
+  maxAnswers?: number }) {
   if (results.type === 'content') return null;
   switch (results.type) {
     case 'quiz': {
@@ -21,7 +23,12 @@ export function ResultsView({ type, config, results, mine, correctIds, fill }: {
         return (
           <div className="grid gap-[0.6em]" data-testid="answers-results">
             {results.correctCount !== null && <p className="text-[1.3em] font-semibold text-ink-2"><span className="tabular font-extrabold text-ink">{results.correctCount}</span> of {results.total} correct</p>}
-            <BarList total={results.total} items={results.answers.slice(0, 10).map((a) => ({ id: a.key, label: `${a.label}${a.correct === true ? '  ✓' : a.correct === false ? '  ✗' : ''}`, count: a.count }))} />
+            <BarList total={results.total} items={results.answers.slice(0, maxAnswers).map((a) => ({ id: a.key, label: `${a.label}${a.correct === true ? '  ✓' : a.correct === false ? '  ✗' : ''}`, count: a.count }))} />
+            {results.answers.length > maxAnswers && (
+              <p className="text-[1.2em] text-ink-3" data-testid="answers-more">
+                and {results.answers.slice(maxAnswers).reduce((n, a) => n + a.count, 0)} more in {results.answers.length - maxAnswers} other {results.answers.length - maxAnswers === 1 ? 'answer' : 'answers'}
+              </p>
+            )}
           </div>
         );
       }

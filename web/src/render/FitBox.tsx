@@ -20,9 +20,14 @@ export function FitBox({ children, className, min = 0.5 }: { children: ReactNode
     if (!box || !content) return;
     // The scale is picked from fixed 2% steps; nothing may be clipped (at worst the slide is one step smaller). Replicas
     // lay the stage out at projector size (ReferenceStage), so they arrive at the same step as the projector.
+    // Measured with transforms switched off: an entrance slide or a slightly enlarged correct answer is a visual effect,
+    // not overflow, and counting it would shrink the slide (and nothing would grow it back afterwards).
     const fits = (k: number) => {
       content.style.fontSize = `${k}em`;
-      return content.scrollHeight <= box.clientHeight && content.scrollWidth <= box.clientWidth;
+      content.classList.add('fit-measuring');
+      const ok = content.scrollHeight <= box.clientHeight && content.scrollWidth <= box.clientWidth;
+      content.classList.remove('fit-measuring');
+      return ok;
     };
     const fit = () => {
       const steps = Math.round((1 - min) / 0.02);

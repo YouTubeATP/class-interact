@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight, Gauge, Lightbulb, Loader2, MessageCircleQ
 import { useState } from 'react';
 import type { ConfidenceStat, Difficulty, QuestionStat, RunComparison, SessionAnalytics, SessionRecap } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
-import { RichText } from '@/components/RichText';
+import { RichInline, RichText } from '@/components/RichText';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -42,13 +42,13 @@ export function RecapCard({ recap, sessionId, aiEnabled, rehearsal }: { recap: S
         {groups.filter(([, items]) => items.length).map(([title, items]) => (
           <div key={title} className="grid content-start gap-1.5">
             <h3 className="text-sm font-bold">{title}</h3>
-            <ul className="grid gap-1 text-sm text-ink-2">{items.map((i, k) => <li key={k} className="flex gap-2"><span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-ink-3" /><span>{i.text}{i.slide ? <span className="text-ink-3"> (slide {i.slide})</span> : null}</span></li>)}</ul>
+            <ul className="grid gap-1 text-sm text-ink-2">{items.map((i, k) => <li key={k} className="flex gap-2"><span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-ink-3" /><span><RichInline text={i.text} />{i.slide ? <span className="text-ink-3"> (slide {i.slide})</span> : null}</span></li>)}</ul>
           </div>
         ))}
       </div>
       <div className="grid gap-1.5 rounded-xl bg-accent-soft p-3.5" data-testid="recap-followups">
         <h3 className="flex items-center gap-1.5 text-sm font-bold text-accent-ink"><Lightbulb className="size-4" aria-hidden /> Suggested follow-ups</h3>
-        <ul className="grid gap-1 text-sm">{recap.followUps.map((i, k) => <li key={k}>{i.text}</li>)}</ul>
+        <ul className="grid gap-1 text-sm">{recap.followUps.map((i, k) => <li key={k}><RichInline text={i.text} /></li>)}</ul>
         <p className="text-xs text-ink-3">Rule-based suggestions from the measured results above.</p>
       </div>
       {aiEnabled && (
@@ -79,7 +79,7 @@ function QuestionsTable({ questions }: { questions: QuestionStat[] }) {
               return (
                 <tr key={q.activityId} className="border-t border-line align-top">
                   <td className="tabular py-2 pr-2 text-ink-3">{q.index + 1}</td>
-                  <td className="max-w-[18rem] py-2 pr-2"><span className="line-clamp-2 font-semibold">{q.title}</span><span className="flex flex-wrap gap-1 text-xs text-ink-3"><span>{m.label}</span>{q.runCount > 1 && <span>· round {q.runNumber} of {q.runCount}</span>}{q.concepts.map((c) => <Badge key={c} className="px-1.5 py-0">{c}</Badge>)}</span></td>
+                  <td className="max-w-[18rem] py-2 pr-2"><span className="line-clamp-2 font-semibold"><RichInline text={q.title} /></span><span className="flex flex-wrap gap-1 text-xs text-ink-3"><span>{m.label}</span>{q.runCount > 1 && <span>· round {q.runNumber} of {q.runCount}</span>}{q.concepts.map((c) => <Badge key={c} className="px-1.5 py-0">{c}</Badge>)}</span></td>
                   <td className="tabular">{q.respondents}/{q.eligible}</td>
                   <td className="tabular">{pct(q.nonresponseRate)}</td>
                   <td className="tabular font-semibold">{pct(q.correctRate)}</td>
@@ -130,7 +130,7 @@ function Concepts({ analytics }: { analytics: SessionAnalytics }) {
       {analytics.misconceptions.length > 0 && (
         <ul className="grid gap-1.5 text-sm" data-testid="misconception-list">
           {analytics.misconceptions.slice(0, 8).map((m, i) => (
-            <li key={i} className="rounded-xl bg-warn-soft px-3 py-2 text-warn-ink"><b>{pct(m.share)}</b> chose “{m.optionText}” in “{m.activityTitle}”: {m.misconception}</li>
+            <li key={i} className="rounded-xl bg-warn-soft px-3 py-2 text-warn-ink"><b>{pct(m.share)}</b> chose “<RichInline text={m.optionText} />” in “<RichInline text={m.activityTitle} />”: {m.misconception}</li>
           ))}
         </ul>
       )}
@@ -144,7 +144,7 @@ function Comparison({ c }: { c: RunComparison }) {
   return (
     <article className="grid gap-3 rounded-xl border border-line p-4" data-testid="comparison">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-[0.9375rem] font-bold">{c.title} <span className="font-medium text-ink-3">(slide {c.index + 1})</span></h3>
+        <h3 className="text-[0.9375rem] font-bold"><RichInline text={c.title} /> <span className="font-medium text-ink-3">(slide {c.index + 1})</span></h3>
         {c.delta !== null && <Badge variant={c.delta > 0 ? 'ok' : c.delta < 0 ? 'bad' : 'neutral'}><Trend className="size-3" aria-hidden /> {pct(c.beforeRate)} → {pct(c.afterRate)} correct</Badge>}
         {c.ratingAverages && c.ratingAverages.before !== null && c.ratingAverages.after !== null && <Badge variant="accent">Average {c.ratingAverages.before.toFixed(1)} → {c.ratingAverages.after.toFixed(1)}</Badge>}
       </div>
@@ -152,7 +152,7 @@ function Comparison({ c }: { c: RunComparison }) {
       <ul className="grid gap-2" aria-label={`Answers in round ${c.before} and round ${c.after}`}>
         {c.distribution.map((d) => (
           <li key={d.label} className="grid gap-0.5 text-sm">
-            <span className="font-semibold">{d.label}{d.correct ? <span className="ml-1 text-ok-ink" aria-label="correct answer"> ✓</span> : null}</span>
+            <span className="font-semibold"><RichInline text={d.label} />{d.correct ? <span className="ml-1 text-ok-ink" aria-label="correct answer"> ✓</span> : null}</span>
             <span className="flex items-center gap-2"><span className="h-2 rounded-sm bg-ink-3" style={{ width: `${(d.before / max) * 70}%` }} /><span className="tabular text-xs text-ink-2">{d.before}</span></span>
             <span className="flex items-center gap-2"><span className="h-2 rounded-sm bg-accent" style={{ width: `${(d.after / max) * 70}%` }} /><span className="tabular text-xs text-ink-2">{d.after}</span></span>
           </li>

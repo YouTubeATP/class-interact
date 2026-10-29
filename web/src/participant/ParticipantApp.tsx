@@ -165,11 +165,14 @@ export function ParticipantApp({ snap, status, submit, rename, now, actions, pre
         <LogoMark className="size-8 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.9375rem] font-bold leading-tight" data-testid="participant-session-title">{snap.session.title}</p>
-          <button type="button" onClick={() => setRenaming(true)} className="-ml-1 inline-flex max-w-full items-center gap-1 rounded-md px-1 text-[0.8125rem] text-ink-3 hover:text-ink" aria-label={`You are ${snap.me.name}. Change name`} data-testid="participant-name">
-            <span className="truncate">{snap.me.name}</span> <Pencil className="size-3 shrink-0" aria-hidden />
-          </button>
+          {/* name and team share the second line, so the session title keeps the full width */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <button type="button" onClick={() => setRenaming(true)} className="-ml-1 inline-flex min-w-0 items-center gap-1 rounded-md px-1 text-[0.8125rem] text-ink-3 hover:text-ink" aria-label={`You are ${snap.me.name}. Change name`} data-testid="participant-name">
+              <span className="truncate">{snap.me.name}</span> <Pencil className="size-3 shrink-0" aria-hidden />
+            </button>
+            {snap.me.team && <span className="max-w-28 shrink-0 truncate rounded-full px-2 py-px text-[0.6875rem] font-bold text-white" style={{ background: snap.me.team.color }} data-testid="team-badge">{snap.me.team.name}</span>}
+          </div>
         </div>
-        {snap.me.team && <span className="hidden max-w-24 shrink-0 truncate rounded-full px-2.5 py-1 text-xs font-bold text-white min-[360px]:inline" style={{ background: snap.me.team.color }} data-testid="team-badge">{snap.me.team.name}</span>}
         <span className="tabular shrink-0 rounded-full bg-surface px-3 py-1 text-[0.8125rem] font-bold text-ink-2 ring-1 ring-line" aria-label="Session code">{prettyPin(snap.session.pin)}</span>
         {snap.session.features.phoneSounds && <MuteButton scope="participant" className="-mr-1 shrink-0" />}
         <Button variant="ghost" size="icon-sm" className="-mr-1 shrink-0" aria-label="Settings" onClick={() => setPrefs(true)} data-testid="participant-settings-open"><Settings2 className="size-4" aria-hidden /></Button>

@@ -313,6 +313,9 @@
 .rich-math-display { overflow-x: auto; padding: 0.2em 0; text-align: center; }
 .rich-math .katex, .rich-math-display .katex { font-size: 1.08em; }
 
+/* FitBox measures layout without transforms (animations and emphasis scaling are not overflow). */
+.fit-measuring, .fit-measuring * { transform: none !important; }
+
 /* Chemistry: structures from SMILES and reaction schemes. Bonds and carbon take the text colour (currentColor). */
 .rich-mol { display: inline-flex; vertical-align: middle; align-items: center; }
 .rich-mol svg { display: block; height: var(--mol-h); width: auto; max-width: 100%; overflow: visible; }

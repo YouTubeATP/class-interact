@@ -139,7 +139,7 @@ function Scheme({ items, arrows }: { items: SchemeItem[]; arrows: boolean }) {
             }
             return (
               <span key={i} className="rich-scheme-mol">
-                {it.smiles === '?' ? <span className="rich-scheme-unknown" aria-label={`unknown${it.caption ? ` ${it.caption}` : ''}`}>?</span> : <Molecule smiles={it.smiles} bond="1.05em" label={it.caption || undefined} />}
+                {it.smiles === '?' ? <span className="rich-scheme-unknown" aria-label={`unknown${it.caption ? ` ${it.caption}` : ''}`}>?</span> : <Molecule smiles={it.smiles} bond={arrows ? '1.05em' : '1.5em'} label={it.caption || undefined} />}
                 {it.caption && <span className="rich-scheme-caption"><RichInline text={it.caption} /></span>}
               </span>
             );
