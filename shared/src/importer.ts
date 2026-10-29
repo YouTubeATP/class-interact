@@ -193,7 +193,7 @@ export function importJsonSlides(text: string, existingIds: string[] = []): Impo
 
 export const CSV_TEMPLATE = [
   'type,kind,question,options,correct,tolerance,unit,time_limit,points,explanation,concepts',
-  'quiz,single,What does len([1,2,3]) return?,1|2|3|Error,C,,,20,1000,len counts the items.,Lists',
+  'quiz,single,"What does len([1,2,3]) return?",1|2|3|Error,C,,,20,1000,len counts the items.,Lists',
   'quiz,multiple,Which are prime?,2|4|5|9,"A,C",,,,,,Number theory',
   'quiz,text,Which keyword starts a loop over a list in Python?,,for,,,,,,Loops',
   'quiz,numeric,What is 0.1 + 0.2 to two decimal places?,,0.3,0.005,,30,,,Data representation',

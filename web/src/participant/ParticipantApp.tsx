@@ -106,25 +106,27 @@ export function ParticipantApp({ snap, status, submit, rename, now, actions, pre
   // Snapshots to participants are not pushed on every submission, so remember accepted ones locally.
   const [local, setLocal] = useState<Record<string, MySubmission[]>>({});
   const { activity, state } = snap;
+  // per run, not per activity: after "Run again" the earlier round's answers are not this round's
+  const runKey = activity ? `${activity.id}:${snap.run?.id ?? ''}` : '';
 
   const mine = useMemo(() => {
     if (!activity) return [];
     const merged = new Map<string, MySubmission>();
     for (const s of snap.me.submissions) merged.set(s.id, s);
-    for (const s of local[activity.id] ?? []) if (!merged.has(s.id)) merged.set(s.id, s);
+    for (const s of local[runKey] ?? []) if (!merged.has(s.id)) merged.set(s.id, s);
     return [...merged.values()].sort((a, b) => a.slot - b.slot);
-  }, [activity, snap.me.submissions, local]);
+  }, [activity, runKey, snap.me.submissions, local]);
 
   const send = useCallback(
     async (payload: unknown) => {
       const ack = (await submit(activity!.id, payload)) as Ack<{ submission: MySubmission }>;
       if (ack.ok) {
-        setLocal((l) => ({ ...l, [activity!.id]: [...(l[activity!.id] ?? []), ack.submission] }));
+        setLocal((l) => ({ ...l, [runKey]: [...(l[runKey] ?? []), ack.submission] }));
         if (!preview) audio.play(SUBMIT_SOUND[activity!.type] ?? 'submit');
       }
       return ack;
     },
-    [submit, activity, preview],
+    [submit, activity, runKey, preview],
   );
 
   const online = status === 'connected';
@@ -136,7 +138,7 @@ export function ParticipantApp({ snap, status, submit, rename, now, actions, pre
   else if (!activity) view = <WaitingView kind="standby" />;
   else if (state.leaderboardVisible && (snap.leaderboard?.length || snap.teamBoard?.length)) { key = 'board'; view = <LeaderboardView />; }
   else {
-    key = `act:${activity.id}`;
+    key = `act:${runKey}`; // a new run starts with a fresh view (no leftover typed text or picks)
     view =
       activity.type === 'content' ? <ContentView /> :
       activity.type === 'quiz' ? <QuizView /> :

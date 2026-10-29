@@ -324,7 +324,7 @@ export function ComparePanel({ snap }: { snap: PresenterSnapshot }) {
     <div className="grid gap-3" data-testid="compare-panel">
       {delta !== null && (
         <p className={cn('rounded-xl px-3 py-2 text-sm font-semibold', delta > 0 ? 'bg-ok-soft text-ok-ink' : delta < 0 ? 'bg-bad-soft text-bad-ink' : 'bg-ink/5 text-ink-2')} data-testid="compare-delta">
-          Correct: {Math.round(first.correctRate! * 100)}% in round {first.number} → {Math.round(last.correctRate! * 100)}% in round {last.number} ({delta > 0 ? '+' : ''}{delta} points)
+          Correct: {Math.round(first.correctRate! * 100)}% in round {first.number} → {Math.round(last.correctRate! * 100)}% in round {last.number} ({delta > 0 ? '+' : ''}{delta} percentage points)
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">

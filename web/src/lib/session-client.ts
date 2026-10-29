@@ -13,6 +13,8 @@ function whenConnected(s: Socket, ms: number): Promise<void> {
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'denied' | 'notfound' | 'removed' | 'revoked';
+/** Statuses that end the connection for good: nothing may turn them back into "reconnecting". */
+const FINAL: ConnectionStatus[] = ['denied', 'notfound', 'removed', 'revoked'];
 
 /**
  * One persistent, authenticated socket per screen. The server is authoritative: every (re)connect
@@ -37,10 +39,12 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
 
     socket.on('connect', () => setStatus('connected'));
     socket.on('disconnect', (reason) => {
-      if (reason === 'io server disconnect') return; // removed / kicked: handled by the 'removed' event
-      setStatus('reconnecting');
+      // 'io server disconnect': removed or revoked, handled by those events. 'io client disconnect': we hung up
+      // ourselves, right after one of them. Neither may turn a final status back into "reconnecting".
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') return;
+      setStatus((s) => (FINAL.includes(s) ? s : 'reconnecting'));
     });
-    socket.io.on('reconnect_attempt', () => setStatus((s) => (s === 'denied' || s === 'removed' || s === 'notfound' || s === 'revoked' ? s : 'reconnecting')));
+    socket.io.on('reconnect_attempt', () => setStatus((s) => (FINAL.includes(s) ? s : 'reconnecting')));
     socket.on('connect_error', (err) => {
       if (err.message === 'UNAUTHORIZED') { setStatus('denied'); socket.disconnect(); }
       else if (err.message === 'NOT_FOUND') { setStatus('notfound'); socket.disconnect(); }
@@ -56,7 +60,7 @@ export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
     });
 
     // Phones suspend sockets when the screen locks; reconnect promptly when the tab is visible again.
-    const onVisible = () => { if (document.visibilityState === 'visible' && socket.disconnected && !['denied', 'removed', 'notfound', 'revoked'].includes(statusRef.current)) socket.connect(); };
+    const onVisible = () => { if (document.visibilityState === 'visible' && socket.disconnected && !FINAL.includes(statusRef.current)) socket.connect(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
     return () => {
