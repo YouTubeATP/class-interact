@@ -110,7 +110,7 @@ function Scheme({ items, arrows }: { items: SchemeItem[]; arrows: boolean }) {
       el.style.flexWrap = 'nowrap';
       const k = el.clientWidth / el.scrollWidth;
       if (k >= 1) el.style.flexWrap = '';
-      else if (k >= 0.72) el.style.fontSize = `${Math.floor(k * 100) / 100}em`;
+      else if (k >= 0.72) el.style.fontSize = `${globalThis.Math.floor(k * 100) / 100}em`;
       else el.style.flexWrap = '';
     };
     fit();
