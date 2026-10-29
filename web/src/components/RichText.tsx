@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from '@/lib/cn';
 import { drawMolecule } from './rich/chem';
 import { RESIZE_EVENT } from './rich/events';
@@ -100,8 +100,29 @@ function Scheme({ items, arrows }: { items: SchemeItem[]; arrows: boolean }) {
     if (i > 0 && (items[i - 1].t === 'arrow' || items[i - 1].t === 'plus')) groups[groups.length - 1].push(it);
     else groups.push([it]);
   });
+  // A route reads best on one line: shrink it a little (down to 72%) rather than wrap; wrap only when it is much too wide.
+  const fig = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = fig.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.fontSize = '';
+      el.style.flexWrap = 'nowrap';
+      const k = el.clientWidth / el.scrollWidth;
+      if (k >= 1) el.style.flexWrap = '';
+      else if (k >= 0.72) el.style.fontSize = `${Math.floor(k * 100) / 100}em`;
+      else el.style.flexWrap = '';
+    };
+    fit();
+    // only a change of available width matters (fitting changes the height, which must not trigger another fit)
+    let lastW = el.clientWidth;
+    const ro = new ResizeObserver(() => { if (el.clientWidth !== lastW) { lastW = el.clientWidth; fit(); } });
+    ro.observe(el);
+    el.addEventListener(RESIZE_EVENT, fit);
+    return () => { ro.disconnect(); el.removeEventListener(RESIZE_EVENT, fit); };
+  }, [items]);
   return (
-    <figure className={cn('rich-scheme', !arrows && 'rich-scheme-plain')} data-testid="chem-scheme">
+    <figure ref={fig} className={cn('rich-scheme', !arrows && 'rich-scheme-plain')} data-testid="chem-scheme">
       {groups.map((g, gi) => (
         <span key={gi} className="rich-scheme-group">
           {g.map((it, i) => {
