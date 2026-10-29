@@ -35,7 +35,11 @@ a responsive layout template for the projector and for phones.
 | `title` | yes | 1–140 characters. |
 | `description` | no | Up to 600 characters. |
 | `theme.palette` | no | `azure` (default), `lavender`, `mint`, `peach`, `rose`, `slate`. |
-| `theme.background` | no | `soft` (default, colour shapes) or `plain`. |
+| `theme.background` | no | `soft` (default, colour shapes), `plain`, `gradient` or `grid`. |
+| `theme.accent` | no | A custom accent colour `#rrggbb`. It must keep white button text readable (contrast with white of at least 4.5:1); a lighter tint for dark mode is derived automatically. |
+| `theme.appearance` | no | `light` or `dark`: the projector look the deck is designed for. The presenter can override it per session. |
+| `theme.logo` | no | `{ "url", "alt" }`, shown small in a corner of the projector. Same URL rules as images. |
+| `theme.footer` | no | Up to 120 characters, shown along the bottom of the projector (a course code, a hashtag). |
 | `slides` | yes | Ordered list, up to 150. |
 
 Unknown fields are errors, with a "did you mean…" suggestion, so typos never silently disappear.
@@ -49,6 +53,13 @@ Every slide may also have:
 | --- | --- |
 | `notes` | Private speaker notes. Never sent to the projector or phones. |
 | `image` | `{ "url", "alt", "fit" }`. `url` must be `https://…`, `http://…` or an uploaded `/uploads/…` path. `fit` is `cover` (default) or `contain`. Failed loads show a placeholder. |
+| `media` | `{ "url", "kind", "title", "start", "phones" }`. A YouTube or Vimeo link (embedded through the privacy-enhanced players), an `https://` audio or video file, or an uploaded `/uploads/media/…` file. `kind` is `video` (default) or `audio`, `start` is in seconds, and `phones: true` also shows the player on phones (otherwise it plays on the main screen only). |
+
+**Rich text.** Titles, bodies, questions and options accept a small, safe Markdown subset: `**bold**`, `*italic*`,
+`` `code` ``, `$x^2$` (KaTeX maths), `$$…$$` display maths, fenced code blocks with a language (```` ```python ````, with syntax
+highlighting and indentation kept exactly), bullet and numbered lists, and `| tables |`. It is parsed into a tree and
+rendered as text, never as HTML, so nothing typed can inject markup. The maths and highlighting libraries load only
+when a slide uses them.
 
 Interactive slides also share these (with defaults):
 
@@ -88,6 +99,25 @@ Interactive slides also share these (with defaults):
 | `multiple` | `correctOptionIds` (one or more) and optional `partialCredit` (default `true`) | Tick every option that applies, then lock in |
 | `match` | `pairs` (2–6, each `{ "id", "left", "right" }`) and optional `partialCredit` | Connect each left item to its right item, by tapping or dragging |
 | `order` | `items` (2–6, each `{ "id", "text" }`, **written in the correct order**) and optional `partialCredit` | Drag the items (shuffled) into the right order |
+
+| `text` | `acceptedAnswers` (1–20), `caseSensitive` (default `false`), `whitespace` (`normalize` default, `ignore` for code and formulas, `exact`) | Type an answer |
+| `numeric` | `numeric`: `{ "value", "tolerance", "tolerancePercent", "unit" }` | Type a number: `3.5`, `-2`, `1,000`, `1e-3`, `3/4`, with or without the unit |
+| `hotspot` | `image` and `regions` (1–10, each `{ "shape": "rect"\|"ellipse", "x", "y", "w", "h", "label" }` in 0–1 coordinates of the image) | Tap (or use the arrow keys on) the image |
+
+Typed, numeric and hotspot answers are graded deterministically, with no AI. An answer that is *nearly* right (a
+one-letter typo in a longer word, a case-only difference when matching is case-sensitive, a number just outside the
+tolerance, a tap just outside a region) is marked for **review**: the presenter accepts or rejects it on the dashboard,
+and the grade explains itself ("Close to “while” (1 character different)").
+
+Optional teaching metadata on quizzes (never sent to phones or the projector):
+
+- `options[].misconception`: the misunderstanding that usually leads to this wrong option. Results show how many chose it.
+- `concepts`: up to 8 concept names; analytics group correctness by concept.
+- `branch`: `{ "threshold": 60, "below": "slide-id", "atOrAbove": "slide-id" }`. Live, the dashboard suggests the slide
+  based on the class's correct rate (the presenter decides); self-paced, the person's own answer picks the next slide.
+
+A `rating` slide may set `confidenceFor` (quiz slide ids) to pair the rating with those questions in the
+confidence-versus-correctness view.
 
 Fields that belong to another kind are rejected, so a mistake is caught on import (`options` for `match`/`order`,
 `pairs` for anything but `match`, and so on). A True/False question is just a `single` question with two options.

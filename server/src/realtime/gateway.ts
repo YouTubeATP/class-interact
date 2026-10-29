@@ -273,6 +273,8 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       try {
         await service.setPulse(sessionId, pid, parsed.data.value);
         reply({ ok: true });
+        // a pulse change is private, so it is not broadcast to phones; only this person's own devices need it
+        for (const c of connsOf(sessionId)) if (c.participantId === pid) void sendSnapshot(c).catch(() => undefined);
       } catch (e) {
         reply(toAck(e));
       }

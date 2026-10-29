@@ -206,3 +206,34 @@ test('typed and numeric answers, teacher review of near misses, then a practice 
   for (const p of [ada, alan]) await p.context.close();
   await dash.context().close();
 });
+
+test('a break pauses everyone without touching the activity, and analytics and the CSV export reflect the session', async ({ browser, request }) => {
+  const s = await start(request, await deck(request, 'Break deck', [
+    { id: 'q', type: 'quiz', question: 'Capital of France?', options: [{ id: 'a', text: 'Paris' }, { id: 'b', text: 'Lyon', misconception: 'Biggest city is the capital' }], correctOptionId: 'a', concepts: ['Geography'] },
+  ]));
+  const dash = await dashboard(browser, s.id);
+  const proj = await projector(browser, s);
+  const ada = await joinAsParticipant(browser, s.pin, 'Ada');
+  await dash.getByTestId('ctl-primary').click();
+  await ada.page.getByRole('button', { name: /Lyon$/ }).click();
+  await expect(dash.getByTestId('answered')).toContainText('1 of 1 answered');
+
+  await dash.getByTestId('open-break').click();
+  await dash.getByTestId('break-minutes').fill('5');
+  await dash.getByTestId('break-start').click();
+  await expect(ada.page.getByTestId('participant-break')).toContainText('Break');
+  await expect(proj.getByTestId('projector')).toContainText('Break');
+  await dash.getByTestId('end-break').click();
+  await expect(ada.page.getByTestId('participant-break')).toHaveCount(0);
+  await expect(dash.getByTestId('answered')).toContainText('1 of 1 answered'); // the activity is untouched
+
+  const a = await (await request.get(`/api/studio/sessions/${s.id}/analytics`)).json();
+  const stat = a.analytics.questions[0];
+  expect(stat).toMatchObject({ respondents: 1, correctRate: 0, concepts: ['Geography'] });
+  expect(a.analytics.misconceptions[0]).toMatchObject({ misconception: 'Biggest city is the capital', count: 1 });
+  const csv = await (await request.get(`/api/studio/sessions/${s.id}/export.csv`)).text();
+  expect(csv.split('\n')[0]).toContain('run');
+  expect(csv).toContain('Lyon');
+
+  for (const p of [ada.page, dash, proj]) await p.context().close();
+});
