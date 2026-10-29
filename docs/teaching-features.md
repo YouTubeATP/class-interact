@@ -9,11 +9,15 @@ does for a presenter and participants, and how it is built. The presentation fie
 - The lobby shows a vertical "ticket" with the QR code at about a quarter of the stage width (444 CSS px on a 1080p
   projector, 296 px at 720p, 888 px at 4K). The six-digit PIN sits below it in large type. The stage is a 16:9 box
   that letterboxes inside any window, so the code keeps its proportion on 4:3 projectors and in windowed browsers.
+- During slides and activities, a ticket in the bottom-right corner keeps the code on screen: a QR of about 11% of
+  the stage width (about 220 px on a 1080p projector), the join address in large bold type, and the PIN. Slides keep
+  that bottom band free, and long content shrinks to fit, so the ticket never covers anything.
 - **Show join QR** (dashboard, phone remote) lays a large code (40% of the stage width) over whatever is on screen.
   It changes nothing underneath: the activity, its timer and the responses stay as they were. Hide it again from
   the same button.
 - The code is always dark modules on white with a four-module quiet zone, whatever the projector theme. Each module
-  is snapped to whole device pixels, so it stays sharp at any scale.
+  is snapped to whole device pixels when that costs little size, so it stays sharp; small codes keep their full
+  size instead, because size matters more for scanning from a distance.
 - It encodes the **participant join link** (`/join/<PIN>`), never the projector link or projector code. The address
   comes from `PUBLIC_URL` when set, otherwise the address the Studio was opened on (a domain such as a Cloudflare
   Tunnel host is kept as is; on `localhost` the best LAN address is used instead). No hostname is hard-coded.

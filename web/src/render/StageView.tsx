@@ -69,7 +69,7 @@ function Branding({ theme, footer = true }: { theme: Theme; footer?: boolean }) 
   return (
     <>
       {theme.logo && <img src={theme.logo.url} alt={theme.logo.alt || ''} referrerPolicy="no-referrer" className="absolute right-[2.4%] top-[3%] z-10 h-[3.4em] max-w-[14em] object-contain" data-testid="stage-logo" />}
-      {footer && theme.footer && <p className="absolute bottom-[1.1%] left-1/2 z-10 max-w-[44%] -translate-x-1/2 truncate text-center text-[1.15em] font-semibold text-ink-3" data-testid="stage-footer">{theme.footer}</p>}
+      {footer && theme.footer && <p className="absolute bottom-[1.1%] left-1/2 z-10 max-w-[36%] -translate-x-1/2 truncate text-center text-[1.15em] font-semibold text-ink-3" data-testid="stage-footer">{theme.footer}</p>}
     </>
   );
 }
@@ -85,10 +85,16 @@ function TypeChip({ type }: { type: keyof typeof typeMeta }) {
   );
 }
 
+/**
+ * The join code in the corner of every slide: big enough to scan from the back of the room (the QR is about 11% of
+ * the stage width, ~210 px on a 1080p projector) with the address in large type. Slides keep the bottom band of the
+ * stage (CORNER_BAND) free for it, so it never covers content.
+ */
+const CORNER_BAND = '15cqw';
 function JoinCorner({ m }: { m: StageModel }) {
   return (
-    <div className="absolute bottom-[3%] right-[3%] z-10" style={{ width: '17.5%', fontSize: '1.05cqw' }}>
-      <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="mini" />
+    <div className="absolute bottom-[2.6%] right-[2.4%] z-10 max-w-[44%]" style={{ fontSize: '1cqw' }}>
+      <Ticket pin={m.session.pin} url={m.join.url} host={m.join.host} variant="corner" />
     </div>
   );
 }
@@ -262,9 +268,9 @@ function ActivityView({ m }: { m: StageModel }) {
       <div className={cn('min-h-0 pr-[1%]', side ? 'mt-[2.6em]' : 'mt-[1.8em]')}>
         {hotspot ? <ActivityBody m={m} /> : <FitBox><ActivityBody m={m} /></FitBox>}
       </div>
-      <div className="flex min-h-[5.6em] items-end justify-between pt-[1em]">
+      <div className="flex items-end justify-between pt-[1em]" style={{ minHeight: `calc(${CORNER_BAND} - 3cqw)` /* the row sits above the 3% bottom padding */ }}>
         {a.interactive && state.phase !== 'ready' ? <ResponseMeter m={m} /> : <span />}
-        <span className="w-[17.5%]" aria-hidden />
+        <span aria-hidden />
       </div>
       <JoinCorner m={m} />
     </div>
@@ -361,9 +367,9 @@ function contentForPhase(m: StageModel): { key: string; node: ReactNode; tone: s
       key: `slide:${activity.id}`,
       tone: 'content',
       node: full ? <ContentSlide config={c} /> : (
-        <div className="absolute inset-0 px-[6%] py-[5.5%]">
-          {/* leave the bottom-right corner to the join ticket; shrink long slides instead of letting them run off */}
-          <FitBox className="pb-[7%]"><ContentSlide config={c} /></FitBox>
+        <div className="absolute inset-0 px-[6%] pt-[5.5%]" style={{ paddingBottom: CORNER_BAND }}>
+          {/* leave the bottom band to the join ticket; shrink long slides instead of letting them run off */}
+          <FitBox><ContentSlide config={c} /></FitBox>
           <JoinCorner m={m} />
         </div>
       ),

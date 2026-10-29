@@ -8,13 +8,15 @@ import { QRCode } from './QRCode';
  * The session ticket: QR on the stub, PIN on the body. Sized entirely in `em`, so
  * set `fontSize` on the wrapper (rem on screens, cqw on the projector) and it scales as one piece.
  *
- *   hero / mini / card  stub on the left (dashboard card, the corner of the projector during activities)
+ *   hero / mini / card  stub on the left (dashboard card)
+ *   corner              stub on the left, sized for the projector's corner during slides: a big QR and the address in
+ *                       large type, so latecomers can join from the back of the room
  *   poster              stub on top: the projector's join screen, where the QR code is the biggest thing in the room
  *
  * The ticket is always light (white paper, dark ink) whatever the app or projector appearance: a QR code needs
  * dark modules on white, and the PIN beside it reads best the same way.
  */
-export function Ticket({ pin, url, host, variant = 'hero', className, style, animate = false }: { pin: string; url: string; host: string; variant?: 'hero' | 'mini' | 'card' | 'poster'; className?: string; style?: React.CSSProperties; animate?: boolean }) {
+export function Ticket({ pin, url, host, variant = 'hero', className, style, animate = false }: { pin: string; url: string; host: string; variant?: 'hero' | 'mini' | 'card' | 'corner' | 'poster'; className?: string; style?: React.CSSProperties; animate?: boolean }) {
   const digits = prettyPin(pin).split('');
   const pinDigits = (size: string) => (
     <p data-testid="ticket-pin" data-pin={pin} className="display tabular whitespace-nowrap text-ink" style={{ fontSize: size, letterSpacing: '-0.01em', lineHeight: 1 }} aria-label={`Session code ${pin.split('').join(' ')}`}>
@@ -45,6 +47,25 @@ export function Ticket({ pin, url, host, variant = 'hero', className, style, ani
               Scan, or go to <strong className="font-semibold text-ink [overflow-wrap:anywhere]">{host}</strong> and enter
             </p>
             {pinDigits('3.9em')}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'corner') {
+    // The stub is a fixed 13em square (the QR inside is about 11.4em), the body as wide as the address needs.
+    const hostSize = host.length > 26 ? '1.45em' : host.length > 20 ? '1.7em' : '2em';
+    return (
+      <div className={className} data-appearance="light" style={{ filter: 'drop-shadow(0 0 0.7px rgb(22 27 51 / .55)) drop-shadow(0 0.9em 1.1em rgb(22 27 51 / .2))' }}>
+        <div className="ticket" style={{ ['--stub' as string]: '13em', gridTemplateColumns: '13em auto', ...style }} data-testid="join-corner">
+          <div className="grid place-items-center" style={{ padding: '0.8em' }}>
+            <QRCode value={url} snap className="w-full" />
+          </div>
+          <div className="grid content-center" style={{ padding: '0.9em 1.5em 0.9em 1.4em', gap: '0.3em' }}>
+            <p className="font-semibold text-ink-2" style={{ fontSize: '1.25em', lineHeight: 1.2 }}>Scan, or go to</p>
+            <p className="font-extrabold leading-[1.1] text-ink [overflow-wrap:anywhere]" style={{ fontSize: hostSize, maxWidth: '13em' }} data-testid="ticket-host">{host}</p>
+            {pinDigits('3.5em')}
           </div>
         </div>
       </div>

@@ -71,7 +71,8 @@ for (const vp of VIEWPORTS) {
     expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
     // modules land on whole device pixels: sharp, not blurred
     const modules = await qr.evaluate((el) => Number(el.getAttribute('viewBox')!.split(' ')[2]));
-    expect((box.width / modules) % 1).toBeLessThan(0.01);
+    // (when modules are large enough that rounding down costs little; small codes keep their full size instead)
+    if (box.width / modules >= 7) expect((box.width / modules) % 1).toBeLessThan(0.01);
 
     await expect(page.getByTestId('join-poster').getByTestId('ticket-pin')).toHaveAttribute('data-pin', s.pin);
     const pinBox = (await page.getByTestId('join-poster').getByTestId('ticket-pin').boundingBox())!;
@@ -123,3 +124,42 @@ for (const appearance of ['light', 'dark'] as const) {
     await dash.context().close();
   });
 }
+
+test('the corner ticket on every slide is big, has the address in large type, scans, and never covers the slide', async ({ browser, request }) => {
+  const deck = await (await request.post('/api/studio/presentations/import', { data: { schemaVersion: 1, title: 'Corner', theme: { palette: 'azure', footer: 'CS101 · Week 3' }, slides: [
+    { id: 'c', type: 'content', title: 'Loops in Python', body: 'A `for` loop:\n\n```python\nfor i in range(3):\n    print(i)\n```\n\n| i | output |\n|---|---|\n| 0 | 0 |\n| 1 | 1 |\n| 2 | 2 |\n\nOne more line of text at the bottom.' },
+    { id: 'p', type: 'poll', question: 'Which loop repeats until the user types quit?', options: [{ id: 'a', text: 'for' }, { id: 'b', text: 'while' }, { id: 'c', text: 'do…while' }, { id: 'd', text: 'Not sure yet' }, { id: 'e', text: 'Something else' }, { id: 'f', text: 'Depends' }] },
+  ] } })).json();
+  const s0 = await (await request.post(`/api/studio/presentations/${deck.id}/sessions`, { data: { collectNames: false, mode: 'standalone' } })).json();
+  const ctl = await (await request.get(`/api/studio/sessions/${s0.id}/control`)).json();
+  const s = { pin: s0.pin as string, key: ctl.projectorKey as string };
+  const dash = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await dash.goto(`/session/${s0.id}`);
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });
+  const page = await ctx.newPage();
+  await page.goto(`/project/${s0.id}?k=${encodeURIComponent(s.key)}`);
+
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  for (const slide of ['content', 'poll']) {
+    await dash.getByTestId('ctl-primary').click();
+    const corner = page.getByTestId('join-corner');
+    await expect(corner).toBeVisible();
+    await page.waitForTimeout(800);
+    const qr = corner.getByTestId('qr-code');
+    const box = (await qr.boundingBox())!;
+    expect(box.width, `${slide}: QR size`).toBeGreaterThanOrEqual(200); // ~11% of a 1080p stage
+    const hostPx = await corner.getByTestId('ticket-host').evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
+    expect(hostPx, `${slide}: address type size`).toBeGreaterThanOrEqual(30);
+    await expect(corner.getByTestId('ticket-host')).toHaveText(/\S+/);
+    expectJoinLink(await decodeQr(page, qr), s);
+    // nothing on the slide sits under the ticket
+    const ticket = (await corner.boundingBox())!;
+    const content = page.locator('[data-testid="projector"] :is(h1,h2,p,li,pre,table,[data-testid="response-meter"])').filter({ hasNot: page.getByTestId('join-corner') });
+    for (const el of await content.all()) {
+      if (await el.evaluate((e) => !!e.closest('[data-testid="join-corner"]'))) continue;
+      const b = await el.boundingBox();
+      if (b && b.width > 0) expect(overlaps(b, ticket), `${slide}: "${(await el.innerText()).slice(0, 40)}" is under the ticket`).toBe(false);
+    }
+  }
+  for (const p of [dash, page]) await p.context().close();
+});

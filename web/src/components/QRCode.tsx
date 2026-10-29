@@ -40,9 +40,12 @@ export function QRCode({ value, className, label = 'QR code to join the session'
     const fit = () => {
       const w = el.clientWidth;
       const dpr = window.devicePixelRatio || 1;
-      // whole device pixels per module, never larger than the box
-      const perModule = Math.floor((w * dpr) / total);
-      setPx(perModule >= 1 ? (perModule * total) / dpr : w);
+      // Whole device pixels per module (perfectly sharp), never larger than the box. When modules are small, rounding
+      // down can cost a third of the size; then size matters more for scanning from a distance, so keep the full box
+      // (crispEdges still draws hard edges, the modules just differ by a pixel).
+      const exact = (w * dpr) / total;
+      const perModule = Math.floor(exact);
+      setPx(perModule >= 1 && perModule / exact >= 0.85 ? (perModule * total) / dpr : w);
     };
     fit();
     const ro = new ResizeObserver(fit);
