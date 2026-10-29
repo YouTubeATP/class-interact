@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   buildRecap, can, computeAnalytics, computeTeamStandings, contrastRatio, countedSubmissions, CSV_TEMPLATE, decideBranch, definitions, editDistance,
@@ -333,5 +335,14 @@ describe('templates', () => {
     }
     const chem = TEMPLATES.find((t) => t.id === 'synthetic-routes')!;
     expect(JSON.stringify(chem.doc)).toContain('```route');
+  });
+
+  it('only point at pictures that ship with the web app', () => {
+    for (const t of TEMPLATES) {
+      for (const [, url] of JSON.stringify(t.doc).matchAll(/"url":"([^"]+)"/g)) {
+        expect(url, t.id).toMatch(/^\/templates\//);
+        expect(existsSync(fileURLToPath(new URL(`../../web/public${url}`, import.meta.url))), `${t.id}: ${url}`).toBe(true);
+      }
+    }
   });
 });

@@ -26,9 +26,11 @@ export function OptionTile({ index, text, count, total, state = 'idle', onClick,
         size === 'stage' ? 'gap-[0.9em] rounded-[1em] px-[1em] py-[0.8em] text-[1.9em]' : 'min-h-[4.25rem] gap-3.5 rounded-2xl px-4 py-3 text-[1.0625rem]',
         interactive && 'active:scale-[0.985]',
       )}
-      style={{ ...(size === 'stage' ? { ['--mol-bond-solo' as string]: card ? '1.35em' : '0.95em', ['--mol-bond-inline' as string]: '0.6em' } : {}), backgroundColor: c.bg, color: c.ink, boxShadow: state === 'selected' || state === 'correct' ? `0 0 0 ${size === 'stage' ? '0.14em' : '3px'} ${state === 'correct' ? 'var(--color-ok)' : c.strong}` : 'none' }}
+      style={{ ...(size === 'stage' ? { ['--mol-bond-solo' as string]: card ? '1.35em' : '0.95em', ['--mol-bond-inline' as string]: '0.6em' } : {}), backgroundColor: c.bg, color: c.ink, boxShadow: state === 'selected' || state === 'correct' ? `inset 0 0 0 ${size === 'stage' ? '0.14em' : '3px'} ${state === 'correct' ? 'var(--color-ok)' : c.strong}` : 'none' }}
+      // The ring is drawn inside the tile and the correct answer is not enlarged: a full-width tile has no room around
+      // it, and the slide's box would cut off its edges. The tick and the dimmed wrong answers carry the reveal.
       initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: state === 'dim' ? 0.4 : 1, y: 0, scale: state === 'correct' ? 1.015 : 1 }}
+      animate={{ opacity: state === 'dim' ? 0.4 : 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 26, delay }}
       whileTap={interactive && !disabled ? { scale: 0.975 } : undefined}
     >

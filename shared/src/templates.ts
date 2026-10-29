@@ -11,6 +11,9 @@ export interface PresentationTemplate {
   doc: Record<string, unknown>;
 }
 
+/** Bundled with the web app (web/public), so the template works offline and needs no upload. */
+const PEARL = '/templates/popping-boba-pearl.svg';
+
 const opts = (...texts: string[]) => texts.map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
 
 export const TEMPLATES: PresentationTemplate[] = [
@@ -220,6 +223,68 @@ export const TEMPLATES: PresentationTemplate[] = [
           correctOptionIds: ['a', 'b'], concepts: ['Reduction'],
         },
         { id: 'conf', type: 'rating', question: 'How confident are you planning a two-step route on your own?', min: 1, max: 5, minLabel: 'Not yet', maxLabel: 'Very', confidenceFor: ['q-product', 'q-reagents', 'q-x', 'q-reductions'] },
+      ],
+    },
+  },
+  {
+    id: 'popping-boba',
+    title: 'Popping boba lab (hands-on science)',
+    description: 'A kitchen chemistry workshop: make juice pearls that burst, and explain why they pop.',
+    summary: 'Title slide, word cloud and poll warm-ups, the alginate chemistry with an equation and structures, a method with a safety note, a ratios table, then every question type (quiz with branching, tap-the-picture, number, order, match, typed word, select-all), a confidence check, a flavour brainstorm and a feedback survey.',
+    doc: {
+      schemaVersion: 1,
+      title: 'Popping boba lab',
+      description: 'Spherification in the kitchen: make juice pearls that burst, and learn the chemistry that makes their skin.',
+      theme: { palette: 'peach', background: 'gradient', accent: '#c2410c', footer: 'Popping boba workshop' },
+      slides: [
+        { id: 'title', type: 'content', layout: 'image-text', title: 'Popping boba lab', body: 'Juice pearls with a skin thinner than paper, and the chemistry that makes them pop.\n\nToday: **make them**, **taste them** (if you like), and **explain the pop**.', image: { url: PEARL, alt: 'A popping boba pearl cut in half on a plate', fit: 'contain' }, notes: 'Hand out aprons while people join. Keep the calcium bath covered until step 3.' },
+        { id: 'feel', type: 'wordcloud', question: 'One word: what do you think popping boba feels like in your mouth?', maxWords: 2, maxSubmissions: 2 },
+        { id: 'tried', type: 'poll', question: 'Have you had popping boba before?', options: opts('Yes, and I loved it', 'Yes, not my thing', 'Never tried it', 'What is boba?') },
+        {
+          id: 'science', type: 'content', title: 'The trick: a skin that forms in seconds',
+          body: 'Sodium alginate (from brown seaweed) stays runny in juice. Drop it into calcium and each $\\ce{Ca^2+}$ ion bridges two alginate chains, zipping the surface into a gel.\n\n$$\\ce{2 R-COO^- + Ca^2+ -> (R-COO)2Ca}$$\n\n```smiles\nOC(=O)C1OC(O)C(O)C(O)C1O "guluronate unit (alginate)"\nCC(O)C(=O)[O-].CC(O)C(=O)[O-].[Ca+2] "calcium lactate"\n```',
+          notes: 'The “egg-box” model: calcium sits in the pockets between guluronate units.',
+        },
+        {
+          id: 'recipe', type: 'content', title: 'Making the pearls',
+          steps: ['Blend 2.5 g sodium alginate into 500 mL of mango juice. Rest 15 min to lose the bubbles.', 'Stir 5 g calcium lactate into 500 mL of cold water: the setting bath.', 'Drip the juice from a squeeze bottle, 5 cm above the bath.', 'Leave the pearls 45 seconds, then lift them out with a slotted spoon.', 'Rinse in clean water so the skin stops thickening.'],
+          callout: { tone: 'warning', text: 'Tell us about food allergies before tasting. Tasting is always optional.' },
+        },
+        {
+          id: 'ratios', type: 'content', title: 'Recipe ratios',
+          body: '| Ingredient | Amount | Concentration |\n|:--|--:|--:|\n| Mango juice | 500 mL | |\n| Sodium alginate | 2.5 g | 0.5 % w/v |\n| Calcium lactate (bath) | 5 g in 500 mL | 1 % w/v |\n| Time in the bath | 30 to 60 s | |\n\nMore time in the bath means a **thicker skin** and a less dramatic pop.',
+        },
+        {
+          id: 'q-ion', type: 'quiz', question: 'Which ion makes the alginate skin set?', timeLimitSec: 25, speedBonus: true, concepts: ['Cross-linking'],
+          options: [
+            { id: 'a', text: '$\\ce{Na+}$', misconception: 'Thinks the sodium in sodium alginate does the setting' },
+            { id: 'b', text: '$\\ce{Ca^2+}$' },
+            { id: 'c', text: '$\\ce{Cl-}$', misconception: 'Thinks the salt part of the bath matters' },
+            { id: 'd', text: '$\\ce{H+}$', misconception: 'Confuses gelling with acid setting (like cheese)' },
+          ],
+          correctOptionId: 'b', explanation: 'Each Ca²⁺ carries two charges, so it can hold two alginate chains together.',
+          branch: { threshold: 60, below: 'recap', atOrAbove: 'pearl' },
+        },
+        { id: 'recap', type: 'content', title: 'Recap: one ion, two hands', body: 'Sodium has one positive charge: it can only hold **one** chain. Calcium has two, so it holds two chains together, like a hand on each. Millions of those bridges make the skin.' },
+        { id: 'pearl', type: 'quiz', kind: 'hotspot', question: 'Tap the liquid juice core of this cut-open pearl', image: { url: PEARL, alt: 'A popping boba pearl cut in half on a plate', fit: 'contain' }, regions: [{ id: 'core', shape: 'ellipse', x: 0.315, y: 0.2225, w: 0.37, h: 0.555, label: 'Liquid core' }], timeLimitSec: 30, concepts: ['Structure'] },
+        { id: 'q-grams', type: 'quiz', kind: 'numeric', question: 'How many grams of sodium alginate for 500 mL of a 0.5 % w/v solution?', numeric: { value: 2.5, tolerance: 0.1, unit: 'g' }, timeLimitSec: 45, concepts: ['Concentration'], explanation: '0.5 g per 100 mL, so 5 × 0.5 g = 2.5 g' },
+        { id: 'q-order', type: 'quiz', kind: 'order', question: 'Put the method in order', items: [{ id: 'i1', text: 'Blend alginate into the juice' }, { id: 'i2', text: 'Rest to remove bubbles' }, { id: 'i3', text: 'Drip into the calcium bath' }, { id: 'i4', text: 'Rinse in clean water' }], concepts: ['Method'] },
+        { id: 'q-match', type: 'quiz', kind: 'match', question: 'Match each ingredient to its job', pairs: [{ id: 'p1', left: 'Sodium alginate', right: 'Forms the gel chains' }, { id: 'p2', left: 'Calcium lactate', right: 'Cross-links the chains' }, { id: 'p3', left: 'Mango juice', right: 'Flavour and colour' }, { id: 'p4', left: 'Clean water', right: 'Stops the skin thickening' }], concepts: ['Cross-linking', 'Method'] },
+        { id: 'q-word', type: 'quiz', kind: 'text', question: 'What is this technique called? (one word)', acceptedAnswers: ['spherification'], timeLimitSec: 40, concepts: ['Vocabulary'] },
+        {
+          id: 'q-thick', type: 'quiz', kind: 'multiple', question: 'Which changes make the skin thicker?', concepts: ['Cross-linking'],
+          options: [{ id: 'a', text: 'Longer in the calcium bath' }, { id: 'b', text: 'More calcium in the bath' }, { id: 'c', text: 'Colder juice', misconception: 'Thinks gelling is caused by cooling (like jelly)' }, { id: 'd', text: 'More sugar in the juice', misconception: 'Thinks sugar sets the gel' }],
+          correctOptionIds: ['a', 'b'],
+        },
+        { id: 'conf', type: 'rating', question: 'How confident are you making popping boba at home?', min: 1, max: 5, minLabel: 'Not yet', maxLabel: 'Totally', confidenceFor: ['q-ion', 'q-grams', 'q-thick'] },
+        { id: 'flavour', type: 'open', question: 'Invent a flavour combination for your boba', mode: 'short', maxSubmissions: 2, liveResults: true },
+        {
+          id: 'feedback', type: 'survey', title: 'Before you go', description: 'Two quick questions about today.',
+          questions: [
+            { id: 's1', kind: 'rating', question: 'How much did you enjoy the lab?', required: true, min: 1, max: 5, minLabel: 'Meh', maxLabel: 'Loved it' },
+            { id: 's2', kind: 'choice', question: 'What should we make next?', required: true, options: opts('Fruit caviar', 'Edible water bottles', 'Foams and airs') },
+          ],
+        },
       ],
     },
   },

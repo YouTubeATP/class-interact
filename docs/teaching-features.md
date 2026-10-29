@@ -99,6 +99,10 @@ quiz answers, shown as large cards on the projector and tappable tiles on phones
 synthetic routes as a `route` block with reagents above and conditions below each arrow. See the syntax in
 [presentation-format.md](presentation-format.md#slides) and the **Synthetic routes (chemistry)** template.
 
+**A full example.** The **Popping boba lab (hands-on science)** template is a complete 17-slide workshop that uses
+every question type, branching, an equation and structures, a method with a safety note, a table, a confidence check,
+a brainstorm and a feedback survey. Its picture ships with the app, so it works without uploading anything.
+
 ## Before and after
 
 **Templates.** The library offers seven starter templates (quick diagnostic quiz, icebreaker, workshop activities,

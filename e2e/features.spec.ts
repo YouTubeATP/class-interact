@@ -108,10 +108,14 @@ test('access links: a moderator cannot change the screen, a co-presenter can, an
   const dash = await dashboard(browser, s.id);
   await dash.getByTestId('tab-access').click();
 
+  let previous = '';
   const link = async (role: 'moderator' | 'copresenter') => {
     await dash.getByTestId(`grant-role-${role}`).click();
     await dash.getByTestId('grant-create').click();
+    // the new link replaces the previous one on screen: wait for it rather than reading the old one
+    if (previous) await expect(dash.getByTestId('grant-url')).not.toHaveText(previous);
     const url = (await dash.getByTestId('grant-url').textContent())!;
+    previous = url;
     expect(url).toContain('#g=');
     expect(url).not.toContain(s.key);
     return url;
@@ -236,4 +240,37 @@ test('a break pauses everyone without touching the activity, and analytics and t
   expect(csv).toContain('Lyon');
 
   for (const p of [ada.page, dash, proj]) await p.context().close();
+});
+
+test('the revealed correct answer is not cut off at the slide edge, and the popping boba template opens', async ({ browser, request }) => {
+  const s = await start(request, await deck(request, 'Reveal deck', [{ id: 'q', type: 'quiz', question: 'Which ion sets the skin?', options: opts('Sodium', 'Calcium', 'Chloride', 'Hydrogen'), correctOptionId: 'b' }]));
+  const dash = await dashboard(browser, s.id);
+  const proj = await projector(browser, s);
+  await dash.getByTestId('ctl-primary').click(); // open
+  await dash.getByTestId('ctl-primary').click(); // close
+  await dash.getByTestId('ctl-primary').click(); // reveal
+  const tick = proj.getByTestId('projector').getByLabel('Correct answer');
+  await expect(tick).toBeVisible();
+  // every pixel of the tile, ring included, is inside the box that clips the slide
+  const { tile, clip } = await tick.evaluate((el) => {
+    let t = el.parentElement!;
+    while (!t.style.backgroundColor) t = t.parentElement!;
+    let c = t.parentElement!;
+    while (getComputedStyle(c).overflow !== 'hidden') c = c.parentElement!;
+    return { tile: t.getBoundingClientRect().toJSON() as DOMRect, clip: c.getBoundingClientRect().toJSON() as DOMRect };
+  });
+  expect(tile.left).toBeGreaterThanOrEqual(clip.left);
+  expect(tile.right).toBeLessThanOrEqual(clip.right);
+  expect(tile.top).toBeGreaterThanOrEqual(clip.top);
+  expect(tile.bottom).toBeLessThanOrEqual(clip.bottom);
+
+  const boba = await (await request.post('/api/studio/templates/popping-boba')).json();
+  const s2 = await start(request, boba.id);
+  const proj2 = await projector(browser, s2);
+  const dash2 = await dashboard(browser, s2.id);
+  await dash2.getByTestId('ctl-primary').click();
+  const pic = proj2.getByTestId('projector').getByRole('img', { name: 'A popping boba pearl cut in half on a plate' });
+  await expect(pic).toBeVisible();
+  expect(await pic.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+  for (const p of [dash, proj, dash2, proj2]) await p.context().close();
 });
