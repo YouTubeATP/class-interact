@@ -9,6 +9,11 @@
 //   any other user message                      calls add_slides with a title slide and a quiz
 //   a tool result that says "ok":false          calls add_slides again with the quiz corrected
 //   any other tool result                       says it is done
+//
+// One-shot (non-streaming) requests used by the Studio's helper tasks, recognised by a tag in the system prompt:
+//   [task:convert]   returns JSON slides converted from the teaching material (a quiz and a poll)
+//   [task:recap]     returns a short Markdown recap
+//   [task:grouping]  returns JSON groups for the first two answers it is given
 import { createServer } from 'node:http';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -44,6 +49,24 @@ export async function startFakeLlm({ port = 0 } = {}) {
     const userText = textOf(last.content);
     if (last.role === 'user' && userText.includes('BROKEN')) {
       res.writeHead(500, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'upstream exploded: secret-internal-detail' } }));
+      return;
+    }
+
+    if (body.stream !== true) {
+      const system = textOf((messages.find((m) => m.role === 'system') ?? {}).content);
+      let content = 'OK';
+      if (system.includes('[task:convert]')) {
+        content = JSON.stringify({ slides: [
+          { type: 'quiz', question: 'Which gas do plants take in for photosynthesis?', options: [{ id: 'a', text: 'Oxygen' }, { id: 'b', text: 'Carbon dioxide' }, { id: 'c', text: 'Nitrogen' }], correctOptionId: 'b' },
+          { type: 'poll', question: 'How familiar is photosynthesis to you?', options: [{ id: 'a', text: 'Very' }, { id: 'b', text: 'A little' }, { id: 'c', text: 'Not at all' }] },
+        ] });
+      } else if (system.includes('[task:recap]')) {
+        content = 'Suggested next steps (AI):\n\n- Start next lesson with a two-question retrieval check on the hardest question.';
+      } else if (system.includes('[task:grouping]')) {
+        const terms = (userText.match(/"key":"([^"]+)"/g) ?? []).map((m) => m.slice(7, -1));
+        content = JSON.stringify({ groups: terms.length >= 2 ? [{ keys: terms.slice(0, 2), reason: 'Same meaning' }] : [] });
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ id: `cmpl-${requests.length}`, object: 'chat.completion', created: 1, model: body.model, choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
       return;
     }
 

@@ -1,13 +1,14 @@
 import { AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, ListOrdered, Loader2, PencilLine, Play, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Cloud, Download, Eye, FileSpreadsheet, FlaskConical, ListOrdered, Loader2, MoreHorizontal, PencilLine, Play, Sparkles } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { defaultConfig, nextId, parsePresentationDoc, type PresentationDoc, type SessionMode, type Slide, type SlideType } from '@classinteract/shared';
+import { defaultConfig, nextId, parsePresentationDoc, type PresentationDoc, type Slide, type SlideType } from '@classinteract/shared';
 import { typeMeta } from '@/activities/meta';
 import { Notice, Spinner } from '@/components/Status';
 import { Button } from '@/components/ui/button';
 import { DialogContent } from '@/components/ui/dialog';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/dropdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -18,7 +19,8 @@ import { JsonPanel } from './editor/JsonPanel';
 import { PresentationSettings } from './editor/PresentationSettings';
 import { SlideList } from './editor/SlideList';
 import type { FieldIssue } from './editor/fields';
-import { StartSessionDialog } from './StartSessionDialog';
+import { StartSessionDialog, type StartOptions } from './StartSessionDialog';
+import { BulkImportDialog } from './BulkImportDialog';
 import { StudioHeader } from './StudioRoutes';
 
 // The AI chat (assistant-ui and the AI SDK) is only downloaded when someone opens it.
@@ -54,6 +56,8 @@ export default function EditorPage() {
   const [startOpen, setStartOpen] = useState(false);
   const [retry, setRetry] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [rehearsing, setRehearsing] = useState(false);
   // On a phone one pane fills the screen at a time (slides, the slide's form, or the preview); wider screens show them side by side.
   const [pane, setPane] = useState<'slides' | 'edit' | 'preview'>('edit');
   const config = useClientConfig();
@@ -158,11 +162,24 @@ export default function EditorPage() {
   const previewIndex = Math.max(0, index);
   const meta = slide ? typeMeta[slide.type] : null;
 
-  const start = async (o: { mode: SessionMode; collectNames: boolean }) => {
+  const start = async (o: StartOptions) => {
     try {
       const s = await api.presentations.startSession(id, o);
       navigate(`/session/${s.id}`);
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not start the session.'); }
+  };
+  const rehearse = async () => {
+    setRehearsing(true);
+    try {
+      const s = await api.presentations.rehearse(id, { participants: 12 });
+      navigate(`/session/${s.id}`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not start the rehearsal.'); } finally { setRehearsing(false); }
+  };
+  const appendSlides = (slides: Slide[]) => {
+    const at = Math.max(0, doc.slides.findIndex((s) => s.id === selected) + 1) || doc.slides.length;
+    update((d) => ({ ...d, slides: [...d.slides.slice(0, at), ...slides, ...d.slides.slice(at)] }));
+    if (slides[0]) { setSelected(slides[0].id); setTab('edit'); setPane('edit'); }
+    toast.success(`Added ${slides.length} ${slides.length === 1 ? 'slide' : 'slides'}`);
   };
 
   return (
@@ -175,7 +192,14 @@ export default function EditorPage() {
         <div className="flex w-full gap-2 lg:w-auto">
           {config?.aiEnabled && <Button variant={aiOpen ? 'soft' : 'secondary'} className="max-lg:flex-1" onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen} data-testid="ai-open" data-tour="ed-ai"><Sparkles className="size-4" aria-hidden /> AI assistant</Button>}
           <Button variant="secondary" className="max-lg:hidden" onClick={() => setPreviewOpen(true)} data-testid="preview-open" data-tour="ed-preview-btn"><Eye className="size-4" aria-hidden /> Preview</Button>
-          <Button variant="secondary" className="max-lg:flex-1" onClick={() => void api.presentations.export(id)} disabled={saveState !== 'saved'} data-tour="ed-export"><Download className="size-4" aria-hidden /> Export<span className="max-sm:hidden"> JSON</span></Button>
+          <Menu>
+            <MenuTrigger asChild><Button variant="secondary" className="max-lg:flex-1" aria-label="More actions" data-testid="editor-more" data-tour="ed-export"><MoreHorizontal className="size-4" aria-hidden /> <span className="max-sm:sr-only">More</span></Button></MenuTrigger>
+            <MenuContent>
+              <MenuItem icon={<FileSpreadsheet className="size-4" />} onSelect={() => setBulkOpen(true)} data-testid="bulk-import-open">Import activities (CSV, JSON, notes)</MenuItem>
+              <MenuItem icon={<FlaskConical className="size-4" />} disabled={doc.slides.length === 0 || saveState !== 'saved' || rehearsing} onSelect={() => void rehearse()} data-testid="rehearse">Rehearse with simulated participants</MenuItem>
+              <MenuItem icon={<Download className="size-4" />} disabled={saveState !== 'saved'} onSelect={() => void api.presentations.export(id)} data-testid="export-json">Export JSON</MenuItem>
+            </MenuContent>
+          </Menu>
           <Button variant="primary" className="max-lg:flex-[1.3]" disabled={doc.slides.length === 0 || saveState !== 'saved'} onClick={() => setStartOpen(true)} data-testid="editor-start" data-tour="ed-start"><Play className="size-4" aria-hidden /> Start <span className="max-sm:hidden">session</span></Button>
         </div>
       </div>
@@ -220,7 +244,7 @@ export default function EditorPage() {
                         <ul className="grid gap-0.5">{issuesBySlide.get(index)!.slice(0, 4).map((i, k) => <li key={k}>{i.message}</li>)}</ul>
                       </div>
                     )}
-                    <SlideForm key={slide.id} slide={slide} patch={(p) => patchSlide(slide.id, p)} issues={issuesBySlide.get(index) ?? []} />
+                    <SlideForm key={slide.id} slide={slide} patch={(p) => patchSlide(slide.id, p)} issues={issuesBySlide.get(index) ?? []} slides={doc.slides} />
                     <details className="rounded-2xl border border-line bg-surface px-4 py-3">
                       <summary className="cursor-pointer text-sm font-semibold text-ink-2">Advanced</summary>
                       <div className="pt-3">
@@ -257,6 +281,7 @@ export default function EditorPage() {
         {aiOpen && <Suspense fallback={null}><AiAssistant docRef={docRef} applyDoc={applyAiDoc} focusSlide={focusSlide} onClose={() => setAiOpen(false)} /></Suspense>}
       </AnimatePresence>
       <StartSessionDialog open={startOpen} onOpenChange={setStartOpen} title={doc.title} onStart={start} />
+      <BulkImportDialog open={bulkOpen} onOpenChange={setBulkOpen} existingIds={doc.slides.map((s) => s.id)} aiEnabled={!!config?.aiEnabled} onImport={(slides) => { appendSlides(slides); setBulkOpen(false); }} />
     </div>
   );
 }

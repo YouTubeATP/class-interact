@@ -16,7 +16,7 @@ export function DialogContent({ open, onOpenChange, title, description, children
       {open && (
         <DialogPrimitive.Portal forceMount>
           <DialogPrimitive.Overlay asChild forceMount>
-            <motion.div className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} />
+            <motion.div className="fixed inset-0 z-50 bg-backdrop backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} />
           </DialogPrimitive.Overlay>
           <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4">
             <DialogPrimitive.Content asChild forceMount>

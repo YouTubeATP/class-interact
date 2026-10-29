@@ -11,7 +11,7 @@ import { ParticipantApp } from '@/participant/ParticipantApp';
 export default function PlayPage() {
   const { sessionId = '' } = useParams();
   const cred = loadCredential(sessionId);
-  const { snapshot, status, submit, rename, now } = useSession<ParticipantSnapshot>(cred ? { role: 'participant', sessionId, token: cred.token } : null);
+  const { snapshot, status, submit, rename, now, ask, vote, pulse } = useSession<ParticipantSnapshot>(cred ? { role: 'participant', sessionId, token: cred.token } : null);
 
   useEffect(() => {
     if (status === 'denied' || status === 'removed') store.remove(participantKey(sessionId));
@@ -39,5 +39,5 @@ export default function PlayPage() {
     }
     return ack;
   };
-  return <ParticipantApp snap={snapshot} status={status} submit={submit} rename={changeName} now={now} />;
+  return <ParticipantApp snap={snapshot} status={status} submit={submit} rename={changeName} now={now} actions={{ ask, vote, pulse }} />;
 }

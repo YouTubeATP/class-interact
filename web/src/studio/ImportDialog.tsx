@@ -19,9 +19,9 @@ export function IssueList({ issues }: { issues: DocIssue[] }) {
   return (
     <ul className="grid max-h-56 gap-2 overflow-y-auto rounded-2xl bg-bad-soft p-3.5 text-sm" role="alert" data-testid="issue-list">
       {issues.map((i, k) => (
-        <li key={k} className="flex gap-2.5 text-[#7a1428]">
+        <li key={k} className="flex gap-2.5 text-bad-ink">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span><code className="rounded bg-white/60 px-1 py-0.5 text-[0.8125rem] font-semibold">{i.path}</code> {i.message}</span>
+          <span><code className="rounded bg-surface/60 px-1 py-0.5 text-[0.8125rem] font-semibold">{i.path}</code> {i.message}</span>
         </li>
       ))}
     </ul>

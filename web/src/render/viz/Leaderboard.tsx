@@ -3,7 +3,7 @@ import type { Standing } from '@classinteract/shared';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { cn } from '@/lib/cn';
 
-const MEDAL = ['#ffe08a', '#dfe3ee', '#f2c9a4'];
+const MEDAL = ['var(--color-gold)', 'var(--color-silver)', 'var(--color-bronze)'];
 
 /** Ranked list. Rows slide to their new position when scores change (layout animation). */
 export function Leaderboard({ standings, meId, limit = 8, className }: { standings: Standing[]; meId?: string; limit?: number; className?: string }) {

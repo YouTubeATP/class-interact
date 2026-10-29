@@ -198,7 +198,7 @@ export function OrderPlay({ view, value, onChange, locked, answerOrder }: { view
         </SortableContext>
       </DndContext>
       {answerOrder && rows.some((it, i) => answerOrder[i] !== it.id) && (
-        <div className="rounded-2xl bg-ok-soft px-4 py-3 text-[0.9375rem] font-semibold text-[#0b4a30]" data-testid="order-correct">
+        <div className="rounded-2xl bg-ok-soft px-4 py-3 text-[0.9375rem] font-semibold text-ok-ink" data-testid="order-correct">
           Right order: {answerOrder.map((id) => byId.get(id)?.text).join(' › ')}
         </div>
       )}

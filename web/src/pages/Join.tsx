@@ -9,14 +9,34 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ApiError, api } from '@/lib/api';
-import { credentialForPin, lastName, rememberName, saveCredential } from '@/lib/storage';
+import { credentialForPin, lastName, rememberName, saveCredential, store } from '@/lib/storage';
+import { LEARNER_KEY } from '@/lib/learners';
+import { AppearanceToggle } from '@/components/Preferences';
 import { prettyPin } from '@/lib/joinUrl';
 
 // The scanner (and its decoder) is only downloaded when someone taps Scan, keeping the page people land on after
 // scanning the projector's QR code as light as possible.
 const QrScanner = lazy(() => import('@/components/QrScanner').then((m) => ({ default: m.QrScanner })));
 
-type Step = { kind: 'pin' } | { kind: 'name'; pin: string; title: string } | { kind: 'working' };
+type Step = { kind: 'pin' } | { kind: 'name'; pin: string; title: string; continuity: boolean } | { kind: 'consent'; pin: string; title: string } | { kind: 'working' };
+
+/** "Remember me across sessions": entirely optional, explained in plain words, with progress sharing a separate choice. */
+function ConsentBox({ remember, setRemember, share, setShare }: { remember: boolean; setRemember: (v: boolean) => void; share: boolean; setShare: (v: boolean) => void }) {
+  return (
+    <div className="grid gap-2.5 rounded-2xl border border-line bg-surface p-4 text-left" data-testid="consent-box">
+      <label className="flex items-start gap-3">
+        <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--accent)]" checked={remember} onChange={(e) => { setRemember(e.target.checked); if (!e.target.checked) setShare(false); }} data-testid="remember-me" />
+        <span className="grid gap-0.5"><span className="font-semibold">Remember me on this device for future sessions</span><span className="text-sm text-ink-2">Optional. Your teacher can then see how the class progresses over several lessons. Your name is not used for this, and you can forget it any time.</span></span>
+      </label>
+      {remember && (
+        <label className="ml-8 flex items-start gap-3">
+          <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--accent)]" checked={share} onChange={(e) => setShare(e.target.checked)} data-testid="share-progress" />
+          <span className="text-sm text-ink-2">Also let my teacher see my own progress across sessions (otherwise only class totals).</span>
+        </label>
+      )}
+    </div>
+  );
+}
 
 /** Landing page and join flow in one: enter the code, pick a name (if the session asks), go. */
 export default function JoinPage() {
@@ -29,11 +49,15 @@ export default function JoinPage() {
   const [busy, setBusy] = useState(false);
   const ran = useRef(false);
   const [scanning, setScanning] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [share, setShare] = useState(false);
 
-  async function joinWith(p: string, nm?: string) {
+  async function joinWith(p: string, nm?: string, consent?: { remember: boolean; share: boolean }) {
     const stored = credentialForPin(p);
+    const learnerKey = store.get<string>(LEARNER_KEY) ?? undefined;
     try {
-      const res = await api.join({ pin: p, name: nm, token: stored?.token });
+      const res = await api.join({ pin: p, name: nm, token: stored?.token, learnerKey, ...(consent ? { remember: consent.remember, shareProgress: consent.share } : {}) });
+      if (res.learnerKey) store.set(LEARNER_KEY, res.learnerKey);
       saveCredential(p, { sessionId: res.sessionId, participantId: res.participantId, token: res.token, name: res.name });
       rememberName(res.name);
       navigate(`/play/${res.sessionId}`, { replace: true });
@@ -56,7 +80,10 @@ export default function JoinPage() {
       if (credentialForPin(p)) {
         try { await joinWith(p); return; } catch { /* stale token: continue as a new participant */ }
       }
-      if (info.collectNames) setStep({ kind: 'name', pin: p, title: info.title });
+      // continuity sessions ask once (unless this device already chose to be remembered)
+      const ask = info.continuity && !store.get<string>(LEARNER_KEY);
+      if (info.collectNames) setStep({ kind: 'name', pin: p, title: info.title, continuity: ask });
+      else if (ask) setStep({ kind: 'consent', pin: p, title: info.title });
       else await joinWith(p);
     } catch (e) {
       // not a join code? It may be a presenter's projector code, which turns this screen into the projector
@@ -105,7 +132,7 @@ export default function JoinPage() {
     setError(null);
     setBusy(true);
     try {
-      await joinWith(step.pin, name);
+      await joinWith(step.pin, name, step.continuity ? { remember, share } : undefined);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not join. Try again.');
     } finally {
@@ -118,7 +145,10 @@ export default function JoinPage() {
       <AmbientBackdrop />
       <header className="flex items-center justify-between">
         <Logo />
-        <Link to="/studio" className="rounded-full px-3 py-1.5 text-sm font-semibold text-ink-3 transition-colors hover:bg-ink/6 hover:text-ink">Presenter Studio</Link>
+        <div className="flex items-center gap-1">
+          <AppearanceToggle scope="participant" compact />
+          <Link to="/studio" className="rounded-full px-3 py-1.5 text-sm font-semibold text-ink-3 transition-colors hover:bg-ink/6 hover:text-ink">Presenter Studio</Link>
+        </div>
       </header>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -171,11 +201,26 @@ export default function JoinPage() {
             <Field error={error}>
               <Input autoFocus onFocus={(e) => e.currentTarget.select()} value={name} onChange={(e) => { setName(e.target.value); setError(null); }} maxLength={24} autoComplete="nickname" aria-label="Your name" placeholder="Your name" aria-invalid={!!error} data-testid="name-input" className="h-16 rounded-2xl text-center text-[1.5rem] font-bold" />
             </Field>
+            {step.continuity && <ConsentBox remember={remember} setRemember={setRemember} share={share} setShare={setShare} />}
             <Button type="submit" variant="primary" size="xl" disabled={busy || !name.trim()} data-testid="name-submit">
               {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null} Join session
             </Button>
             <button type="button" className="text-sm font-semibold text-ink-3 hover:text-ink" onClick={() => { setStep({ kind: 'pin' }); setError(null); }}>Use a different code</button>
           </motion.form>
+        )}
+        {step.kind === 'consent' && (
+          <motion.div key="consent" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6">
+            <div className="grid gap-2">
+              <p className="text-sm font-semibold text-ink-3">{step.title}</p>
+              <h1 className="display text-[2.4rem]">One quick choice</h1>
+            </div>
+            <ConsentBox remember={remember} setRemember={setRemember} share={share} setShare={setShare} />
+            {error && <p role="alert" className="rounded-xl bg-bad-soft px-3 py-2 text-sm font-semibold text-bad-ink">{error}</p>}
+            <Button variant="primary" size="xl" disabled={busy} data-testid="consent-continue" onClick={async () => {
+              setBusy(true);
+              try { await joinWith(step.pin, undefined, { remember, share }); } catch (err) { setError(err instanceof ApiError ? err.message : 'Could not join. Try again.'); } finally { setBusy(false); }
+            }}>{busy && <Loader2 className="size-5 animate-spin" aria-hidden />} Join session</Button>
+          </motion.div>
         )}
       </AnimatePresence>
       <SiteFooter className="pt-2" />

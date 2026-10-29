@@ -152,7 +152,7 @@ function Composer() {
     <ComposerPrimitive.Root className="flex items-end gap-2 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Input rows={1} autoFocus placeholder="Ask for slides, quizzes, changes…" aria-label="Message the assistant" data-testid="ai-input" className="max-h-36 min-h-11 flex-1 resize-none rounded-xl border border-line-2 bg-paper px-3.5 py-2.5 text-[0.9375rem] outline-none focus:border-accent focus:ring-2 focus:ring-accent/25" />
       {running ? (
-        <ComposerPrimitive.Cancel asChild><button type="button" aria-label="Stop" className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink text-white" data-testid="ai-stop"><Square className="size-4 fill-current" aria-hidden /></button></ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Cancel asChild><button type="button" aria-label="Stop" className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink text-paper" data-testid="ai-stop"><Square className="size-4 fill-current" aria-hidden /></button></ComposerPrimitive.Cancel>
       ) : (
         <ComposerPrimitive.Send asChild><button type="submit" aria-label="Send" className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-white disabled:opacity-40" data-testid="ai-send"><ArrowUp className="size-5" aria-hidden /></button></ComposerPrimitive.Send>
       )}

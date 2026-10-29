@@ -8,12 +8,15 @@ import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SwitchRow } from '@/components/ui/switch';
 import { ImageField, NumberField, OptionsEditor, OrderItemsEditor, PairsEditor, Section, SelectField, StepsEditor, TextField, TimerField, errorAt, type FieldIssue } from './fields';
+import { AcceptedAnswersEditor, BranchField, ConceptsField, ConfidenceForField, MediaField, MisconceptionsEditor, NumericEditor, RegionEditor } from './advanced';
 
 type Patch<S extends Slide> = (p: Partial<S>) => void;
 interface FormProps<S extends Slide> {
   slide: S;
   patch: Patch<S>;
   issues: FieldIssue[];
+  /** The whole deck, for fields that point at other slides (branches, confidence pairing). */
+  slides: Slide[];
 }
 
 const LAYOUT_LABELS: Record<string, string> = { title: 'Title', text: 'Text', 'image-text': 'Image and text', 'full-image': 'Full image', instructions: 'Instructions' };
@@ -22,10 +25,13 @@ function Common({ slide, patch, issues, image = true }: { slide: Slide; patch: P
   return (
     <>
       {image && (
-        <Section title="Image" hint={slide.type === 'content' ? 'Shown according to the layout.' : 'Shown beside the question.'}>
+        <Section title="Image" hint={slide.type === 'content' ? 'Shown according to the layout.' : slide.type === 'quiz' && slide.kind === 'hotspot' ? 'The picture people tap on.' : 'Shown beside the question.'}>
           <ImageField image={slide.image} onChange={(image) => patch({ image })} issues={issues} />
         </Section>
       )}
+      <Section title="Video or audio" hint="Optional. Plays on the main screen; you choose whether phones get it too.">
+        <MediaField media={slide.media} onChange={(media) => patch({ media })} issues={issues} />
+      </Section>
       <Section title="Speaker notes" hint="Private. Only you see these on the presenter dashboard.">
         <TextField label="Notes" value={slide.notes} onChange={(notes) => patch({ notes })} issues={issues} path="notes" multiline rows={3} maxLength={4000} />
       </Section>
@@ -56,7 +62,7 @@ function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 
         <SelectField label="Layout" value={(c.layout ?? 'auto') as string} onChange={(v) => patch({ layout: v === 'auto' ? undefined : (v as ContentConfig['layout']), ...(v === 'title' ? { callout: undefined } : {}) })} options={[{ value: 'auto', label: 'Automatic' }, ...CONTENT_LAYOUTS.map((l) => ({ value: l, label: LAYOUT_LABELS[l] }))]} />
         {errorAt(issues, 'image') && c.layout && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'image')}</p>}
         <TextField label="Title" value={c.title} onChange={(title) => patch({ title })} issues={issues} path="title" maxLength={160} testId="content-title" />
-        <TextField label="Body" value={c.body} onChange={(body) => patch({ body })} issues={issues} path="body" multiline rows={5} hint="Blank line for a new paragraph. Start lines with “- ” for bullets. **bold** works too." testId="content-body" />
+        <TextField label="Body" value={c.body} onChange={(body) => patch({ body })} issues={issues} path="body" multiline rows={5} hint="Blank line for a new paragraph; “- ” for bullets, “1. ” for numbers; **bold**, *italic*, `code`, $maths$ (LaTeX); ``` for a code block; | a | b | rows for a table. Chemistry: $\ce{H2SO4}$, {{smiles:CCO}} structures, ```route for reaction schemes." testId="content-body" mono />
       </Section>
       <Section title="Steps" hint="Numbered cards — good for instructions and procedures.">
         <StepsEditor steps={c.steps} onChange={(steps) => patch({ steps })} issues={issues} />
@@ -82,7 +88,7 @@ function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 
   );
 }
 
-function QuizForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'quiz' }>>) {
+function QuizForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'quiz' }>>) {
   const c = slide as QuizConfig & { id: string };
   const kind = quizKind(c);
   const correctIds = c.correctOptionIds ?? [];
@@ -91,11 +97,14 @@ function QuizForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'qu
   const setKind = (next: QuizKind) => {
     if (next === kind) return;
     const options = c.options.length >= 2 ? c.options : sampleOptions();
-    const none = { correctOptionId: undefined, correctOptionIds: [] as string[], pairs: [], items: [] };
+    const none = { correctOptionId: undefined, correctOptionIds: [] as string[], pairs: [], items: [], acceptedAnswers: [] as string[], numeric: undefined, regions: [] };
     if (next === 'single') patch({ ...none, kind: 'single', options, correctOptionId: correctIds[0] ?? c.correctOptionId ?? options[0].id });
     else if (next === 'multiple') patch({ ...none, kind: 'multiple', options, correctOptionIds: [c.correctOptionId ?? correctIds[0] ?? options[0].id] });
     else if (next === 'match') patch({ ...none, kind: 'match', options: [], pairs: c.pairs.length >= 2 ? c.pairs : [1, 2, 3].map((n) => ({ id: `p${n}`, left: `Item ${n}`, right: `Match ${n}` })) });
-    else patch({ ...none, kind: 'order', options: [], items: c.items.length >= 2 ? c.items : ['First', 'Second', 'Third'].map((text, i) => ({ id: `i${i + 1}`, text })) });
+    else if (next === 'order') patch({ ...none, kind: 'order', options: [], items: c.items.length >= 2 ? c.items : ['First', 'Second', 'Third'].map((text, i) => ({ id: `i${i + 1}`, text })) });
+    else if (next === 'text') patch({ ...none, kind: 'text', options: [], acceptedAnswers: c.acceptedAnswers?.length ? c.acceptedAnswers : ['answer'] });
+    else if (next === 'numeric') patch({ ...none, kind: 'numeric', options: [], numeric: c.numeric ?? { value: 0, tolerance: 0, tolerancePercent: 0, unit: '' } });
+    else patch({ ...none, kind: 'hotspot', options: [], regions: c.regions?.length ? c.regions : [] });
   };
   const toggle = (id: string) => patch({ correctOptionIds: correctIds.includes(id) ? correctIds.filter((x) => x !== id) : [...correctIds, id] });
   const trueFalse = () => patch({ kind: 'single', options: [{ id: 'true', text: 'True' }, { id: 'false', text: 'False' }], correctOptionId: 'true', correctOptionIds: [], pairs: [], items: [] });
@@ -105,16 +114,31 @@ function QuizForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'qu
     multiple: 'People tick every option that applies, then lock in.',
     match: 'People connect each item to its match, by tapping or dragging.',
     order: 'People drag the items into the right order.',
+    text: 'People type an answer; it is checked against your accepted answers. Near misses (a typo) wait for your review.',
+    numeric: 'People type a number; it is correct within the tolerance you set. Answers just outside it wait for your review.',
+    hotspot: 'People tap a spot on the image; it is correct inside a region you draw.',
   };
   return (
     <div className="grid gap-6">
       <Section title="Question">
         <TextField label="Question" value={c.question} onChange={(question) => patch({ question })} issues={issues} path="question" multiline rows={2} maxLength={300} testId="quiz-question" />
-        <SelectField label="Answer type" value={kind} onChange={setKind} options={[{ value: 'single', label: 'One correct answer' }, { value: 'multiple', label: 'Several correct answers (checkboxes)' }, { value: 'match', label: 'Matching pairs (drag and drop)' }, { value: 'order', label: 'Put in order (drag and drop)' }]} hint={hints[kind]} />
+        <SelectField label="Answer type" value={kind} onChange={setKind} options={[{ value: 'single', label: 'One correct answer' }, { value: 'multiple', label: 'Several correct answers (checkboxes)' }, { value: 'match', label: 'Matching pairs (drag and drop)' }, { value: 'order', label: 'Put in order (drag and drop)' }, { value: 'text', label: 'Typed answer' }, { value: 'numeric', label: 'Number (with tolerance)' }, { value: 'hotspot', label: 'Tap on an image (hotspot)' }]} hint={hints[kind]} />
         {kind === 'multiple' && <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctIds={correctIds} onToggleCorrect={toggle} />}
         {kind === 'single' && <OptionsEditor options={c.options} onChange={(options) => patch({ options })} issues={issues} min={2} max={6} correctId={c.correctOptionId} onCorrect={(correctOptionId) => patch({ correctOptionId })} />}
         {kind === 'match' && <PairsEditor pairs={c.pairs} onChange={(pairs) => patch({ pairs })} issues={issues} />}
         {kind === 'order' && <OrderItemsEditor items={c.items} onChange={(items) => patch({ items })} issues={issues} />}
+        {kind === 'text' && (
+          <>
+            <AcceptedAnswersEditor answers={c.acceptedAnswers} onChange={(acceptedAnswers) => patch({ acceptedAnswers })} issues={issues} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SelectField label="Capital letters" value={c.caseSensitive ? 'exact' : 'ignore'} onChange={(v) => patch({ caseSensitive: v === 'exact' })} options={[{ value: 'ignore', label: 'Ignore (Paris = paris)' }, { value: 'exact', label: 'Must match exactly' }]} />
+              <SelectField label="Spaces" value={c.whitespace} onChange={(whitespace) => patch({ whitespace })} options={[{ value: 'normalize', label: 'Ignore extra spaces' }, { value: 'ignore', label: 'Ignore all spaces (code, formulas)' }, { value: 'exact', label: 'Must match exactly' }]} />
+            </div>
+          </>
+        )}
+        {kind === 'numeric' && <NumericEditor value={c.numeric} onChange={(numeric) => patch({ numeric })} issues={issues} />}
+        {kind === 'hotspot' && <RegionEditor image={c.image} regions={c.regions} onChange={(regions) => patch({ regions })} issues={issues} />}
+        {errorAt(issues, 'image') && kind === 'hotspot' && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'image')}</p>}
         {choice && <div><Button variant="ghost" size="sm" onClick={trueFalse} data-testid="quiz-true-false">Use True / False</Button></div>}
         {errorAt(issues, 'correctOptionId') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'correctOptionId')}</p>}
         {errorAt(issues, 'correctOptionIds') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'correctOptionIds')}</p>}
@@ -128,6 +152,14 @@ function QuizForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'qu
         {errorAt(issues, 'speedBonus') && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'speedBonus')}</p>}
       </Section>
       <Behaviour slide={slide} patch={patch} issues={issues} live={false} />
+      <details className="group rounded-2xl border border-line bg-surface px-4 py-3" data-testid="teaching-insights">
+        <summary className="cursor-pointer text-sm font-semibold text-ink-2">Teaching insights and branching (optional)</summary>
+        <div className="grid gap-5 pt-4">
+          <ConceptsField concepts={c.concepts} onChange={(concepts) => patch({ concepts })} />
+          {choice && <MisconceptionsEditor c={c} onChange={(options) => patch({ options })} />}
+          <BranchField slide={slide} slides={slides} onChange={(branch) => patch({ branch })} issues={issues} />
+        </div>
+      </details>
       <Common slide={slide} patch={patch} issues={issues} />
     </div>
   );
@@ -196,7 +228,7 @@ function OpenForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'op
   );
 }
 
-function RatingForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'rating' }>>) {
+function RatingForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'rating' }>>) {
   const c = slide as RatingConfig & { id: string };
   return (
     <div className="grid gap-6">
@@ -213,6 +245,10 @@ function RatingForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: '
           <TextField label="High-end label" value={c.maxLabel} onChange={(maxLabel) => patch({ maxLabel })} issues={issues} path="maxLabel" maxLength={40} placeholder="Very" />
         </div>
       </Section>
+      <details className="rounded-2xl border border-line bg-surface px-4 py-3">
+        <summary className="cursor-pointer text-sm font-semibold text-ink-2">Use as a confidence check (optional)</summary>
+        <div className="pt-3"><ConfidenceForField value={c.confidenceFor} slides={slides} onChange={(confidenceFor) => patch({ confidenceFor })} /></div>
+      </details>
       <Behaviour slide={slide} patch={patch} issues={issues} />
       <Common slide={slide} patch={patch} issues={issues} />
     </div>
@@ -299,15 +335,15 @@ function SurveyForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: '
   );
 }
 
-export function SlideForm({ slide, patch, issues }: { slide: Slide; patch: (p: Partial<Slide>) => void; issues: FieldIssue[] }) {
+export function SlideForm({ slide, patch, issues, slides }: { slide: Slide; patch: (p: Partial<Slide>) => void; issues: FieldIssue[]; slides: Slide[] }) {
   switch (slide.type) {
-    case 'content': return <ContentForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'quiz': return <QuizForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'poll': return <PollForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'wordcloud': return <WordcloudForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'open': return <OpenForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'rating': return <RatingForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
-    case 'survey': return <SurveyForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} />;
+    case 'content': return <ContentForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'quiz': return <QuizForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'poll': return <PollForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'wordcloud': return <WordcloudForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'open': return <OpenForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'rating': return <RatingForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
+    case 'survey': return <SurveyForm slide={slide} patch={patch as Patch<typeof slide>} issues={issues} slides={slides} />;
   }
 }
 

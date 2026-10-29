@@ -22,6 +22,20 @@
   --color-warn-soft: #fff0be;
   --color-bad: #c0304f;
   --color-bad-soft: #ffdde5;
+  --color-ok-ink: #0b4a30;
+  --color-warn-ink: #6b4300;
+  --color-bad-ink: #7a1428;
+  --color-info: #2c6fe0;
+  --color-info-soft: #d9eaff;
+  --color-info-ink: #10346b;
+  --color-gold: #ffe08a;
+  --color-gold-ink: #5d4100;
+  --color-silver: #dfe3ee;
+  --color-bronze: #f2c9a4;
+  --color-backdrop: rgb(22 27 51 / 0.4);
+  --color-shadow: rgb(22 27 51 / 0.16);
+  /* the dark letterbox around the projector stage and previews: the same in both modes */
+  --color-stage-bg: #0d1124;
 
   --radius-control: 0.75rem;
   --radius-card: 1.25rem;
@@ -44,23 +58,136 @@
   --color-tone-strong: var(--tone-strong);
 }
 
+/* ------------------------------------------------------------------------------------
+   Appearance. Every colour above is a token; dark mode redefines the tokens, never the
+   components. Three ways in:
+     :root[data-theme='dark']   the whole page (set before first paint by /theme-init.js)
+     [data-appearance='dark']   one subtree (the projector stage when the presenter picks dark)
+     [data-appearance='light']  one subtree forced light (the join ticket: QR codes need white)
+   ------------------------------------------------------------------------------------ */
+:root { color-scheme: light; }
+
+:root[data-theme='dark'],
+[data-appearance='dark'] {
+  --color-paper: #0f1222;
+  --color-surface: #181c31;
+  --color-ink: #eceef8;
+  --color-ink-2: #b9bfd6;
+  --color-ink-3: #959cb9;
+  --color-line: #2a2f4b;
+  --color-line-2: #3a4064;
+  --color-ok: #3ccf8e;
+  --color-ok-soft: #10392a;
+  --color-ok-ink: #a8f0cb;
+  --color-warn: #f4b544;
+  --color-warn-soft: #3d2e0b;
+  --color-warn-ink: #ffdc94;
+  --color-bad: #ff6f8c;
+  --color-bad-soft: #471728;
+  --color-bad-ink: #ffc2ce;
+  --color-info: #79a8ff;
+  --color-info-soft: #152a50;
+  --color-info-ink: #c4dbff;
+  --color-gold: #6b5310;
+  --color-gold-ink: #ffe7a6;
+  --color-silver: #3a4060;
+  --color-bronze: #5b3a22;
+  --color-backdrop: rgb(4 6 16 / 0.66);
+  --color-shadow: rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}
+
+[data-appearance='light'] {
+  --color-paper: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #161b33;
+  --color-ink-2: #4a5170;
+  --color-ink-3: #6b7390;
+  --color-line: #e3e6f0;
+  --color-line-2: #d0d6e8;
+  --color-ok: #17804f;
+  --color-ok-soft: #d5f2e3;
+  --color-ok-ink: #0b4a30;
+  --color-warn: #a35a00;
+  --color-warn-soft: #fff0be;
+  --color-warn-ink: #6b4300;
+  --color-bad: #c0304f;
+  --color-bad-soft: #ffdde5;
+  --color-bad-ink: #7a1428;
+  --color-info: #2c6fe0;
+  --color-info-soft: #d9eaff;
+  --color-info-ink: #10346b;
+  --color-gold: #ffe08a;
+  --color-gold-ink: #5d4100;
+  --color-silver: #dfe3ee;
+  --color-bronze: #f2c9a4;
+  --color-backdrop: rgb(22 27 51 / 0.4);
+  --color-shadow: rgb(22 27 51 / 0.16);
+  color-scheme: light;
+}
+
+/* Palettes. Each defines its light accent; the soft and ink variants are chosen per appearance below. */
 :root,
-[data-palette='azure'] { --accent: #3347ff; --accent-ink: #2433c9; --accent-soft: #e8ebff; }
-[data-palette='lavender'] { --accent: #6c4bff; --accent-ink: #4b33c9; --accent-soft: #ece8ff; }
-[data-palette='mint'] { --accent: #0e8f63; --accent-ink: #0a6a49; --accent-soft: #d9f4e8; }
-[data-palette='peach'] { --accent: #dd5a14; --accent-ink: #a8430b; --accent-soft: #ffe6d6; }
-[data-palette='rose'] { --accent: #cf2f63; --accent-ink: #a1214b; --accent-soft: #ffe0e9; }
-[data-palette='slate'] { --accent: #334155; --accent-ink: #1e293b; --accent-soft: #e5e9f0; }
+[data-palette='azure'] { --accent: #3347ff; --accent-ink-l: #2433c9; --accent-soft-l: #e8ebff; }
+[data-palette='lavender'] { --accent: #6c4bff; --accent-ink-l: #4b33c9; --accent-soft-l: #ece8ff; }
+[data-palette='mint'] { --accent: #0e8f63; --accent-ink-l: #0a6a49; --accent-soft-l: #d9f4e8; }
+[data-palette='peach'] { --accent: #dd5a14; --accent-ink-l: #a8430b; --accent-soft-l: #ffe6d6; }
+[data-palette='rose'] { --accent: #cf2f63; --accent-ink-l: #a1214b; --accent-soft-l: #ffe0e9; }
+[data-palette='slate'] { --accent: #334155; --accent-ink-l: #1e293b; --accent-soft-l: #e5e9f0; }
+/* a presentation's custom accent wins over its palette */
+[data-accent] { --accent: var(--custom-accent); --accent-ink-l: color-mix(in oklab, var(--custom-accent) 78%, black); --accent-soft-l: color-mix(in oklab, var(--custom-accent) 12%, white); }
 
 /* Activity tones */
 :root,
-[data-tone='content'] { --tone: #eceef6; --tone-ink: #4a5170; --tone-strong: #7c839e; }
-[data-tone='quiz'] { --tone: #e6e1ff; --tone-ink: #4b33c9; --tone-strong: #6c4bff; }
-[data-tone='poll'] { --tone: #d9eaff; --tone-ink: #1b5cb8; --tone-strong: #2f7be8; }
-[data-tone='wordcloud'] { --tone: #d5f2e3; --tone-ink: #14704a; --tone-strong: #1a9a62; }
-[data-tone='open'] { --tone: #ffe3d1; --tone-ink: #a8430b; --tone-strong: #e8590c; }
-[data-tone='rating'] { --tone: #fff0be; --tone-ink: #7a5800; --tone-strong: #c98a00; }
-[data-tone='survey'] { --tone: #ffdde5; --tone-ink: #a1214b; --tone-strong: #d6336c; }
+[data-tone='content'] { --tone-l: #eceef6; --tone-ink-l: #4a5170; --tone-strong: #7c839e; }
+[data-tone='quiz'] { --tone-l: #e6e1ff; --tone-ink-l: #4b33c9; --tone-strong: #6c4bff; }
+[data-tone='poll'] { --tone-l: #d9eaff; --tone-ink-l: #1b5cb8; --tone-strong: #2f7be8; }
+[data-tone='wordcloud'] { --tone-l: #d5f2e3; --tone-ink-l: #14704a; --tone-strong: #1a9a62; }
+[data-tone='open'] { --tone-l: #ffe3d1; --tone-ink-l: #a8430b; --tone-strong: #e8590c; }
+[data-tone='rating'] { --tone-l: #fff0be; --tone-ink-l: #7a5800; --tone-strong: #c98a00; }
+[data-tone='survey'] { --tone-l: #ffdde5; --tone-ink-l: #a1214b; --tone-strong: #d6336c; }
+
+/* light variants (resolved on the element that sets the palette or tone, so nested themes work) */
+:root, [data-palette], [data-accent] { --accent-ink: var(--accent-ink-l); --accent-soft: var(--accent-soft-l); }
+:root, [data-tone] { --tone: var(--tone-l); --tone-ink: var(--tone-ink-l); }
+
+/* dark variants, derived from the same hues so a palette stays recognisable */
+:root[data-theme='dark'], :root[data-theme='dark'] [data-palette], :root[data-theme='dark'] [data-accent],
+:root [data-appearance='dark'][data-palette], :root [data-appearance='dark'] [data-palette], :root [data-appearance='dark'][data-accent], :root [data-appearance='dark'] [data-accent] {
+  --accent-ink: color-mix(in oklab, var(--accent) 42%, white);
+  --accent-soft: color-mix(in oklab, var(--accent) 26%, #181c31);
+}
+:root[data-theme='dark'], :root[data-theme='dark'] [data-tone],
+:root [data-appearance='dark'][data-tone], :root [data-appearance='dark'] [data-tone] {
+  --tone: color-mix(in oklab, var(--tone-strong) 24%, #181c31);
+  --tone-ink: color-mix(in oklab, var(--tone-strong) 40%, white);
+}
+/* ...and back to light inside a forced-light subtree (later in the file, same specificity, so it wins) */
+:root [data-appearance='light'][data-palette], :root [data-appearance='light'] [data-palette],
+:root [data-appearance='light'][data-accent], :root [data-appearance='light'] [data-accent] { --accent-ink: var(--accent-ink-l); --accent-soft: var(--accent-soft-l); }
+:root [data-appearance='light'][data-tone], :root [data-appearance='light'] [data-tone] { --tone: var(--tone-l); --tone-ink: var(--tone-ink-l); }
+
+/* Answer-option colours A–F and word-cloud colours: pastel fills in light, deep fills in dark; the strong hue is shared */
+:root, [data-appearance='light'] {
+  --opt-0-bg: #ffd9e0; --opt-0-ink: #7a1428;
+  --opt-1-bg: #d6e6ff; --opt-1-ink: #10346b;
+  --opt-2-bg: #ffefb8; --opt-2-ink: #5d4100;
+  --opt-3-bg: #cff0df; --opt-3-ink: #0b4a30;
+  --opt-4-bg: #e4deff; --opt-4-ink: #2f1d8f;
+  --opt-5-bg: #ffe0cc; --opt-5-ink: #7a2d00;
+  --cloud-0: #3347ff; --cloud-1: #d6336c; --cloud-2: #0e8f63; --cloud-3: #c4510f;
+  --cloud-4: #6c4bff; --cloud-5: #0f7fb8; --cloud-6: #9a6f00; --cloud-7: #c2255c;
+}
+:root[data-theme='dark'], [data-appearance='dark'] {
+  --opt-0-bg: #4a1825; --opt-0-ink: #ffd0da;
+  --opt-1-bg: #172f5c; --opt-1-ink: #cfe0ff;
+  --opt-2-bg: #43350b; --opt-2-ink: #ffe9a8;
+  --opt-3-bg: #0f3d2a; --opt-3-ink: #c1f2d9;
+  --opt-4-bg: #2d2363; --opt-4-ink: #ddd5ff;
+  --opt-5-bg: #4a2410; --opt-5-ink: #ffd9c2;
+  --cloud-0: #9aa6ff; --cloud-1: #ff8db2; --cloud-2: #5fd9a5; --cloud-3: #ffa56b;
+  --cloud-4: #b7a5ff; --cloud-5: #6fc7f2; --cloud-6: #f2c94c; --cloud-7: #ff7ea8;
+}
 
 @layer base {
   html {
@@ -73,6 +200,7 @@
   body {
     margin: 0;
     background: var(--color-paper);
+    transition: background-color 0.2s ease;
     color: var(--color-ink);
     font-weight: 450;
     line-height: 1.5;
@@ -107,6 +235,7 @@
   /* minmax(0, …) keeps the QR from forcing the ticket wider than its container */
   grid-template-columns: minmax(0, var(--stub)) minmax(0, 1fr);
   background: var(--ticket-bg, #fff);
+  color-scheme: light;
   color: var(--color-ink);
   border-radius: 1.2em;
   -webkit-mask:
@@ -126,11 +255,35 @@
   pointer-events: none;
 }
 
+/* Vertical ticket (stub on top) for the projector's join screen. The stub is square: as tall as the ticket is wide. */
+.ticket-wrap-v { container-type: inline-size; }
+.ticket.ticket-v {
+  --stub: calc(100cqw + 0.2em);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--stub) auto;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 var(--stub), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--stub), #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 var(--stub), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--stub), #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.ticket.ticket-v::after {
+  top: var(--stub);
+  bottom: auto;
+  left: var(--r);
+  right: var(--r);
+  border-left: 0;
+  border-top: 0.16em dashed color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    /* 0s, not a tiny duration: with the default transition-property `all`, a tiny duration makes every property change
+       (font sizes included) a transition, and code that measures right after a change (FitBox, WordCloud) reads stale sizes */
+    transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
 }
@@ -139,3 +292,56 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
+
+/* ------------------------------------------------------------------------------------
+   Rich content: code, maths, tables. Sized in em, so the projector, phones and previews
+   scale them like the surrounding text. Code keeps its exact whitespace.
+   ------------------------------------------------------------------------------------ */
+:root, [data-appearance='light'] {
+  --code-bg: #f1f3f9; --code-ink: #1d2340; --code-line: #dfe3ef;
+  --hl-keyword: #7b2fd1; --hl-string: #0f7a43; --hl-number: #b4530a; --hl-comment: #6b7390; --hl-title: #1f5fd6; --hl-type: #a1214b; --hl-attr: #8a5a00;
+}
+:root[data-theme='dark'], [data-appearance='dark'] {
+  --code-bg: #10142a; --code-ink: #e4e7f5; --code-line: #2a2f4b;
+  --hl-keyword: #c8a8ff; --hl-string: #7fe0a8; --hl-number: #ffb67a; --hl-comment: #8f97b6; --hl-title: #8fb8ff; --hl-type: #ff9fbc; --hl-attr: #f2cf6b;
+}
+.rich-code { margin: 0; border-radius: 0.6em; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--code-line); overflow: hidden; }
+.rich-code-lang { padding: 0.35em 0.9em 0; font-size: 0.62em; font-weight: 700; letter-spacing: 0.02em; color: var(--hl-comment); }
+.rich-code pre { margin: 0; padding: 0.6em 0.9em 0.75em; overflow-x: auto; font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Menlo', 'Consolas', monospace; font-size: 0.82em; line-height: 1.5; white-space: pre; tab-size: 4; text-align: left; }
+.rich-code pre:focus-visible { outline-offset: -2px; }
+.rich-code-inline { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Menlo', 'Consolas', monospace; font-size: 0.9em; padding: 0.05em 0.3em; border-radius: 0.3em; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--code-line); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rich-math-display { overflow-x: auto; padding: 0.2em 0; text-align: center; }
+.rich-math .katex, .rich-math-display .katex { font-size: 1.08em; }
+
+/* FitBox measures layout without transforms (animations and emphasis scaling are not overflow). */
+.fit-measuring, .fit-measuring * { transform: none !important; }
+
+/* Chemistry: structures from SMILES and reaction schemes. Bonds and carbon take the text colour (currentColor). */
+.rich-mol { display: inline-flex; vertical-align: middle; align-items: center; }
+.rich-mol svg { display: block; height: var(--mol-h); width: auto; max-width: 100%; overflow: visible; }
+.rich-mol-error { text-decoration: underline wavy var(--color-bad); text-underline-offset: 0.2em; }
+.rich-scheme { display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%; align-items: center; row-gap: 0.8em; padding: 0.2em 0; }
+.rich-scheme-group { display: inline-flex; align-items: center; flex-shrink: 0; }
+.rich-scheme-mol { display: inline-grid; justify-items: center; gap: 0.15em; padding: 0 0.3em; }
+.rich-scheme-caption { font-size: 0.8em; font-weight: 700; text-align: center; max-width: 12em; line-height: 1.2; }
+.rich-scheme-plus { font-size: 1.6em; font-weight: 300; padding: 0 0.35em; }
+.rich-scheme-arrow { display: inline-grid; grid-template-rows: 1fr auto 1fr; min-width: 5em; max-width: 13em; padding: 0 0.35em; text-align: center; font-size: 0.78em; line-height: 1.2; }
+.rich-scheme-arrow .rich-scheme-cond { display: flex; justify-content: center; padding: 0 0.3em; }
+.rich-scheme-arrow .rich-scheme-cond:first-child { align-items: flex-end; padding-bottom: 0.25em; }
+.rich-scheme-arrow .rich-scheme-cond:last-child { align-items: flex-start; padding-top: 0.25em; }
+.rich-scheme-arrow svg { width: 100%; height: 0.7em; overflow: visible; }
+.rich-scheme-arrow line, .rich-scheme-arrow path { stroke: currentColor; stroke-width: 1.6; fill: none; vector-effect: non-scaling-stroke; }
+.rich-scheme-unknown { display: grid; place-items: center; height: 3.4em; min-width: 3.4em; padding: 0 0.6em; border: 0.12em dashed currentColor; border-radius: 0.5em; font-size: 1.3em; font-weight: 800; opacity: 0.75; }
+.rich-scheme-plain .rich-scheme-mol { padding: 0 0.9em; }
+.rich-table-wrap { overflow-x: auto; max-width: 100%; }
+.rich-table { border-collapse: collapse; font-size: 0.85em; min-width: 50%; }
+.rich-table th, .rich-table td { border: 1px solid var(--color-line-2); padding: 0.35em 0.7em; vertical-align: top; }
+.rich-table th { background: color-mix(in srgb, var(--color-ink) 6%, transparent); font-weight: 700; }
+.hljs-keyword, .hljs-built_in, .hljs-literal, .hljs-selector-tag { color: var(--hl-keyword); }
+.hljs-string, .hljs-regexp, .hljs-template-string { color: var(--hl-string); }
+.hljs-number, .hljs-symbol { color: var(--hl-number); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--hl-comment); font-style: italic; }
+.hljs-title, .hljs-function .hljs-title, .hljs-title.function_ { color: var(--hl-title); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--hl-type); }
+.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-params, .hljs-property { color: var(--hl-attr); }
+.hljs-tag, .hljs-name { color: var(--hl-title); }

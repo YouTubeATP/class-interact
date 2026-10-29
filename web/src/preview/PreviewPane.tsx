@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useJoinInfo } from '@/lib/joinUrl';
 import { ParticipantApp } from '@/participant/ParticipantApp';
+import { ReferenceStage } from '@/render/ReferenceStage';
 import { StageView } from '@/render/StageView';
 import { previewParticipantSnapshot, previewStageModel, type PreviewView } from './model';
 
@@ -54,13 +55,13 @@ export function PreviewPane({ doc, index, onIndexChange, large = false }: { doc:
       </div>
 
       {device === 'projector' ? (
-        <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-[#0d1124] shadow-sm" data-testid="preview-stage">
-          <StageView m={model} />
+        <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg shadow-sm" data-testid="preview-stage">
+          <ReferenceStage><StageView m={model} /></ReferenceStage>
         </div>
       ) : (
         <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-[2.2rem] border-[7px] border-ink bg-paper shadow-lg" style={{ height: large ? '40rem' : '34rem' }} data-testid="preview-phone">
           <div className="h-full overflow-y-auto no-scrollbar">
-            <ParticipantApp key={phoneKey} snap={snap} status="connected" submit={previewSubmit} rename={async (name) => ({ ok: true, name })} now={Date.now} />
+            <ParticipantApp key={phoneKey} snap={snap} status="connected" submit={previewSubmit} rename={async (name) => ({ ok: true, name })} now={Date.now} preview />
           </div>
         </div>
       )}

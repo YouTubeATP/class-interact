@@ -27,9 +27,20 @@ A presentation made for one mode runs in the other without conversion, and you c
 | Projector (`/project/…`) | the room | 16:9 stage that scales to any display; shows only what the audience may see. Open it from the dashboard, or on any other computer type the session's **projector code** (shown in the dashboard) into the box on the home page |
 | Participant (`/join`) | phones | Mobile-first. Scanning the QR code with the camera app opens the session immediately (no account, no typing); the page also has a Scan button and a PIN field. Names are off by default (everyone gets a friendly name they can change); turn them on per session when you need real names |
 
-**Activities.** Quiz (one correct answer, tick-all-that-apply, matching pairs and ordering with drag and drop or tap, partial credit; timer, points, speed bonus, leaderboard), poll (single/multiple,
-anonymous), word cloud (normalised and grouped, moderation), open-ended (short or paragraph, optional
-approval), rating scale, multi-question survey, and content slides (five layout templates).
+**Activities.** Quiz (one correct answer, tick-all-that-apply, matching pairs and ordering with drag and drop or tap,
+typed answers, numbers with a tolerance and unit, and tap-the-image hotspots; partial credit, timer, points, speed bonus,
+leaderboard), poll (single/multiple, anonymous), word cloud (normalised and grouped, moderation), open-ended (short or
+paragraph, optional approval), rating scale, multi-question survey, and content slides (five layout templates). Any slide
+can carry a YouTube/Vimeo video, an audio or video file, code with syntax highlighting, KaTeX maths and tables, and
+chemistry: equations (mhchem), skeletal structures drawn from SMILES, and reaction schemes for synthetic routes.
+
+**Teaching tools.** Audience Q&A with upvotes and moderation, an anonymous "Got it / Unsure / Lost" pulse, breaks and
+countdowns, a phone remote, co-presenter and moderator access links, run-again rounds with before/after comparison,
+teams, review of nearly-right typed answers, rehearsal with simulated participants, self-paced mode with deadlines,
+simple branching, templates, bulk CSV/JSON import, insights (difficulty, misconceptions, concepts, confidence versus
+correctness) with a deterministic recap, and opt-in progress across sessions. Light, dark and system appearance
+everywhere, a presenter-controlled projector look, and synthesized sound effects and music with per-device settings.
+See **[docs/teaching-features.md](docs/teaching-features.md)** for how each works.
 
 **Animation** is built in with framer-motion: activity transitions, animated results, a word cloud that
 re-packs as answers arrive, leaderboard reordering, and confirmations. It respects the OS "reduce motion" setting.
@@ -310,7 +321,13 @@ presentation for Companion mode.
   and the hide/remove controls for other languages or stricter rooms.
 - **Studio access** is a single shared password (no user accounts) by design. It is meant for one presenter or
   a small team on a self-hosted server.
-- **Image uploads** accept PNG, JPEG, GIF and WebP only (SVG is refused). Presentation JSON may reference external
+- **Optional AI only.** Bulk conversion, the AI recap summary and meaning-based grouping appear only when
+  `AIMLAPI_KEY` is set, are always labelled, and never merge or change anything without the presenter's click.
+  Everything else (grading, analytics, recap, grouping suggestions) is deterministic and works offline.
+- **Progress across sessions** is opt-in per session and per participant, keyed by a random identifier on the
+  participant's own device; clearing browser data or switching device starts fresh.
+- **Image uploads** accept PNG, JPEG, GIF and WebP only (SVG is refused). Media uploads (MP4, WebM, MP3, M4A, OGG, WAV)
+  are limited to 25 MB and checked by their content, not just their name. Presentation JSON may reference external
   `https://` images; failed loads show a placeholder.
 - Docker images were not built in the authoring sandbox (no Docker daemon). The Dockerfile's build, prune and
   entrypoint steps were reproduced natively and the resulting production tree passed the end-to-end suite.

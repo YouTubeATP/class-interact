@@ -1,5 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { MonitorX, WifiOff } from 'lucide-react';
+import { MonitorX, Volume2, VolumeX, WifiOff } from 'lucide-react';
+import { audio } from '@/audio/engine';
+import { saveSoundSettings, useSoundSettings } from '@/audio/settings';
+import { useAudioState, useSessionAudio } from '@/audio/useSessionAudio';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { ProjectorSnapshot } from '@classinteract/shared';
@@ -16,6 +19,11 @@ export default function ProjectPage() {
   const key = search.get('k') ?? '';
   const { snapshot, status, now } = useSession<ProjectorSnapshot>(key ? { role: 'projector', sessionId, key } : null);
   const join = useJoinInfo(snapshot?.session.pin);
+  // room sound: the presenter's choices from the dashboard, never this computer's other settings
+  useSessionAudio(snapshot, 'projector', now);
+  const audioState = useAudioState();
+  const local = useSoundSettings('projector');
+  const wantsSound = !!snapshot && snapshot.session.features.projector.sound !== 'off';
   const [hint, setHint] = useState(true);
   const [idle, setIdle] = useState(false);
 
@@ -49,7 +57,7 @@ export default function ProjectPage() {
   }
 
   return (
-    <div className={`relative h-dvh w-screen overflow-hidden bg-[#0d1124] ${idle ? 'cursor-none' : ''}`} data-testid="projector">
+    <div className={`relative h-dvh w-screen overflow-hidden bg-stage-bg ${idle ? 'cursor-none' : ''}`} data-testid="projector">
       {model ? (
         <StageView m={model} />
       ) : (
@@ -61,8 +69,18 @@ export default function ProjectPage() {
             <WifiOff className="size-4" aria-hidden /> Reconnecting…
           </motion.div>
         )}
+        {wantsSound && audioState === 'blocked' && !local.muted && model && (
+          <motion.button key="enable-sound" type="button" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onClick={() => void audio.unlock()} className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm font-bold text-white" data-testid="enable-sound">
+            <Volume2 className="size-4" aria-hidden /> Click to turn on sound
+          </motion.button>
+        )}
+        {wantsSound && !idle && model && audioState !== 'blocked' && (
+          <motion.button key="local-mute" type="button" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { saveSoundSettings('projector', { muted: !local.muted }); void audio.unlock(); }} aria-pressed={local.muted} aria-label={local.muted ? 'Unmute this projector' : 'Mute this projector'} className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-black/60 text-white" data-testid="projector-local-mute">
+            {local.muted ? <VolumeX className="size-5" aria-hidden /> : <Volume2 className="size-5" aria-hidden />}
+          </motion.button>
+        )}
         {hint && model && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-4 rounded-full bg-ink/80 px-3 py-1 text-xs font-semibold text-white">Press F for full screen</motion.p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-4 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Press F for full screen</motion.p>
         )}
       </AnimatePresence>
     </div>

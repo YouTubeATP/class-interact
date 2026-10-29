@@ -11,7 +11,7 @@ export function MenuContent({ className, children, ...props }: ComponentPropsWit
       <DropdownMenu.Content
         align="end"
         sideOffset={6}
-        className={cn('z-50 min-w-48 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border border-line bg-surface p-1.5 shadow-[0_18px_50px_-18px_rgb(22_27_51/.35)] data-[state=open]:animate-[menu-in_140ms_ease-out]', className)}
+        className={cn('z-50 min-w-48 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border border-line bg-surface p-1.5 shadow-[0_18px_50px_-18px_var(--color-shadow)] data-[state=open]:animate-[menu-in_140ms_ease-out]', className)}
         {...props}
       >
         {children}

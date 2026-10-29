@@ -243,10 +243,14 @@ quiz: question, kind (single|multiple|match|order, default single), explanation,
   multiple: options (2-6) and correctOptionIds [ids] (one or more).
   match: pairs [{id,left,right}] (2-6); each right-hand item must be different. People connect each left item to its right item.
   order: items [{id,text}] (2-6) written in the CORRECT order; people see them shuffled.
+  text: acceptedAnswers [strings] (people type the answer; near misses go to the presenter for review).
+  numeric: numeric { value, tolerance (absolute), tolerancePercent, unit }.
   True/false is a single quiz with options [{id:"true",text:"True"},{id:"false",text:"False"}].
 poll: question, options (2-10), multiple (bool), maxSelections, anonymous (bool).
 wordcloud: question, maxWords (default 5), maxLength, maxSubmissions (default 3).
 open: question, mode (short|paragraph), maxSubmissions.
 rating: question, min (0 or 1), max (2-10), minLabel, maxLabel.
 survey: title, description, questions [{id, kind: choice|rating|text, question, required, ...}]: choice has options and multiple; rating has min, max, minLabel, maxLabel; text has mode.
+Rich text (titles, bodies, questions, options): **bold**, *italic*, \`code\`, $maths$ in LaTeX, $$display maths$$, fenced code blocks with a language (three backticks then the language), "| a | b |" tables.
+Chemistry: $\\ce{2H2 + O2 -> 2H2O}$ for formulas and equations (mhchem; arrows with conditions: $\\ce{->[NaBH4][MeOH]}$). {{smiles:CC(=O)O}} draws a skeletal structure from SMILES, inline; an option that is only {{smiles:...}} becomes a large structure card. In a content body, a fenced block whose language is "route" draws a reaction scheme, one item per line: a molecule as "SMILES caption", an arrow as "-> conditions above | conditions below", "+" for a plus sign, "?" for an unknown to work out. Write rings in Kekulé form (C1=CC=CC=C1) for alternating double bonds. Double-check every SMILES: it must be the exact intended molecule.
 Unknown fields are rejected, so use only the fields above. Palettes: azure, lavender, mint, peach, rose, slate; backgrounds: soft, plain.`;

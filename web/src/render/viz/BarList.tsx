@@ -2,10 +2,11 @@ import { motion } from 'framer-motion';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { OPTION_COLORS } from '@/activities/meta';
 import { cn } from '@/lib/cn';
+import type React from 'react';
 
 export interface BarItem {
   id: string;
-  label: string;
+  label: React.ReactNode;
   count: number;
   highlight?: boolean;
 }
@@ -24,7 +25,7 @@ export function BarList({ items, total, mine = [], className }: { items: BarItem
             <div className="flex items-baseline justify-between gap-[1em] text-[1.45em] font-semibold leading-tight">
               <span className="min-w-0">
                 {it.label}
-                {isMine && <span className="ml-[0.5em] rounded-full bg-ink px-[0.55em] py-[0.05em] align-middle text-[0.62em] font-bold text-white">You</span>}
+                {isMine && <span className="ml-[0.5em] rounded-full bg-ink px-[0.55em] py-[0.05em] align-middle text-[0.62em] font-bold text-paper">You</span>}
               </span>
               <span className="tabular shrink-0 text-ink-2">
                 <AnimatedNumber value={it.count} className="font-bold text-ink" /> <span className="text-[0.8em]">({pct}%)</span>

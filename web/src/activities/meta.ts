@@ -19,19 +19,20 @@ export const typeMeta: Record<SlideType, TypeMeta> = {
 };
 
 /** Colours for answer options A–F: pastel fill, strong accent for the letter chip. */
+/** Colours for answer options A–F: a soft fill and ink that follow the appearance (CSS tokens), and a strong hue for the letter chip. */
 export const OPTION_COLORS = [
-  { bg: '#ffd9e0', strong: '#d93a55', ink: '#7a1428' },
-  { bg: '#d6e6ff', strong: '#2c6fe0', ink: '#10346b' },
-  { bg: '#ffefb8', strong: '#c48500', ink: '#5d4100' },
-  { bg: '#cff0df', strong: '#17935d', ink: '#0b4a30' },
-  { bg: '#e4deff', strong: '#6b4ff0', ink: '#2f1d8f' },
-  { bg: '#ffe0cc', strong: '#e0560c', ink: '#7a2d00' },
+  { bg: 'var(--opt-0-bg)', strong: '#d93a55', ink: 'var(--opt-0-ink)' },
+  { bg: 'var(--opt-1-bg)', strong: '#2c6fe0', ink: 'var(--opt-1-ink)' },
+  { bg: 'var(--opt-2-bg)', strong: '#b07800', ink: 'var(--opt-2-ink)' },
+  { bg: 'var(--opt-3-bg)', strong: '#17935d', ink: 'var(--opt-3-ink)' },
+  { bg: 'var(--opt-4-bg)', strong: '#6b4ff0', ink: 'var(--opt-4-ink)' },
+  { bg: 'var(--opt-5-bg)', strong: '#d4520b', ink: 'var(--opt-5-ink)' },
 ] as const;
 
 export const letter = (i: number) => String.fromCharCode(65 + i);
 
 /** Vivid but legible colours for word-cloud terms. */
-export const CLOUD_COLORS = ['#3347ff', '#d6336c', '#0e8f63', '#dd5a14', '#6c4bff', '#0f7fb8', '#b8860b', '#c2255c'];
+export const CLOUD_COLORS = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `var(--cloud-${i})`);
 export function colorFor(key: string): string {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;

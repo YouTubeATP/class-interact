@@ -72,15 +72,20 @@ function allowedKeysAt(raw: unknown, path: (string | number)[]): string[] {
   for (const seg of path) node = node?.[seg as any];
   if (path.length === 0) return ['format', 'schemaVersion', 'title', 'description', 'theme', 'slides'];
   const last = path[path.length - 1];
-  if (last === 'theme') return ['palette', 'background'];
+  if (last === 'theme') return ['palette', 'background', 'accent', 'appearance', 'logo', 'footer'];
   if (last === 'image') return ['url', 'alt', 'fit'];
+  if (last === 'logo') return ['url', 'alt'];
+  if (last === 'media') return ['url', 'kind', 'title', 'start', 'phones'];
+  if (last === 'numeric') return ['value', 'tolerance', 'tolerancePercent', 'unit'];
+  if (last === 'branch') return ['threshold', 'below', 'atOrAbove'];
   if (last === 'callout') return ['tone', 'text'];
+  if (isObj(node) && ('x' in node || 'shape' in node) && 'id' in node) return ['id', 'shape', 'x', 'y', 'w', 'h', 'label'];
   if (path.length === 2 && path[0] === 'slides' && isObj(node)) {
     const t = node.type as SlideType;
     return ['id', 'type', ...Object.keys((shapes as any)[t] ?? {})];
   }
   if (isObj(node) && 'left' in node && 'id' in node) return ['id', 'left', 'right'];
-  if (isObj(node) && 'text' in node && 'id' in node) return ['id', 'text'];
+  if (isObj(node) && 'text' in node && 'id' in node) return path.includes('options') && !path.includes('questions') ? ['id', 'text', 'misconception'] : ['id', 'text'];
   return [];
 }
 
@@ -149,6 +154,7 @@ export function normalizeDoc(raw: unknown): unknown {
         Array.isArray(opts) ? opts.map((o, j) => (isObj(o) && o.id === undefined ? { id: `o${j + 1}`, ...o } : o)) : opts;
       if (slide.options !== undefined) slide.options = fillOptions(slide.options);
       if (slide.items !== undefined) slide.items = fillOptions(slide.items);
+      if (Array.isArray(slide.regions)) slide.regions = slide.regions.map((r: any, j: number) => (isObj(r) && r.id === undefined ? { id: `r${j + 1}`, ...r } : r));
       if (Array.isArray(slide.pairs)) slide.pairs = slide.pairs.map((p: any, j: number) => (isObj(p) && p.id === undefined ? { id: `p${j + 1}`, ...p } : p));
       if (Array.isArray(slide.questions)) {
         slide.questions = slide.questions.map((q: any, j: number) => {
@@ -229,8 +235,9 @@ export function withoutUnusedFields(slide: Slide): Slide {
   const q: Record<string, unknown> = { ...slide };
   const kind = (q.kind as string | undefined) ?? 'single';
   if (kind !== 'multiple') delete q.correctOptionIds;
-  if (kind === 'single') delete q.partialCredit;
-  for (const f of ['options', 'pairs', 'items']) if (Array.isArray(q[f]) && (q[f] as unknown[]).length === 0) delete q[f];
+  if (kind === 'single' || kind === 'text' || kind === 'numeric' || kind === 'hotspot') delete q.partialCredit;
+  if (kind !== 'text') { delete q.caseSensitive; delete q.whitespace; }
+  for (const f of ['options', 'pairs', 'items', 'acceptedAnswers', 'regions']) if (Array.isArray(q[f]) && (q[f] as unknown[]).length === 0) delete q[f];
   delete q.view;
   return q as unknown as Slide;
 }

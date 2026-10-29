@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { RESIZE_EVENT } from '@/components/rich/events';
 import { cn } from '@/lib/cn';
 
 /**
@@ -17,17 +18,30 @@ export function FitBox({ children, className, min = 0.5 }: { children: ReactNode
     const box = outer.current;
     const content = inner.current;
     if (!box || !content) return;
+    // The scale is picked from fixed 2% steps; nothing may be clipped (at worst the slide is one step smaller). Replicas
+    // lay the stage out at projector size (ReferenceStage), so they arrive at the same step as the projector.
+    // Measured with transforms switched off: an entrance slide or a slightly enlarged correct answer is a visual effect,
+    // not overflow, and counting it would shrink the slide (and nothing would grow it back afterwards).
+    const fits = (k: number) => {
+      content.style.fontSize = `${k}em`;
+      content.classList.add('fit-measuring');
+      const ok = content.scrollHeight <= box.clientHeight && content.scrollWidth <= box.clientWidth;
+      content.classList.remove('fit-measuring');
+      return ok;
+    };
     const fit = () => {
+      const steps = Math.round((1 - min) / 0.02);
       let k = 1;
-      for (let i = 0; i < 6; i++) {
-        content.style.fontSize = `${k}em`;
-        const overflowY = content.scrollHeight - box.clientHeight;
-        const overflowX = content.scrollWidth - box.clientWidth;
-        if (overflowY <= 1 && overflowX <= 1) break;
-        const ratio = Math.min(overflowY > 1 ? box.clientHeight / content.scrollHeight : 1, overflowX > 1 ? box.clientWidth / content.scrollWidth : 1);
-        const next = Math.max(min, k * ratio * 0.985);
-        if (next >= k - 0.002 || k <= min) { k = Math.max(min, next); break; }
-        k = next;
+      if (!fits(1)) {
+        // largest step that fits (fitting only gets easier as the scale goes down)
+        let lo = 1;
+        let hi = steps;
+        let best = steps;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (fits(1 - mid * 0.02)) { best = mid; hi = mid - 1; } else lo = mid + 1;
+        }
+        k = Math.max(min, 1 - best * 0.02);
       }
       content.style.fontSize = `${k}em`;
       setScale((s) => (Math.abs(s - k) > 0.002 ? k : s));
@@ -35,7 +49,9 @@ export function FitBox({ children, className, min = 0.5 }: { children: ReactNode
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(box);
-    return () => ro.disconnect();
+    // maths, code and chemical structures render asynchronously and change the content's size without a re-render here
+    content.addEventListener(RESIZE_EVENT, fit);
+    return () => { ro.disconnect(); content.removeEventListener(RESIZE_EVENT, fit); };
   });
 
   return (

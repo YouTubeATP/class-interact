@@ -107,7 +107,9 @@ test('library: export a presentation as JSON and import it again unchanged', asy
   await expect(page.getByTestId('slide-row')).toHaveCount(9);
   // the re-imported deck exports to identical JSON
   const secondDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export JSON' }).click();
+  // in the editor, export lives in the More menu (with import and rehearse)
+  await page.getByTestId('editor-more').click();
+  await page.getByRole('menuitem', { name: 'Export JSON' }).click();
   const second = JSON.parse(await readFile(await (await secondDownload).path(), 'utf8'));
   expect(second).toEqual(exported);
 });
