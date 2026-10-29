@@ -105,8 +105,9 @@ a brainstorm and a feedback survey. Its picture ships with the app, so it works 
 
 ## Before and after
 
-**Templates.** The library offers seven starter templates (quick diagnostic quiz, icebreaker, workshop activities,
-knowledge check and reflection, exit ticket, before/after lesson assessment, and a worked chemistry lesson on synthetic routes). Each copies into an ordinary presentation. There is no shared question bank.
+**Templates.** The library offers eight starter templates (quick diagnostic quiz, icebreaker, workshop activities,
+knowledge check and reflection, exit ticket, before/after lesson assessment, a worked chemistry lesson on synthetic routes,
+and the popping boba lab). Each copies into an ordinary presentation. There is no shared question bank.
 
 **Bulk import** (editor, More menu → Import questions). Upload or paste a CSV or JSON file, see a preview with every
 problem listed by row, then add the valid rows. Limits: 300 KB, 300 rows. A CSV template is downloadable from the
