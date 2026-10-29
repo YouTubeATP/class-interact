@@ -317,8 +317,8 @@
 .rich-mol { display: inline-flex; vertical-align: middle; align-items: center; }
 .rich-mol svg { display: block; height: var(--mol-h); width: auto; max-width: 100%; overflow: visible; }
 .rich-mol-error { text-decoration: underline wavy var(--color-bad); text-underline-offset: 0.2em; }
-.rich-scheme { display: flex; flex-wrap: wrap; align-items: center; row-gap: 0.8em; padding: 0.2em 0; }
-.rich-scheme-group { display: inline-flex; align-items: center; }
+.rich-scheme { display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%; align-items: center; row-gap: 0.8em; padding: 0.2em 0; }
+.rich-scheme-group { display: inline-flex; align-items: center; flex-shrink: 0; }
 .rich-scheme-mol { display: inline-grid; justify-items: center; gap: 0.15em; padding: 0 0.3em; }
 .rich-scheme-caption { font-size: 0.8em; font-weight: 700; text-align: center; max-width: 12em; line-height: 1.2; }
 .rich-scheme-plus { font-size: 1.6em; font-weight: 300; padding: 0 0.35em; }
