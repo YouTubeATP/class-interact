@@ -61,6 +61,39 @@ highlighting and indentation kept exactly), bullet and numbered lists, and `| ta
 rendered as text, never as HTML, so nothing typed can inject markup. The maths and highlighting libraries load only
 when a slide uses them.
 
+**Chemistry.** Three additions to the same markup, all usable in quiz questions and options as well as content slides:
+
+| Write | Shows |
+| --- | --- |
+| `$\ce{2H2 + O2 -> 2H2O}$` | A formula or equation (KaTeX mhchem). Arrows can carry conditions: `$\ce{->[NaBH4][MeOH]}$`. Units: `$\pu{85 ^\circ C}$`. |
+| `{{smiles:CC(=O)O}}` | A skeletal structure drawn from SMILES, inline. An option that is *only* a structure becomes a large card on the projector. |
+| a fenced block with the language `route` | A reaction scheme or synthetic route (see below). `smiles` instead of `route` lists structures side by side without arrows. |
+
+One item per line in a `route` block:
+
+````
+```route
+C1=CC=CC=C1 "benzene"
+-> $\ce{CH3COCl}$, $\ce{AlCl3}$ | acylation
+CC(=O)C1=CC=CC=C1 "acetophenone"
++
+? "X"
+```
+````
+
+- a molecule: its SMILES, then an optional caption (quotes optional);
+- `->` an arrow: conditions above it, then after ` | ` conditions below it (inline markup such as `$\ce{…}$` allowed);
+- `+` a plus sign; `?` a dashed box for an unknown to work out.
+
+Every structure in a scheme is drawn with the same bond length, and long routes wrap without leaving an arrow at the
+end of a line. Aromatic rings follow the SMILES: lowercase (`c1ccccc1`) draws a ring with a circle, Kekulé form
+(`C1=CC=CC=C1`) draws alternating double bonds. Carbon skeletons take the text colour, so structures stay readable on
+light and dark projectors; heteroatoms are coloured. A SMILES that cannot be read is shown as text with a wavy
+underline, so a typo is visible in the preview rather than silently missing. The structure library (smiles-drawer,
+MIT) loads only when a slide contains a structure. SMILES are not validated on import; check the preview.
+
+The library template **Synthetic routes (chemistry)** shows all of this in a 12-slide lesson.
+
 Interactive slides also share these (with defaults):
 
 | Field | Default | Notes |

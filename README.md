@@ -31,7 +31,8 @@ A presentation made for one mode runs in the other without conversion, and you c
 typed answers, numbers with a tolerance and unit, and tap-the-image hotspots; partial credit, timer, points, speed bonus,
 leaderboard), poll (single/multiple, anonymous), word cloud (normalised and grouped, moderation), open-ended (short or
 paragraph, optional approval), rating scale, multi-question survey, and content slides (five layout templates). Any slide
-can carry a YouTube/Vimeo video, an audio or video file, code with syntax highlighting, KaTeX maths and tables.
+can carry a YouTube/Vimeo video, an audio or video file, code with syntax highlighting, KaTeX maths and tables, and
+chemistry: equations (mhchem), skeletal structures drawn from SMILES, and reaction schemes for synthetic routes.
 
 **Teaching tools.** Audience Q&A with upvotes and moderation, an anonymous "Got it / Unsure / Lost" pulse, breaks and
 countdowns, a phone remote, co-presenter and moderator access links, run-again rounds with before/after comparison,

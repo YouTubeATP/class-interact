@@ -20,6 +20,7 @@ import { cn } from '@/lib/cn';
 import { chooseLanHost, prettyPin, useJoinInfo } from '@/lib/joinUrl';
 import { useSession } from '@/lib/session-client';
 import { projectorViewOfPresenter } from '@/render/model';
+import { ReferenceStage } from '@/render/ReferenceStage';
 import { StageView } from '@/render/StageView';
 import { ConfirmDialog } from './dialogs';
 import { Controls } from './dashboard/Controls';
@@ -173,7 +174,7 @@ function Live({ info }: { info: SessionControlInfo }) {
               <h2 className="text-[0.9375rem] font-bold">On the projector</h2>
               <span className="text-xs font-semibold text-ink-3">{state.phase === 'lobby' ? 'Join screen' : state.phase === 'standby' ? 'Standby screen' : state.leaderboardVisible ? 'Leaderboard' : ended ? 'Closing screen' : 'Live view'}</span>
             </div>
-            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg" data-testid="dashboard-stage" data-tour="dash-stage"><StageView m={model} /></div>
+            <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg" data-testid="dashboard-stage" data-tour="dash-stage"><ReferenceStage><StageView m={model} /></ReferenceStage></div>
           </section>
           {selfPaced ? <SelfPacedPanel snap={snapshot} send={send} /> : !ended && <Controls snap={snapshot} run={run} send={send} now={now} />}
           {!ended && <ScreenControls snap={snapshot} send={send} />}

@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useJoinInfo } from '@/lib/joinUrl';
 import { useSession } from '@/lib/session-client';
 import { projectorViewOfPresenter } from '@/render/model';
+import { ReferenceStage } from '@/render/ReferenceStage';
 import { StageView } from '@/render/StageView';
 import { Controls } from './dashboard/Controls';
 import { PrivatePanel } from './dashboard/PrivatePanel';
@@ -56,7 +57,7 @@ function RemoteLive({ info }: { info: SessionControlInfo }) {
         <AppearanceToggle scope="studio" compact />
       </header>
       <main className="grid gap-4 p-4">
-        <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg" data-testid="remote-stage"><StageView m={model} testId="remote-stage-view" /></div>
+        <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg" data-testid="remote-stage"><ReferenceStage><StageView m={model} testId="remote-stage-view" /></ReferenceStage></div>
         {ended ? <Notice title="The session has ended">Results are saved in the Studio.</Notice> : (
           <>
             {snapshot.session.mode === 'selfpaced' ? (navigate && <SelfPacedPanel snap={snapshot} send={send} />) : <Controls snap={snapshot} run={run} send={send} now={now} size="remote" />}

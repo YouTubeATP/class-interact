@@ -6,6 +6,7 @@ import { PULSE_LABEL, quizCorrectIds, quizKind, resolveContentLayout, type Audie
 import { useRemaining } from '@/components/Countdown';
 import { MediaPlayer } from '@/components/Media';
 import { RichInline } from '@/components/RichText';
+import { isSoloStructure } from '@/components/rich/parse';
 import { quizAnswerLabel, quizAnswerLines } from '@/lib/quiz';
 import { HotspotImage } from './viz/Hotspot';
 import { typeMeta } from '@/activities/meta';
@@ -155,6 +156,8 @@ function OpenQuizBody({ m, c }: { m: StageModel; c: QuizConfig }) {
   );
 }
 
+const CARD_COLS: Record<number, string> = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' };
+
 function ActivityBody({ m }: { m: StageModel }) {
   const a = m.activity!;
   const { state, results } = m;
@@ -163,6 +166,7 @@ function ActivityBody({ m }: { m: StageModel }) {
   if (a.type === 'quiz') {
     const c = a.config as QuizConfig;
     const correct = state.correctVisible ? quizCorrectIds(c) : [];
+    const cards = c.options.length > 1 && c.options.every((o) => isSoloStructure(o.text));
     const kind = quizKind(c);
     if (kind === 'text' || kind === 'numeric' || kind === 'hotspot') return <OpenQuizBody m={m} c={c} />;
     const counts = showResults && results.type === 'quiz' && results.kind === 'choice' ? results.counts : null;
@@ -186,10 +190,11 @@ function ActivityBody({ m }: { m: StageModel }) {
     return (
       <div className="grid gap-[1.4em]">
         {quizKind(c) === 'multiple' && <p className="-mb-[0.4em] text-[1.6em] font-bold text-ink-2" data-testid="stage-multi-hint">Select all that apply</p>}
-        <div className={cn('grid gap-[0.9em]', c.options.length > 3 ? 'grid-cols-2' : 'grid-cols-1')}>
+        {/* options that are only chemical structures sit side by side as tall cards, so the drawings can be large */}
+        <div className={cn('grid gap-[0.9em]', cards ? CARD_COLS[c.options.length] ?? 'grid-cols-3' : c.options.length > 3 ? 'grid-cols-2' : 'grid-cols-1')}>
           {c.options.map((o, i) => {
             const tile: TileState = correct.length ? (correct.includes(o.id) ? 'correct' : 'dim') : 'idle';
-            return <OptionTile key={o.id} index={i} text={<RichInline text={o.text} />} count={counts ? (counts[o.id] ?? 0) : undefined} total={total} state={tile} delay={i * 0.06} />;
+            return <OptionTile key={o.id} index={i} card={cards} text={<RichInline text={o.text} />} count={counts ? (counts[o.id] ?? 0) : undefined} total={total} state={tile} delay={i * 0.06} />;
           })}
         </div>
         <AnimatePresence>
@@ -261,7 +266,7 @@ function ActivityView({ m }: { m: StageModel }) {
         </div>
       </div>
       <div className="relative">
-        <h2 className={cn('display mt-[1.6em]', side ? 'max-w-[64%]' : 'max-w-[88%]', size)} data-testid="stage-question"><RichInline text={q} /></h2>
+        <h2 className={cn('display mt-[1.6em]', side ? 'max-w-[64%]' : 'max-w-[88%]', size)} style={{ ['--mol-bond-inline' as string]: '0.55em' }} data-testid="stage-question"><RichInline text={q} /></h2>
         {image && <SafeImage src={image.url} alt={image.alt} fit={image.fit} className="absolute right-0 top-[1.2em] z-0 h-[17.5em] w-[26em] rounded-[1.2em] ring-1 ring-line" />}
         {!image && media && <MediaPlayer media={media} compact className="absolute right-0 top-[1.2em] z-0 w-[26em] text-[1em]" />}
       </div>

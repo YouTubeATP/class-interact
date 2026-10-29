@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useJoinInfo } from '@/lib/joinUrl';
 import { ParticipantApp } from '@/participant/ParticipantApp';
+import { ReferenceStage } from '@/render/ReferenceStage';
 import { StageView } from '@/render/StageView';
 import { previewParticipantSnapshot, previewStageModel, type PreviewView } from './model';
 
@@ -55,7 +56,7 @@ export function PreviewPane({ doc, index, onIndexChange, large = false }: { doc:
 
       {device === 'projector' ? (
         <div className="aspect-video overflow-hidden rounded-2xl border border-line bg-stage-bg shadow-sm" data-testid="preview-stage">
-          <StageView m={model} />
+          <ReferenceStage><StageView m={model} /></ReferenceStage>
         </div>
       ) : (
         <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-[2.2rem] border-[7px] border-ink bg-paper shadow-lg" style={{ height: large ? '40rem' : '34rem' }} data-testid="preview-phone">

@@ -127,4 +127,100 @@ export const TEMPLATES: PresentationTemplate[] = [
       ],
     },
   },
+  {
+    id: 'synthetic-routes',
+    title: 'Synthetic routes (chemistry)',
+    description: 'Multi-step organic synthesis with drawn structures, reaction schemes and equations.',
+    summary: 'Three routes (benzene to styrene, aspirin, paracetamol) drawn as schemes, then questions with structures as answers, an ordering task, a typed answer, an atom-economy calculation and a confidence check.',
+    doc: {
+      schemaVersion: 1,
+      title: 'Synthetic routes',
+      description: 'Planning multi-step syntheses: reagents, conditions and intermediates.',
+      theme: { palette: 'mint', background: 'soft', footer: 'Organic chemistry · Synthetic routes' },
+      slides: [
+        {
+          id: 'intro', type: 'content', title: 'Synthetic routes',
+          body: 'Most useful molecules take several steps to make. For each step we need the **reagents**, the **conditions** and the **intermediate** it gives.\n\n$$\\ce{C6H6 + CH3COCl ->[AlCl3] C6H5COCH3 + HCl}$$\n\nToday: three routes, then you plan your own.',
+        },
+        {
+          id: 'styrene', type: 'content', title: 'From benzene to styrene',
+          body: '```route\nC1=CC=CC=C1 "benzene"\n-> $\\ce{CH3COCl}$, $\\ce{AlCl3}$ | acylation\nCC(=O)C1=CC=CC=C1 "acetophenone"\n-> $\\ce{NaBH4}$, MeOH | reduction\nCC(O)C1=CC=CC=C1 "1-phenylethanol"\n-> conc. $\\ce{H2SO4}$ | heat\nC=CC1=CC=CC=C1 "styrene"\n```',
+          notes: 'Point out that each step changes one functional group: C–H to ketone, ketone to alcohol, alcohol to alkene.',
+        },
+        {
+          id: 'q-product', type: 'quiz', question: '{{smiles:CC(=O)C1=CC=CC=C1}} $\\ce{->[NaBH4][MeOH]}$ ? Which structure is the product?',
+          options: [
+            { id: 'a', text: '{{smiles:CC(O)C1=CC=CC=C1}}' },
+            { id: 'b', text: '{{smiles:CCC1=CC=CC=C1}}', misconception: 'Thinks NaBH4 removes the oxygen completely (that needs Clemmensen or Wolff–Kishner)' },
+            { id: 'c', text: '{{smiles:OC(=O)C1=CC=CC=C1}}', misconception: 'Confuses reduction with oxidation' },
+            { id: 'd', text: '{{smiles:C=CC1=CC=CC=C1}}', misconception: 'Combines reduction and dehydration into one step' },
+          ],
+          correctOptionId: 'a', timeLimitSec: 45, concepts: ['Reduction', 'Carbonyl chemistry'],
+          explanation: 'Sodium borohydride adds hydride to the C=O carbon: the ketone becomes a secondary alcohol.',
+        },
+        {
+          id: 'q-reagents', type: 'quiz', question: 'Which reagents turn benzene into acetophenone, {{smiles:CC(=O)C1=CC=CC=C1}}?',
+          options: [
+            { id: 'a', text: '$\\ce{CH3COCl}$ with $\\ce{AlCl3}$' },
+            { id: 'b', text: '$\\ce{CH3CH2Cl}$ with $\\ce{AlCl3}$', misconception: 'Mixes up acylation and alkylation (this gives ethylbenzene)' },
+            { id: 'c', text: '$\\ce{NaBH4}$ in methanol', misconception: 'Picks a reducing agent for a C–C bond-forming step' },
+            { id: 'd', text: '$\\ce{KMnO4}$, heat', misconception: 'Thinks oxidation adds a carbon chain' },
+          ],
+          correctOptionId: 'a', timeLimitSec: 40, concepts: ['Electrophilic substitution'],
+          explanation: 'Friedel–Crafts acylation: AlCl₃ turns ethanoyl chloride into the acylium ion, which substitutes onto the ring.',
+        },
+        {
+          id: 'q-order', type: 'quiz', kind: 'order', question: 'Put the steps from benzene to styrene in order',
+          items: [
+            { id: 'i1', text: 'Friedel–Crafts acylation ($\\ce{CH3COCl}$, $\\ce{AlCl3}$)' },
+            { id: 'i2', text: 'Reduction of the ketone ($\\ce{NaBH4}$)' },
+            { id: 'i3', text: 'Dehydration of the alcohol (conc. $\\ce{H2SO4}$, heat)' },
+          ],
+          concepts: ['Route planning'],
+        },
+        {
+          id: 'q-type', type: 'quiz', kind: 'text', question: 'What type of reaction turns {{smiles:CC(O)C1=CC=CC=C1}} into {{smiles:C=CC1=CC=CC=C1}}? (one word)',
+          acceptedAnswers: ['dehydration', 'elimination'], concepts: ['Reaction types'],
+          explanation: 'Water is lost (an elimination, specifically a dehydration), forming a C=C double bond.',
+        },
+        {
+          id: 'aspirin', type: 'content', title: 'Making aspirin',
+          body: '```route\nOC(=O)C1=CC=CC=C1O "salicylic acid"\n+\nCC(=O)OC(C)=O "ethanoic anhydride"\n-> $\\ce{H3PO4}$ (cat.) | $\\pu{85 ^\\circ C}$\nCC(=O)OC1=CC=CC=C1C(=O)O "aspirin"\n+\nCC(=O)O "ethanoic acid"\n```\n\n$$\\ce{C7H6O3 + C4H6O3 -> C9H8O4 + C2H4O2}$$',
+        },
+        {
+          id: 'q-atom', type: 'quiz', kind: 'numeric',
+          question: 'Atom economy of this aspirin synthesis? ($M_r$: salicylic acid 138.1, ethanoic anhydride 102.1, aspirin 180.2)',
+          numeric: { value: 75, tolerance: 1, unit: '%' }, timeLimitSec: 90, concepts: ['Atom economy'],
+          explanation: '180.2 ÷ (138.1 + 102.1) × 100 = 75.0 %',
+        },
+        {
+          id: 'paracetamol', type: 'content', title: 'A route to paracetamol',
+          body: '```route\nOC1=CC=CC=C1 "phenol"\n-> dilute $\\ce{HNO3}$ | room temperature\nOC1=CC=C(C=C1)[N+](=O)[O-] "4-nitrophenol"\n-> $\\ce{Sn}$, conc. $\\ce{HCl}$ | then $\\ce{NaOH}$\nNC1=CC=C(O)C=C1 "4-aminophenol"\n-> $\\ce{(CH3CO)2O}$\nCC(=O)NC1=CC=C(O)C=C1 "paracetamol"\n```',
+          notes: 'Nitration of phenol also gives 2-nitrophenol; the isomers are separated before the reduction.',
+        },
+        {
+          id: 'q-x', type: 'quiz', question: '{{smiles:OC1=CC=CC=C1}} $\\ce{->[HNO3][dilute]}$ **X** $\\ce{->[Sn, HCl]}$ {{smiles:NC1=CC=C(O)C=C1}} What is X?',
+          options: [
+            { id: 'a', text: '{{smiles:OC1=CC=C(C=C1)[N+](=O)[O-]}}' },
+            { id: 'b', text: '{{smiles:[O-][N+](=O)C1=CC=CC=C1}}', misconception: 'Thinks the OH group is lost in nitration' },
+            { id: 'c', text: '{{smiles:OC1=C(C=C(C=C1[N+](=O)[O-])[N+](=O)[O-])[N+](=O)[O-]}}', misconception: 'Uses the concentrated-acid product (2,4,6-trinitrophenol) for dilute nitric acid' },
+            { id: 'd', text: '{{smiles:NC1=CC=CC=C1}}', misconception: 'Places the reduction before the nitration' },
+          ],
+          correctOptionId: 'a', timeLimitSec: 60, concepts: ['Electrophilic substitution', 'Route planning'],
+          explanation: 'The OH group activates the ring, so dilute nitric acid is enough; the 4-isomer is then reduced to the amine.',
+        },
+        {
+          id: 'q-reductions', type: 'quiz', kind: 'multiple', question: 'Which of these steps are reductions?',
+          options: [
+            { id: 'a', text: '{{smiles:CC(=O)C1=CC=CC=C1}} to {{smiles:CC(O)C1=CC=CC=C1}}' },
+            { id: 'b', text: '4-nitrophenol to 4-aminophenol ($\\ce{Sn}$, $\\ce{HCl}$)' },
+            { id: 'c', text: 'benzene to acetophenone', misconception: 'Treats any change at a carbonyl as a redox step' },
+            { id: 'd', text: '1-phenylethanol to styrene', misconception: 'Confuses elimination with reduction' },
+          ],
+          correctOptionIds: ['a', 'b'], concepts: ['Reduction'],
+        },
+        { id: 'conf', type: 'rating', question: 'How confident are you planning a two-step route on your own?', min: 1, max: 5, minLabel: 'Not yet', maxLabel: 'Very', confidenceFor: ['q-product', 'q-reagents', 'q-x', 'q-reductions'] },
+      ],
+    },
+  },
 ];

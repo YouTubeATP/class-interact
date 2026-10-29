@@ -7,6 +7,15 @@
  *   - bullets / 1. numbered lists
  *   | a | b |            tables (header row, then |---|---|, optional :--: alignment)
  *   blank line           new paragraph; single line breaks are kept
+ *
+ * Chemistry:
+ *   $\ce{2H2 + O2 -> 2H2O}$   equations and formulas (KaTeX mhchem), $\pu{25 °C}$ units
+ *   {{smiles:CC(=O)O}}        a skeletal structure drawn from SMILES, inline (fits in a quiz option)
+ *   ```route                 a reaction scheme, one item per line:
+ *   c1ccccc1 "benzene"         a molecule (SMILES, then an optional caption); `?` is an unknown to work out
+ *   -> CH3COCl, AlCl3 | 0 °C   an arrow: conditions above, after `|` below (inline markup allowed)
+ *   +                          a plus sign
+ *   ```                      (```smiles draws the listed molecules side by side, without arrows)
  */
 export type Inline =
   | { t: 'text'; v: string }
@@ -14,13 +23,20 @@ export type Inline =
   | { t: 'i'; c: Inline[] }
   | { t: 'code'; v: string }
   | { t: 'math'; tex: string }
+  | { t: 'mol'; smiles: string }
   | { t: 'br' };
+
+export type SchemeItem =
+  | { t: 'mol'; smiles: string; caption: string }
+  | { t: 'arrow'; above: string; below: string }
+  | { t: 'plus' };
 
 export type Block =
   | { t: 'p'; c: Inline[] }
   | { t: 'ul' | 'ol'; items: Inline[][]; start?: number }
   | { t: 'code'; lang: string; text: string }
   | { t: 'math'; tex: string }
+  | { t: 'scheme'; items: SchemeItem[]; arrows: boolean }
   | { t: 'table'; head: Inline[][]; align: ('left' | 'center' | 'right')[]; rows: Inline[][][] };
 
 export function parseInline(src: string): Inline[] {
@@ -32,6 +48,11 @@ export function parseInline(src: string): Inline[] {
     const ch = src[i];
     if (ch === '\\' && i + 1 < src.length && '*`$\\|_'.includes(src[i + 1])) { buf += src[i + 1]; i += 2; continue; }
     if (ch === '\n') { flush(); out.push({ t: 'br' }); i++; continue; }
+    if (ch === '{' && /^\{\{(smiles|mol):/.test(src.slice(i, i + 9))) {
+      const end = src.indexOf('}}', i);
+      const smiles = end > 0 ? src.slice(src.indexOf(':', i) + 1, end).trim() : '';
+      if (smiles && !/\s/.test(smiles)) { flush(); out.push({ t: 'mol', smiles }); i = end + 2; continue; }
+    }
     if (ch === '`') {
       const end = src.indexOf('`', i + 1);
       if (end > i + 1) { flush(); out.push({ t: 'code', v: src.slice(i + 1, end) }); i = end + 1; continue; }
@@ -73,6 +94,27 @@ const splitRow = (line: string) => {
 };
 const isDivider = (line: string) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(line);
 
+const CHEM_FENCES = ['route', 'scheme', 'reaction', 'smiles', 'mol', 'molecules'];
+
+/** One item per line: a molecule (`SMILES caption`, `?` for an unknown), an arrow (`-> above | below`) or `+`. */
+export function parseScheme(lines: string[]): SchemeItem[] {
+  const items: SchemeItem[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const arrow = /^(->|→|=>)\s*(.*)$/.exec(line);
+    if (arrow) {
+      const [above, ...below] = arrow[2].split(/\s+\|\s+|\s*\|\s*$/);
+      items.push({ t: 'arrow', above: (above ?? '').trim(), below: below.join(' ').trim() });
+      continue;
+    }
+    if (line === '+') { items.push({ t: 'plus' }); continue; }
+    const m = /^(\S+)\s*(.*)$/.exec(line)!;
+    items.push({ t: 'mol', smiles: m[1], caption: m[2].trim().replace(/^["“](.*)["”]$/, '$1') });
+  }
+  return items;
+}
+
 export function parseBlocks(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, '\n').split('\n');
   const blocks: Block[] = [];
@@ -89,7 +131,9 @@ export function parseBlocks(src: string): Block[] {
       const body: string[] = [];
       i++;
       while (i < lines.length && !new RegExp(`^\\s*${fence[1]}\\s*$`).test(lines[i])) body.push(lines[i++]);
-      blocks.push({ t: 'code', lang: fence[2].toLowerCase(), text: body.join('\n') });
+      const lang = fence[2].toLowerCase();
+      if (CHEM_FENCES.includes(lang)) blocks.push({ t: 'scheme', items: parseScheme(body), arrows: lang !== 'smiles' && lang !== 'mol' && lang !== 'molecules' });
+      else blocks.push({ t: 'code', lang, text: body.join('\n') });
       continue;
     }
     if (/^\s*\$\$/.test(line)) {
@@ -139,9 +183,12 @@ export function parseBlocks(src: string): Block[] {
 }
 
 /** True when text uses anything beyond plain words (lets callers skip work for ordinary sentences). */
-export const hasMarkup = (s: string) => /[`$*|]|^\s*([-*] |\d+[.)] )/m.test(s);
+export const hasMarkup = (s: string) => /[`$*|]|\{\{|^\s*([-*] |\d+[.)] )/m.test(s);
 
 /** The text without markup characters, for places that cannot render rich text (tooltips, lists, aria labels). */
 export function plainInline(src: string): string {
-  return src.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\$([^$]+)\$/g, '$1').replace(/(^|\s)\*([^*\s][^*]*)\*/g, '$1$2');
+  return src.replace(/\{\{(?:smiles|mol):[^}]*\}\}/g, '(structure)').replace(/\\(?:ce|pu)\{([^}]*)\}/g, '$1').replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\$([^$]+)\$/g, '$1').replace(/(^|\s)\*([^*\s][^*]*)\*/g, '$1$2');
 }
+
+/** True when the text is nothing but one structure (`{{smiles:…}}`): such options are laid out as cards. */
+export const isSoloStructure = (s: string) => /^\s*\{\{(smiles|mol):[^{}\s]+\}\}\s*$/.test(s);

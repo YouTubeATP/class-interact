@@ -3,7 +3,7 @@ import {
   buildRecap, can, computeAnalytics, computeTeamStandings, contrastRatio, countedSubmissions, CSV_TEMPLATE, decideBranch, definitions, editDistance,
   gradeHotspot, gradeNumeric, gradeText, importCsv, importJsonSlides, IMPORT_MAX_ROWS, inRegion, mergedKey, normalizeTyped, parseCsv, parseMediaUrl,
   parseNumber, parsePresentationDoc, permissionsOf, pulseSummary, redactResults, smallestTeam, sortQuestions, standingsFromRuns, suggestMerges,
-  validateQuestion, voteProblem, type AnalyticsInput, type QuizConfig, type RunRef,
+  TEMPLATES, validateQuestion, voteProblem, type AnalyticsInput, type QuizConfig, type RunRef,
 } from '../src';
 
 const doc = (slides: unknown[]) => ({ schemaVersion: 1, title: 'T', slides });
@@ -322,5 +322,16 @@ describe('analytics and recap', () => {
     expect(JSON.stringify(recap)).toContain('What about while?');
     // the same input always gives the same recap
     expect(buildRecap(computeAnalytics(input))).toEqual(recap);
+  });
+});
+
+describe('templates', () => {
+  it('are all valid presentations, including the chemistry deck', () => {
+    for (const t of TEMPLATES) {
+      const r = parsePresentationDoc(t.doc);
+      expect(r.ok, `${t.id}: ${r.ok ? '' : JSON.stringify(r.errors)}`).toBe(true);
+    }
+    const chem = TEMPLATES.find((t) => t.id === 'synthetic-routes')!;
+    expect(JSON.stringify(chem.doc)).toContain('```route');
   });
 });

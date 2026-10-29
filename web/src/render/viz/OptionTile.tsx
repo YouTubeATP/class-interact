@@ -6,8 +6,10 @@ import { cn } from '@/lib/cn';
 export type TileState = 'idle' | 'selected' | 'correct' | 'wrong' | 'dim';
 
 /** An answer option. On the projector it is display-only; on phones it is the tap target. */
-export function OptionTile({ index, text, count, total, state = 'idle', onClick, disabled, delay = 0, size = 'stage', checkbox = false }: {
+export function OptionTile({ index, text, count, total, state = 'idle', onClick, disabled, delay = 0, size = 'stage', checkbox = false, card = false }: {
   index: number; text: React.ReactNode; count?: number; total?: number; state?: TileState; onClick?: () => void; disabled?: boolean; delay?: number; size?: 'stage' | 'phone';
+  /** A tall tile with the content centred under the letter: for options that are a picture, such as a chemical structure. */
+  card?: boolean;
   /** Several answers can apply: shows a tick box that fills when selected. */
   checkbox?: boolean;
 }) {
@@ -19,11 +21,12 @@ export function OptionTile({ index, text, count, total, state = 'idle', onClick,
     <Tag
       {...(interactive ? (checkbox ? { type: 'button' as const, onClick, disabled, role: 'checkbox', 'aria-checked': state === 'selected' } : { type: 'button' as const, onClick, disabled, 'aria-pressed': state === 'selected' }) : {})}
       className={cn(
-        'relative flex w-full items-center overflow-hidden text-left',
+        'relative flex w-full overflow-hidden text-left',
+        card ? 'h-full flex-wrap content-start items-start' : 'items-center',
         size === 'stage' ? 'gap-[0.9em] rounded-[1em] px-[1em] py-[0.8em] text-[1.9em]' : 'min-h-[4.25rem] gap-3.5 rounded-2xl px-4 py-3 text-[1.0625rem]',
         interactive && 'active:scale-[0.985]',
       )}
-      style={{ backgroundColor: c.bg, color: c.ink, boxShadow: state === 'selected' || state === 'correct' ? `0 0 0 ${size === 'stage' ? '0.14em' : '3px'} ${state === 'correct' ? 'var(--color-ok)' : c.strong}` : 'none' }}
+      style={{ ...(size === 'stage' ? { ['--mol-bond-solo' as string]: card ? '1.35em' : '0.95em', ['--mol-bond-inline' as string]: '0.6em' } : {}), backgroundColor: c.bg, color: c.ink, boxShadow: state === 'selected' || state === 'correct' ? `0 0 0 ${size === 'stage' ? '0.14em' : '3px'} ${state === 'correct' ? 'var(--color-ok)' : c.strong}` : 'none' }}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: state === 'dim' ? 0.4 : 1, y: 0, scale: state === 'correct' ? 1.015 : 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 26, delay }}
@@ -35,7 +38,7 @@ export function OptionTile({ index, text, count, total, state = 'idle', onClick,
       <span className={cn('relative grid shrink-0 place-items-center rounded-[0.55em] font-extrabold text-white', size === 'stage' ? 'size-[1.7em] text-[0.8em]' : 'size-9 text-base')} style={{ background: c.strong }}>
         {letter(index)}
       </span>
-      <span className="relative min-w-0 flex-1 font-semibold leading-snug">{text}</span>
+      <span className={cn('relative min-w-0 flex-1 font-semibold leading-snug', card && 'order-last grid basis-full place-items-center pt-[0.2em]')}>{text}</span>
       {count !== undefined && (
         <span className={cn('tabular relative shrink-0 font-bold', size === 'stage' ? 'text-[0.8em]' : 'text-sm')}>{count}</span>
       )}

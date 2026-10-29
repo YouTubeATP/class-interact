@@ -312,6 +312,24 @@
 .rich-code-inline { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Menlo', 'Consolas', monospace; font-size: 0.9em; padding: 0.05em 0.3em; border-radius: 0.3em; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--code-line); white-space: pre-wrap; overflow-wrap: anywhere; }
 .rich-math-display { overflow-x: auto; padding: 0.2em 0; text-align: center; }
 .rich-math .katex, .rich-math-display .katex { font-size: 1.08em; }
+
+/* Chemistry: structures from SMILES and reaction schemes. Bonds and carbon take the text colour (currentColor). */
+.rich-mol { display: inline-flex; vertical-align: middle; align-items: center; }
+.rich-mol svg { display: block; height: var(--mol-h); width: auto; max-width: 100%; overflow: visible; }
+.rich-mol-error { text-decoration: underline wavy var(--color-bad); text-underline-offset: 0.2em; }
+.rich-scheme { display: flex; flex-wrap: wrap; align-items: center; row-gap: 0.8em; padding: 0.2em 0; }
+.rich-scheme-group { display: inline-flex; align-items: center; }
+.rich-scheme-mol { display: inline-grid; justify-items: center; gap: 0.15em; padding: 0 0.3em; }
+.rich-scheme-caption { font-size: 0.8em; font-weight: 700; text-align: center; max-width: 12em; line-height: 1.2; }
+.rich-scheme-plus { font-size: 1.6em; font-weight: 300; padding: 0 0.35em; }
+.rich-scheme-arrow { display: inline-grid; grid-template-rows: 1fr auto 1fr; min-width: 5em; max-width: 13em; padding: 0 0.35em; text-align: center; font-size: 0.78em; line-height: 1.2; }
+.rich-scheme-arrow .rich-scheme-cond { display: flex; justify-content: center; padding: 0 0.3em; }
+.rich-scheme-arrow .rich-scheme-cond:first-child { align-items: flex-end; padding-bottom: 0.25em; }
+.rich-scheme-arrow .rich-scheme-cond:last-child { align-items: flex-start; padding-top: 0.25em; }
+.rich-scheme-arrow svg { width: 100%; height: 0.7em; overflow: visible; }
+.rich-scheme-arrow line, .rich-scheme-arrow path { stroke: currentColor; stroke-width: 1.6; fill: none; vector-effect: non-scaling-stroke; }
+.rich-scheme-unknown { display: grid; place-items: center; height: 3.4em; min-width: 3.4em; padding: 0 0.6em; border: 0.12em dashed currentColor; border-radius: 0.5em; font-size: 1.3em; font-weight: 800; opacity: 0.75; }
+.rich-scheme-plain .rich-scheme-mol { padding: 0 0.9em; }
 .rich-table-wrap { overflow-x: auto; max-width: 100%; }
 .rich-table { border-collapse: collapse; font-size: 0.85em; min-width: 50%; }
 .rich-table th, .rich-table td { border: 1px solid var(--color-line-2); padding: 0.35em 0.7em; vertical-align: top; }

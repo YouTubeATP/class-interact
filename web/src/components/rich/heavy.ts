@@ -8,8 +8,14 @@ type Katex = typeof import('katex').default;
 let katexP: Promise<Katex> | null = null;
 let hljsP: Promise<HLJSApi> | null = null;
 
-export const loadKatex = () =>
-  (katexP ??= Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([m]) => m.default).catch((e) => { katexP = null; throw e; }));
+let mhchemP: Promise<unknown> | null = null;
+
+/** KaTeX, plus the mhchem extension (`\ce{…}`, `\pu{…}`) only when a formula uses it. */
+export const loadKatex = async (tex = ''): Promise<Katex> => {
+  const k = await (katexP ??= Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([m]) => m.default).catch((e) => { katexP = null; throw e; }));
+  if (/\\(ce|pu)\b/.test(tex)) await (mhchemP ??= import('katex/contrib/mhchem').catch((e) => { mhchemP = null; throw e; }));
+  return k;
+};
 
 export const LANGUAGES = ['python', 'javascript', 'typescript', 'java', 'c', 'cpp', 'csharp', 'sql', 'bash', 'json', 'xml', 'css', 'plaintext'] as const;
 const ALIASES: Record<string, string> = { py: 'python', js: 'javascript', ts: 'typescript', 'c++': 'cpp', 'c#': 'csharp', cs: 'csharp', sh: 'bash', shell: 'bash', html: 'xml', text: 'plaintext', txt: 'plaintext' };

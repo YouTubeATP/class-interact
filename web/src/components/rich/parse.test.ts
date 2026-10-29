@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasMarkup, parseBlocks, parseInline, plainInline } from './parse';
+import { hasMarkup, isSoloStructure, parseBlocks, parseInline, parseScheme, plainInline } from './parse';
 
 describe('rich text parser', () => {
   it('parses inline marks and leaves prices alone', () => {
@@ -37,5 +37,38 @@ describe('rich text parser', () => {
     expect(hasMarkup('Just a sentence.')).toBe(false);
     expect(hasMarkup('Use `len`')).toBe(true);
     expect(plainInline('What does `len(x)` return for **this** list?')).toBe('What does len(x) return for this list?');
+  });
+});
+
+describe('chemistry', () => {
+  it('reads inline structures and leaves broken tokens as text', () => {
+    expect(parseInline('Product: {{smiles:CC(O)C1=CC=CC=C1}}?')).toEqual([{ t: 'text', v: 'Product: ' }, { t: 'mol', smiles: 'CC(O)C1=CC=CC=C1' }, { t: 'text', v: '?' }]);
+    expect(parseInline('{{mol:CCO}}')).toEqual([{ t: 'mol', smiles: 'CCO' }]);
+    expect(parseInline('{{smiles:C C}}')[0]).toMatchObject({ t: 'text' }); // SMILES never contain spaces
+    expect(parseInline('{{smiles:CCO')).toEqual([{ t: 'text', v: '{{smiles:CCO' }]);
+    expect(hasMarkup('{{smiles:O}}')).toBe(true);
+    expect(isSoloStructure(' {{smiles:CCO}} ')).toBe(true);
+    expect(isSoloStructure('{{smiles:CCO}} and {{smiles:O}}')).toBe(false);
+  });
+
+  it('keeps mhchem inside maths', () => {
+    expect(parseInline('$\\ce{2H2 + O2 -> 2H2O}$')).toEqual([{ t: 'math', tex: '\\ce{2H2 + O2 -> 2H2O}' }]);
+    expect(plainInline('Add $\\ce{NaBH4}$ to {{smiles:CC(=O)C}}')).toBe('Add NaBH4 to (structure)');
+  });
+
+  it('parses a route: molecules with captions, arrows with conditions above and below, plus signs and unknowns', () => {
+    expect(parseScheme(['C1=CC=CC=C1 "benzene"', '-> $\\ce{CH3COCl}$, $\\ce{AlCl3}$ | acylation', 'CC(=O)C1=CC=CC=C1 acetophenone', '+', '? X', '→ heat'])).toEqual([
+      { t: 'mol', smiles: 'C1=CC=CC=C1', caption: 'benzene' },
+      { t: 'arrow', above: '$\\ce{CH3COCl}$, $\\ce{AlCl3}$', below: 'acylation' },
+      { t: 'mol', smiles: 'CC(=O)C1=CC=CC=C1', caption: 'acetophenone' },
+      { t: 'plus' },
+      { t: 'mol', smiles: '?', caption: 'X' },
+      { t: 'arrow', above: 'heat', below: '' },
+    ]);
+    const [b] = parseBlocks('```route\nCCO\n-> conc. H2SO4\nC=C\n```');
+    expect(b).toMatchObject({ t: 'scheme', arrows: true, items: [{ t: 'mol' }, { t: 'arrow' }, { t: 'mol' }] });
+    expect(parseBlocks('```smiles\nCCO ethanol\nCC(=O)O\n```')[0]).toMatchObject({ t: 'scheme', arrows: false });
+    // other languages are still code
+    expect(parseBlocks('```python\nx = 1\n```')[0]).toMatchObject({ t: 'code' });
   });
 });

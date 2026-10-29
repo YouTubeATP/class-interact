@@ -62,7 +62,7 @@ function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 
         <SelectField label="Layout" value={(c.layout ?? 'auto') as string} onChange={(v) => patch({ layout: v === 'auto' ? undefined : (v as ContentConfig['layout']), ...(v === 'title' ? { callout: undefined } : {}) })} options={[{ value: 'auto', label: 'Automatic' }, ...CONTENT_LAYOUTS.map((l) => ({ value: l, label: LAYOUT_LABELS[l] }))]} />
         {errorAt(issues, 'image') && c.layout && <p className="text-[0.8125rem] text-bad" role="alert">{errorAt(issues, 'image')}</p>}
         <TextField label="Title" value={c.title} onChange={(title) => patch({ title })} issues={issues} path="title" maxLength={160} testId="content-title" />
-        <TextField label="Body" value={c.body} onChange={(body) => patch({ body })} issues={issues} path="body" multiline rows={5} hint="Blank line for a new paragraph; “- ” for bullets, “1. ” for numbers; **bold**, *italic*, `code`, $maths$ (LaTeX); ``` for a code block; | a | b | rows for a table." testId="content-body" mono />
+        <TextField label="Body" value={c.body} onChange={(body) => patch({ body })} issues={issues} path="body" multiline rows={5} hint="Blank line for a new paragraph; “- ” for bullets, “1. ” for numbers; **bold**, *italic*, `code`, $maths$ (LaTeX); ``` for a code block; | a | b | rows for a table. Chemistry: $\ce{H2SO4}$, {{smiles:CCO}} structures, ```route for reaction schemes." testId="content-body" mono />
       </Section>
       <Section title="Steps" hint="Numbered cards — good for instructions and procedures.">
         <StepsEditor steps={c.steps} onChange={(steps) => patch({ steps })} issues={issues} />
