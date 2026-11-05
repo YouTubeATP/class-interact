@@ -76,7 +76,7 @@ export const STYLES: Record<SoundStyle, Style> = {
     voices: { lead: I.bell, counter: I.epiano, comp: I.pad, pad: I.pad, bass: I.subBass }, kit: I.bright, drums: false,
     comping: 'pad', bassLine: 'whole', swing: 0.5, tone: 4200,
     mix: { lead: 0.45, counter: 0.35, comp: 0.4, pad: 0.4, bass: 0.35, drum: 0.3 },
-    level: 1.44, sfx: { lead: I.bell, chord: I.bell, gain: 0.58 },
+    level: 1.22, sfx: { lead: I.bell, chord: I.bell, gain: 0.58 },
   },
   gameshow: {
     id: 'gameshow', label: 'Game show', hint: 'Big brass stabs and punchy drums. Maximum energy.',
