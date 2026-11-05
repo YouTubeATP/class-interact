@@ -147,6 +147,10 @@ list. They are optional on import and generated when missing: options and items 
 | `alt` | string | `""` | ≤ 240. Describe the picture; it is read by screen readers and shown if the image fails. Always write it. |
 | `fit` | enum | `"cover"` | `cover` (fill and crop) or `contain` (show the whole picture). Use `contain` for diagrams and anything used in a hotspot question. |
 
+Where it appears: on a content slide, as its layout decides (section 6.1). On an activity, beside the question on
+the projector and above it on phones, except in a `hotspot` question, where it is the picture people tap. If a slide
+has `media` but no `image`, the player takes the image's place.
+
 A remote image must stay reachable while the lesson runs. For reliability, upload it first (section 9.4) and use the
 returned `/uploads/…` path.
 
@@ -395,10 +399,15 @@ libraries load only when a slide uses them.
 
 There are two levels:
 
-- **Inline rich text**: content `title`, `steps`, `callout.text`, every `question`, option `text` and `explanation`.
-  Formatting, inline maths, inline code, chemical equations and inline structures.
+- **Inline rich text**: content `title`, `steps` and `callout.text`; the `question` of a quiz, poll, word cloud, open
+  question or rating; quiz option `text`; and quiz `explanation`. Formatting, inline maths, inline code, chemical
+  equations and inline structures.
 - **Block rich text**: content `body` only. Everything inline, plus paragraphs, lists, tables, display maths, code
   blocks and reaction schemes.
+- **Plain text** (markup is shown as typed): poll option `text` (rich on the projector but plain on phones, so keep
+  them plain), everything in a `survey`, `match` pairs, `order` items, rating `minLabel`/`maxLabel`, region `label`,
+  `media.title`, `image.alt`, `notes`, and the presentation `title`, `description` and `footer`. Put maths or code a
+  match or order question needs into the question, or use a `single`/`multiple` quiz instead.
 
 Remember to escape for JSON: every backslash is doubled (`"$\\frac{1}{2}$"`), quotes are `\"`, newlines are `\n`.
 
@@ -599,7 +608,7 @@ Every problem is reported at once. `slide` is the zero-based slide index (or `nu
 | `GET /api/studio/presentations/:id/export` | The canonical JSON, with every default written out. |
 | `POST /api/studio/presentations/:id/duplicate` | Copy. |
 | `DELETE /api/studio/presentations/:id` | Delete. |
-| `GET /api/studio/templates`, `POST /api/studio/templates/:id` | List the starter templates; create a lesson from one. |
+| `GET /api/studio/templates`, `POST /api/studio/templates/:id` | List the starter templates; create a lesson from one. Ids: `diagnostic`, `icebreaker`, `workshop`, `knowledge-check`, `exit-ticket`, `before-after`, `synthetic-routes`, `popping-boba`. A template is a good starting point to `GET`, edit and `PUT` back. |
 | `GET /api/schema/presentation.json` | The JSON Schema (no sign-in). |
 
 ### 9.4 Uploading pictures and media
@@ -614,18 +623,57 @@ Use that `url` in `image.url`, `theme.logo.url` or `media.url`.
 
 Files are checked by their contents, not just the declared type.
 
-### 9.5 Check it before class
+### 9.5 Bulk questions from a spreadsheet (editor only)
+
+In the editor, **More → Import questions** turns a CSV (or a JSON list of slides) into ordinary slides through the
+same validator, row by row, with a preview. This is a convenience for people; agents should write the document
+directly. Columns (case-insensitive headers; only `question` is required): `type` (`quiz`, `poll`, `wordcloud`,
+`open`, `rating`, `content`, `truefalse`), `kind` (`single`, `multiple`, `text`, `numeric`), `question`, `options`
+(separated by `|`, or `option_a`…`option_f`), `correct` (letters such as `B` or `A,C`, the option text, the accepted
+answers `a|b` for typed answers, or the number), `tolerance` (absolute, or `5%`), `unit`, `time_limit`, `points`,
+`explanation`, `concepts` (`a|b`), `notes`, `body`, `min`, `max`, `min_label`, `max_label`, `multiple` (`yes`/`no`).
+At most 300 rows and 300 KB.
+
+### 9.6 Check it before class
 
 - Start a **rehearsal**: `POST /api/studio/presentations/:id/rehearse` with `{ "participants": 12 }` creates a private
   session in which simulated people answer every activity, kept out of results and reports. Or use **Preview** in the
   editor, which shows every slide on the projector and a phone with sample answers.
 - Export and diff: `import → export → import → export` produces identical JSON.
 
-### 9.6 Ids, defaults and round trips
+### 9.7 Ids, defaults and round trips
 
 Import fills in missing ids and defaults. Export writes every default out, except fields that cannot apply to a quiz's
 kind (such as `correctOptionIds` on a single-answer question), so a document's meaning never depends on defaults that
 might change later. Writing defaults yourself is allowed but not needed.
+
+### 9.8 Starting a session
+
+Running a lesson is not part of the document: the same lesson can be run many times, in any mode.
+`POST /api/studio/presentations/:id/sessions` starts one and returns `201 { "id", "pin" }`. The presentation needs at
+least one slide (a self-paced session needs at least one activity).
+
+| Body field | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `"standalone"` | `standalone` (slides in order), `companion` (launch activities alongside your own slides), `selfpaced` (people work through on their own). |
+| `collectNames` | `true` | Ask for a display name on joining; `false` gives everyone a friendly generated name. |
+| `features.qa` | `{ "enabled": true, "premoderate": false, "allowAnonymous": true }` | Audience questions. |
+| `features.pulse` | `{ "enabled": true }` | The Got it / Unsure / Lost buttons. |
+| `features.teams` | `{ "enabled": false, "assignment": "auto" }` | `auto` shares people out evenly; `manual` lets the presenter place them. |
+| `features.continuity` | `false` | Offer the opt-in "remember me" for progress across sessions. |
+| `features.phoneSounds` | `true` | Whether phones may play sounds at all. |
+| `features.projector` | `{ "appearance": "theme", "sound": "subtle", "music": false, "volume": 0.8 }` | `appearance`: `theme` (as the lesson's theme says), `light` or `dark`. `sound`: `off`, `subtle` or `playful`. `volume` 0–1. |
+| `features.selfPaced` | `{ "deadlineAt": null, "reveal": "after-close" }` | `deadlineAt`: a time in milliseconds since 1970 (UTC), or `null`. `reveal`: `immediately`, `after-close` or `never`. |
+
+Any part of `features` may be left out; only what you send changes. Then:
+
+- People join at `/join/<pin>` (the projector shows the QR code and the PIN).
+- `GET /api/studio/sessions/:id/control` returns `projectorKey` and a six-digit `projectorCode`. Open the projector at
+  `/project/<id>?k=<projectorKey>`, or type the projector code on the home page of any computer.
+- The presenter runs the session from the dashboard at `/session/<id>` (or a phone remote). Live control happens over
+  a WebSocket and is not part of this specification.
+- Afterwards: `GET /api/studio/sessions/:id/results`, `GET /api/studio/sessions/:id/analytics` and
+  `GET /api/studio/sessions/:id/export.csv`.
 
 ---
 
@@ -661,6 +709,7 @@ These are recommendations, not validation rules.
 
 **Accessibility and safety**
 - Write `alt` for every image. Don't put essential text only inside a picture.
+- Keep markup out of plain-text fields (section 7); it is shown as typed there.
 - Keep prompts age-appropriate and avoid asking for personal information in `open` questions; use
   `moderation: "premoderate"` when answers will be projected to a young audience.
 
