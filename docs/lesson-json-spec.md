@@ -442,6 +442,41 @@ LaTeX rendered with KaTeX.
   "numeric": { "value": 4 }, "explanation": "$2x = 8$, so $x = 4$." }
 ```
 
+A fuller example: the fundamental theorem of calculus as a content slide (multi-line display maths with
+`aligned`), followed by a question that uses it. In JSON a LaTeX line break `\\` is written `\\\\`.
+
+```json
+{
+  "schemaVersion": 1,
+  "title": "The fundamental theorem of calculus",
+  "slides": [
+    {
+      "id": "ftc", "type": "content", "title": "The fundamental theorem of calculus",
+      "body": "Let $f$ be continuous on $[a, b]$.\n\n**Part 1.** The accumulation function is an antiderivative of $f$:\n\n$$\nF(x) = \\int_a^x f(t)\\,dt \\quad\\Longrightarrow\\quad F'(x) = f(x) \\quad \\text{for } a < x < b\n$$\n\n**Part 2.** If $G' = f$ on $[a, b]$, then\n\n$$\n\\begin{aligned}\n\\int_a^b f(x)\\,dx &= G(b) - G(a) \\\\\n&= \\Big[\\, G(x) \\,\\Big]_a^b\n\\end{aligned}\n$$\n\nExample: $\\displaystyle\\int_0^{\\pi} \\sin x\\,dx = \\big[-\\cos x\\big]_0^{\\pi} = 1 - (-1) = 2$.",
+      "notes": "Part 1 says differentiation undoes integration; Part 2 is how we evaluate definite integrals."
+    },
+    {
+      "id": "q-ftc", "type": "quiz",
+      "question": "If $F(x) = \\displaystyle\\int_1^{x^2} \\cos t\\,dt$, what is $F'(x)$?",
+      "options": [
+        { "id": "a", "text": "$2x\\cos(x^2)$" },
+        { "id": "b", "text": "$\\cos(x^2)$", "misconception": "Forgets the chain rule on the upper limit" },
+        { "id": "c", "text": "$\\sin(x^2) - \\sin 1$", "misconception": "Evaluates the integral instead of differentiating it" },
+        { "id": "d", "text": "$2x\\sin(x^2)$", "misconception": "Integrates the integrand before applying Part 1" }
+      ],
+      "correctOptionId": "a", "timeLimitSec": 60, "concepts": ["Fundamental theorem", "Chain rule"],
+      "explanation": "By Part 1 and the chain rule, $\\frac{d}{dx}\\int_1^{u} \\cos t\\,dt = \\cos u \\cdot u'$ with $u = x^2$, so $F'(x) = 2x\\cos(x^2)$."
+    },
+    {
+      "id": "q-area", "type": "quiz", "kind": "numeric",
+      "question": "Evaluate $\\displaystyle\\int_0^{2} (3x^2 + 1)\\,dx$.",
+      "numeric": { "value": 10 }, "concepts": ["Fundamental theorem"],
+      "explanation": "$\\big[x^3 + x\\big]_0^2 = (8 + 2) - 0 = 10$."
+    }
+  ]
+}
+```
+
 ### 7.3 Code
 
 | Write | Shows | Where |
