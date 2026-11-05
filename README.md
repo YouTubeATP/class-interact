@@ -256,7 +256,9 @@ complete interactive presentation from code.
 
 Validation reports every problem with a path and a suggested fix; exports re-import to identical JSON.
 Full reference: [docs/presentation-format.md](docs/presentation-format.md) and
-[docs/presentation.schema.json](docs/presentation.schema.json).
+[docs/presentation.schema.json](docs/presentation.schema.json). To have an AI agent (or a script) write lessons,
+give it [docs/lesson-json-spec.md](docs/lesson-json-spec.md): every field, limit and validation rule, rich text
+with maths, code and chemistry, the import API, how answers are graded, lesson-design guidance and a self-check list.
 
 ## How it works
 

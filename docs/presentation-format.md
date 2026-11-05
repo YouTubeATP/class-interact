@@ -7,6 +7,8 @@ also generate from code, and anything you build by hand you can export.
 The document describes **content and intent**, never pixel positions. A renderer maps each slide to
 a responsive layout template for the projector and for phones.
 
+- Writing lessons with an AI agent or a script: [`lesson-json-spec.md`](./lesson-json-spec.md) is the complete
+  authoring specification (every field and limit, the import API, grading and a self-check list).
 - Machine-readable schema: [`presentation.schema.json`](./presentation.schema.json)
   (also served at `/api/schema/presentation.json`). Cross-field rules, such as "the correct option must
   exist", are enforced on import rather than by JSON Schema.
@@ -53,7 +55,7 @@ Every slide may also have:
 | --- | --- |
 | `notes` | Private speaker notes. Never sent to the projector or phones. |
 | `image` | `{ "url", "alt", "fit" }`. `url` must be `https://…`, `http://…` or an uploaded `/uploads/…` path. `fit` is `cover` (default) or `contain`. Failed loads show a placeholder. |
-| `media` | `{ "url", "kind", "title", "start", "phones" }`. A YouTube or Vimeo link (embedded through the privacy-enhanced players), an `https://` audio or video file, or an uploaded `/uploads/media/…` file. `kind` is `video` (default) or `audio`, `start` is in seconds, and `phones: true` also shows the player on phones (otherwise it plays on the main screen only). |
+| `media` | `{ "url", "kind", "title", "start", "phones" }`. A YouTube or Vimeo link (embedded through the privacy-enhanced players), an `https://` audio or video file, or an uploaded `/uploads/…` file. `kind` is `video` (default) or `audio`, `start` is in seconds, and `phones: true` also shows the player on phones (otherwise it plays on the main screen only). |
 
 **Rich text.** Titles, bodies, questions and options accept a small, safe Markdown subset: `**bold**`, `*italic*`,
 `` `code` ``, `$x^2$` (KaTeX maths), `$$…$$` display maths, fenced code blocks with a language (```` ```python ````, with syntax
