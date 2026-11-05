@@ -106,3 +106,10 @@ export function bassNote(chord: Chord, low = 33): number {
 }
 
 export const midiToFreq = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
+
+/** `C4` → 60, `Bb3` → 58, `F#5` → 78, `Cb6` → 83. */
+export function noteToMidi(name: string): number {
+  const m = /^([A-G])([#b]?)(-?\d)$/.exec(name);
+  if (!m) throw new Error(`Not a note: "${name}"`);
+  return 12 * (Number(m[3]) + 1) + LETTER[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+}

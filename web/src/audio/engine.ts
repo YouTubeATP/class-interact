@@ -57,6 +57,8 @@ class AudioEngine {
       window.addEventListener('keydown', unlock);
       (window as unknown as { __ciAudio: unknown }).__ciAudio = {
         log: this.log, state: () => this.state(), settings: () => this.settings(), music: () => this.currentMusic(),
+        /** Length of one full pass of a piece, in seconds. */
+        duration: (id: MusicId, style: SoundStyle) => { const a = arrangement(id, style); return (a.beats * 60) / a.bpm; },
         /** Offline render with simple measurements (and optionally a 16-bit WAV as base64), for tests and examples. */
         render: async (what: { music: MusicId } | { sfx: SoundId }, style: SoundStyle, seconds: number, wav = false) => {
           const d = await renderOffline(what, style, seconds);

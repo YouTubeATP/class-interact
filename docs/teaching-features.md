@@ -153,13 +153,26 @@ borrowed from other products, and the engine loads with the app (a few KB).
   band), **Chill** (lo-fi electric piano, swung beats, vinyl dust), **Arcade** (8-bit chiptune), **Calm** (bells and
   pads, no drums) and **Game show** (brass stabs and punchy drums). Every style plays the same compositions and
   sound-effect phrases, balanced to the same loudness, so changing style never changes what a sound means.
-- **The music is composed, not looped noise.** Five pieces, one per situation: *Doors open* (lobby, F major, 16
-  bars), *Thinking time* (timed quiz, A minor), *Ten seconds* (the last ten seconds, climbing towards the dominant),
-  *The reveal* (results and leaderboard, C major) and *Coffee* (breaks, a swung ninth-chord loop). Each has a written
-  melody and chord progression; the accompaniment is voice-led (each chord moves to the nearest notes of the next),
-  with a bass line and drums that each style arranges its own way. Sound effects are short phrases in the same tonal
-  world: good news rises to the tonic, an incorrect answer is a soft falling minor second rather than a buzzer, and
-  time is marked with bells and a woodblock. Sources: `web/src/audio/compositions.ts`, `styles.ts`, `sfx.ts`.
+- **The music is composed in sections, not looped noise.** Five pieces, one per situation, each one to three minutes
+  long before it repeats:
+  - *Doors open* (lobby, F major, about 2¼ min): a theme with variations that use secondary dominants, a B section
+    with the borrowed minor iv (B♭m6), a bridge that jumps a minor third to A♭ and slides home through D♭, and a
+    guide-tone counter-melody when the theme returns.
+  - *Thinking time* (timed quiz, A minor, about 1¾ min): focused and steady, with a lift into the relative major and a
+    breakdown over the ♭II (B♭).
+  - *Ten seconds* (the final countdown): the figure climbs a semitone every two bars (A, B♭, B, C minor) and lands on
+    the dominant. It lasts about 14 seconds, so it never audibly loops in the ten seconds it plays.
+  - *The reveal* (results and leaderboard, C major, about 1½ min): fanfare, two themes, a bridge on the minor iv
+    (Fm6), and the theme again a whole step up for the last chorus.
+  - *Coffee* (breaks, E♭ major, swung, about 2¾ min): a ninth-chord head, a B section on A♭m6, and a solo chorus of
+    eighth-note lines over a ii–V chain.
+
+  Chords are voice-led (each moves to the nearest notes of the next). The arrangement changes from section to section
+  (intros without drums, half-time bridges, fills and crashes into big returns), and each style voices it its own way.
+  Sound effects are short phrases in the same tonal world: good news rises to the tonic, an incorrect answer is a soft
+  falling minor second rather than a buzzer, and time is marked with bells and a woodblock. Unit tests check that
+  every bar adds up, that strong-beat melody notes and all counter-melody notes agree with the harmony, and that the
+  texture really changes. Sources: `web/src/audio/compositions.ts`, `styles.ts`, `sfx.ts`.
 - **The projector is the room's sound.** The presenter sets its level, style, volume and music from the dashboard. The
   projector computer can mute itself locally. Browsers block sound until someone clicks, so the projector shows
   "Click to turn on sound".
