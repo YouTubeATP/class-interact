@@ -2,9 +2,10 @@
 
 **Format** `classinteract.presentation` · **Schema version** `1` · **Audience** people and AI agents who write lessons as JSON
 
-This document is the complete reference for writing a ClassInteract lesson, including maths, code and chemistry, (a *presentation*) as one JSON document. It
-is written so that an agent can produce a lesson that imports on the first try: every field, limit, default and
-validation rule is listed, followed by the import API, how answers are graded, and guidance on building a good lesson.
+This document is the complete reference for writing a ClassInteract lesson (a *presentation*) as one JSON document,
+including maths, code and chemistry. It is written so that an agent can produce a lesson that imports on the first
+try and works well in a real room: what kind of thing a lesson is, how it is run, every field, limit, default and
+validation rule, the import API, how answers are graded, and guidance on building a good lesson.
 
 The source of truth is the validator in [`shared/src/schema.ts`](../shared/src/schema.ts) and
 [`shared/src/document.ts`](../shared/src/document.ts). A machine-readable JSON Schema is in
@@ -12,6 +13,36 @@ The source of truth is the validator in [`shared/src/schema.ts`](../shared/src/s
 JSON Schema cannot express the cross-field rules below (for example "the correct option must exist"), so the
 importer is the final judge. Every complete example document in this file is validated by a unit test
 (`shared/test/spec-examples.test.ts`).
+
+---
+
+## What you are making
+
+**A ClassInteract lesson is not a slide deck.** It is the script for a live, interactive session in a room: a
+projector at the front, every person answering on their own phone, and a presenter steering from a dashboard. The
+audience spends the session *doing* things: answering, voting, typing, tapping a picture, rating how sure they are.
+Content slides exist to set those moments up.
+
+| A typical slide deck | A ClassInteract lesson |
+| --- | --- |
+| Mostly text slides; the audience listens | Built around activities (quizzes, polls, word clouds, open questions, ratings, surveys); content slides lead into them |
+| Bullet points for the speaker to read out | One idea per content slide; what to say goes in `notes`, which only the presenter sees |
+| Design is positions, fonts and animations | No layout control at all: you give content and intent, the renderer and theme do the rest |
+| "Any questions?" and "Thank you" slides | Not needed: audience Q&A is open on every phone all session, and the session has its own closing screen |
+| Understanding checked by "does that make sense?" | Questions with answer keys, explanations and noted misconceptions; the presenter sees who understood, live, and can branch to a recap |
+| Over when the last slide is shown | Results, insights by concept, confidence against correctness, and before/after rounds afterwards |
+
+Rules of thumb:
+
+- Make **at least a third of the slides activities**, and don't put more than three content slides in a row.
+- Every content slide should lead to something people do or answer.
+- Each person reads activities on a **phone**: keep questions short and options scannable.
+- Don't paste lecture text into slides. Split it into short slides, and move the detail to `notes`.
+- Don't give the answer away on the slide before the question.
+- Use the lesson's teaching fields (`explanation`, `misconception`, `concepts`, `confidenceFor`, `branch`): they cost
+  nothing on screen and are what makes the session useful to the presenter.
+
+Section 2 describes how a lesson is run, for context; nothing in it is set in the JSON. Section 10 has more guidance.
 
 ---
 
@@ -61,8 +92,9 @@ To create it, send it to `POST /api/studio/presentations/import` (section 9). Th
 - A **session** is one live run of a lesson with an audience. The same lesson can be run any number of times, in any
   mode, with different session settings (section 9.8). None of that is stored in the lesson.
 
-This section explains what happens to a lesson when it is run, so the fields later in this document make sense. You do
-not control a session from the JSON; a presenter does, from the dashboard or a phone remote.
+**Background only.** This section explains how a lesson is used when it is run, so you understand what you are
+writing for and why the fields later in this document exist. None of it is set in the JSON: a presenter runs the
+session from the dashboard or a phone remote.
 
 ### 2.1 Three screens, one server
 
