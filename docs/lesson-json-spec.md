@@ -19,7 +19,11 @@ importer is the final judge. Every complete example document in this file is val
 ## What you are making
 
 **A ClassInteract lesson is not a slide deck.** It is the script for a live, interactive session in a room: a
-projector at the front, every person answering on their own phone, and a presenter steering from a dashboard. The
+projector at the front, every person answering on their own phone, and a presenter steering from a dashboard.
+If you know **Mentimeter** (Menti) or **Kahoot!**, it is the same kind of thing: people join with a code, answer live
+polls, word clouds and timed quizzes on their phones, and the results and leaderboard appear on the big screen.
+ClassInteract combines both, and adds teaching content slides (with maths, code and chemistry), more question types,
+and insights for the teacher afterwards. The
 audience spends the session *doing* things: answering, voting, typing, tapping a picture, rating how sure they are.
 Content slides exist to set those moments up.
 
