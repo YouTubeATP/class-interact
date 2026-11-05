@@ -1,6 +1,7 @@
 import { Coffee, Gauge, MessageCircleQuestion, Moon, Play, QrCode, Sun, Users, Volume2, VolumeX } from 'lucide-react';
 import { useState } from 'react';
-import type { BreakScreen, Overlay, PresenterCommand, PresenterSnapshot, ProjectorAppearance, SoundLevel } from '@classinteract/shared';
+import { SOUND_STYLES, type BreakScreen, type Overlay, type PresenterCommand, type PresenterSnapshot, type ProjectorAppearance, type SoundLevel, type SoundStyle } from '@classinteract/shared';
+import { STYLES } from '@/audio/styles';
 import { Button } from '@/components/ui/button';
 import { DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/label';
@@ -70,7 +71,7 @@ export function ScreenControls({ snap, send, compact = false }: { snap: Presente
           </Button>
         )}
       </div>
-      <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-3" data-testid="projector-settings">
+      <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2" data-testid="projector-settings">
         <label className="grid gap-1 text-xs font-semibold text-ink-2">Projector look
           <Select value={proj.appearance} onChange={(e) => setProj({ appearance: e.target.value as ProjectorAppearance })} aria-label="Projector appearance" data-testid="projector-appearance">
             <option value="theme">As designed ({session.theme.appearance === 'dark' ? 'dark' : 'light'})</option>
@@ -85,6 +86,11 @@ export function ScreenControls({ snap, send, compact = false }: { snap: Presente
             <option value="playful">Playful</option>
           </Select>
         </label>
+        <label className="grid gap-1 text-xs font-semibold text-ink-2">Sound style
+          <Select value={proj.style ?? 'bright'} onChange={(e) => setProj({ style: e.target.value as SoundStyle })} disabled={proj.sound === 'off'} aria-label="Projector sound style" data-testid="projector-style">
+            {SOUND_STYLES.map((id) => <option key={id} value={id}>{STYLES[id].label}</option>)}
+          </Select>
+        </label>
         <div className="grid gap-1 text-xs font-semibold text-ink-2">
           <span className="flex items-center justify-between">Volume <span className="tabular">{Math.round(proj.volume * 100)}%</span></span>
           <div className="flex items-center gap-2">
@@ -93,10 +99,10 @@ export function ScreenControls({ snap, send, compact = false }: { snap: Presente
           </div>
         </div>
         {proj.sound === 'playful' && (
-          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={proj.music} onChange={(e) => setProj({ music: e.target.checked })} data-testid="projector-music" /> Background music on the projector (lobby, timed quizzes, results, breaks)</label>
+          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={proj.music} onChange={(e) => setProj({ music: e.target.checked })} data-testid="projector-music" /> Background music on the projector (lobby, timed quizzes, results, breaks)</label>
         )}
         {snap.staff.permissions.includes('settings') && (
-          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.phoneSounds} onChange={(e) => void send({ cmd: 'features', patch: { phoneSounds: e.target.checked } })} data-testid="phone-sounds" /> Allow sounds on participants’ phones</label>
+          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.phoneSounds} onChange={(e) => void send({ cmd: 'features', patch: { phoneSounds: e.target.checked } })} data-testid="phone-sounds" /> Allow sounds on participants’ phones</label>
         )}
       </div>
       <p className="flex items-center gap-1.5 text-xs text-ink-3">{proj.appearance === 'dark' || (proj.appearance === 'theme' && session.theme.appearance === 'dark') ? <Moon className="size-3.5" aria-hidden /> : <Sun className="size-3.5" aria-hidden />} The projector never follows its computer’s light or dark setting; you choose here.</p>

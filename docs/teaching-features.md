@@ -147,9 +147,20 @@ QR codes and the join ticket always stay black on white.
 borrowed from other products, and the engine loads with the app (a few KB).
 
 - Levels: Off, Subtle (essential cues: start, time up, reveal, correct/incorrect, leaderboard) and Playful (adds
-  flourishes such as people joining, ticks and background music). Three sound packs. Master, effects and music
-  volumes, and mute. All settings are saved per device and kept separate for the Studio, phones and the projector.
-- **The projector is the room's sound.** The presenter sets its level, volume and music from the dashboard. The
+  flourishes such as people joining, ticks and background music). Master, effects and music volumes, and mute. All
+  settings are saved per device and kept separate for the Studio, phones and the projector.
+- **Five sound styles**, each with its own instruments, drum kit and feel: **Bright** (warm mallets and a light
+  band), **Chill** (lo-fi electric piano, swung beats, vinyl dust), **Arcade** (8-bit chiptune), **Calm** (bells and
+  pads, no drums) and **Game show** (brass stabs and punchy drums). Every style plays the same compositions and
+  sound-effect phrases, balanced to the same loudness, so changing style never changes what a sound means.
+- **The music is composed, not looped noise.** Five pieces, one per situation: *Doors open* (lobby, F major, 16
+  bars), *Thinking time* (timed quiz, A minor), *Ten seconds* (the last ten seconds, climbing towards the dominant),
+  *The reveal* (results and leaderboard, C major) and *Coffee* (breaks, a swung ninth-chord loop). Each has a written
+  melody and chord progression; the accompaniment is voice-led (each chord moves to the nearest notes of the next),
+  with a bass line and drums that each style arranges its own way. Sound effects are short phrases in the same tonal
+  world: good news rises to the tonic, an incorrect answer is a soft falling minor second rather than a buzzer, and
+  time is marked with bells and a woodblock. Sources: `web/src/audio/compositions.ts`, `styles.ts`, `sfx.ts`.
+- **The projector is the room's sound.** The presenter sets its level, style, volume and music from the dashboard. The
   projector computer can mute itself locally. Browsers block sound until someone clicks, so the projector shows
   "Click to turn on sound".
 - **Phones are quiet by default**: Subtle, never music. The presenter can turn phone sounds off for the whole session.
@@ -159,7 +170,7 @@ borrowed from other products, and the engine loads with the app (a few KB).
   merged.
 - Every sound has a visual equivalent (feedback cards, the time-up banner, badges). With "reduce motion" on, only
   essential cues play unless the person turns Playful back on.
-- Settings has a preview for every sound.
+- Settings has a preview for every sound and for every piece of music in the chosen style.
 
 ## Architecture notes
 

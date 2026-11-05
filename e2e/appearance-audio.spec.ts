@@ -117,6 +117,10 @@ test('sound: the projector asks for a click, plays accepted changes once, never 
   await expect.poll(played).toContain('joined');
   await second.context.close();
 
+  // the presenter picks the room's sound style; the projector follows
+  await dash.getByTestId('projector-style').selectOption('arcade');
+  await expect.poll(() => proj.evaluate(() => (window as any).__ciAudio.settings().style)).toBe('arcade');
+
   await dash.getByTestId('ctl-primary').click();
   await expect.poll(played).toContain('sessionStart');
   await proj.waitForTimeout(800);
@@ -190,4 +194,30 @@ test('self-paced: people work through at their own speed and the presenter sees 
   await expect(page.getByTestId('selfpaced-done')).toBeVisible();
   await expect(dash.getByTestId('sp-people')).toContainText('Ada');
   for (const x of [dash, page]) await x.context().close();
+});
+
+test('every sound style renders every piece of music and every effect cleanly, and each device keeps its own style', async ({ page }) => {
+  await page.goto('/settings');
+  await page.waitForFunction(() => (window as any).__ciAudio?.render);
+  const styles = ['bright', 'chill', 'arcade', 'calm', 'gameshow'];
+  for (const style of styles) {
+    for (const music of ['lobby', 'quiz', 'countdown', 'results', 'break']) {
+      const r = await page.evaluate(([music, style]) => (window as any).__ciAudio.render({ music }, style, 4), [music, style]);
+      expect(r.finite, `${style} ${music}`).toBe(true);
+      expect(r.peak, `${style} ${music} clips`).toBeLessThan(0.99);
+      expect(r.rms, `${style} ${music} is silent`).toBeGreaterThan(0.01);
+    }
+    for (const sfx of ['correct', 'incorrect', 'timeUp', 'podium', 'tickFinal']) {
+      const r = await page.evaluate(([sfx, style]) => (window as any).__ciAudio.render({ sfx }, style, 2), [sfx, style]);
+      expect(r.finite && r.peak < 0.99 && r.rms > 0.002, `${style} ${sfx}`).toBe(true);
+    }
+  }
+
+  // the settings page: pick a style for this device; it is saved and the music preview plays in it
+  await page.getByTestId('sound-level-playful').first().click();
+  await page.getByTestId('sound-style-chill').first().click();
+  await expect(page.getByTestId('sound-style-chill').first()).toHaveAttribute('aria-checked', 'true');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ci:sound:studio') ?? '{}').style)).toBe('chill');
+  await page.reload();
+  await expect(page.getByTestId('sound-style-chill').first()).toHaveAttribute('aria-checked', 'true');
 });

@@ -16,4 +16,13 @@ describe('sound settings', () => {
     expect(soundSettingsFor('participant').muted).toBe(false);
     expect(soundSettingsFor('projector').muted).toBe(false);
   });
+
+  it('carry an old sound-pack choice over to the matching style', () => {
+    localStorage.setItem('ci:sound:studio', JSON.stringify({ pack: 'soft' }));
+    expect(soundSettingsFor('studio').style).toBe('calm');
+    localStorage.setItem('ci:sound:studio', JSON.stringify({ pack: 'arcade' }));
+    expect(soundSettingsFor('studio').style).toBe('arcade');
+    localStorage.setItem('ci:sound:studio', JSON.stringify({ style: 'nonsense' }));
+    expect(soundSettingsFor('studio').style).toBe('bright');
+  });
 });

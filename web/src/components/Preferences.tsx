@@ -1,6 +1,9 @@
-import { Monitor, Moon, Play, Sun, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { SOUND_STYLES } from '@classinteract/shared';
+import { Monitor, Moon, Play, Square, Sun, Volume1, Volume2, VolumeX } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { audio, PACKS, type SoundId } from '@/audio/engine';
+import { audio, type MusicId, type SoundId } from '@/audio/engine';
+import { COMPOSITIONS } from '@/audio/compositions';
+import { STYLES } from '@/audio/styles';
 import { saveSoundSettings, useSoundSettings, type AudioScope, type SoundLevel } from '@/audio/settings';
 import { Button } from '@/components/ui/button';
 import { SwitchRow } from '@/components/ui/switch';
@@ -63,6 +66,26 @@ const LEVELS: { id: SoundLevel; label: string; hint: string }[] = [
   { id: 'playful', label: 'Playful', hint: 'Game-show sounds and, on the projector, music.' },
 ];
 
+const MUSIC_PREVIEW: { id: MusicId; label: string }[] = [
+  { id: 'lobby', label: 'Lobby' }, { id: 'quiz', label: 'Timed quiz' }, { id: 'countdown', label: 'Last 10 seconds' },
+  { id: 'results', label: 'Results' }, { id: 'break', label: 'Break' },
+];
+
+/** The five sound styles as a choice of cards. */
+export function SoundStylePicker({ value, onChange }: { value: string; onChange: (style: (typeof SOUND_STYLES)[number]) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Sound style" className="grid gap-2 sm:grid-cols-2" data-testid="sound-style">
+      {SOUND_STYLES.map((id) => (
+        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)} data-testid={`sound-style-${id}`}
+          className={cn('grid gap-0.5 rounded-xl border-2 p-2.5 text-left transition-colors', value === id ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-2')}>
+          <span className="font-bold">{STYLES[id].label}</span>
+          <span className="text-xs leading-snug text-ink-2">{STYLES[id].hint}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const PREVIEW: { id: SoundId; label: string }[] = [
   { id: 'sessionStart', label: 'Session start' }, { id: 'activityStart', label: 'Activity starts' }, { id: 'submit', label: 'Answer sent' },
   { id: 'tickFinal', label: 'Final seconds' }, { id: 'timeUp', label: 'Time up' }, { id: 'reveal', label: 'Answer revealed' },
@@ -83,6 +106,7 @@ function Slider({ label, value, onChange, testId }: { label: string; value: numb
 export function SoundSettingsPanel({ scope, preview = false }: { scope: AudioScope; preview?: boolean }) {
   const s = useSoundSettings(scope);
   const state = useSyncExternalStore((cb) => audio.subscribe(cb), () => audio.state(), () => 'off' as const);
+  const previewing = useSyncExternalStore((cb) => audio.subscribe(cb), () => audio.previewing(), () => false);
   const save = (p: Parameters<typeof saveSoundSettings>[1]) => { saveSoundSettings(scope, p); audio.refresh(); };
   return (
     <div className="grid gap-4" data-testid={`sound-settings-${scope}`}>
@@ -106,11 +130,10 @@ export function SoundSettingsPanel({ scope, preview = false }: { scope: AudioSco
               {s.musicEnabled && <Slider label="Music" value={s.music} onChange={(music) => save({ music })} />}
             </>
           )}
-          <label className="grid gap-1 text-sm font-semibold">Sound pack
-            <select className="h-10 rounded-control border border-line-2 bg-surface px-3 text-sm font-medium" value={s.pack} onChange={(e) => save({ pack: e.target.value as typeof s.pack })} data-testid="sound-pack">
-              {Object.entries(PACKS).map(([id, p]) => <option key={id} value={id}>{p.label}</option>)}
-            </select>
-          </label>
+          <div className="grid gap-1.5">
+            <p className="text-sm font-semibold">Sound style</p>
+            <SoundStylePicker value={s.style} onChange={(style) => { save({ style }); if (audio.previewing()) void audio.previewMusic('lobby', style); }} />
+          </div>
         </>
       )}
       {preview && (
@@ -120,6 +143,13 @@ export function SoundSettingsPanel({ scope, preview = false }: { scope: AudioSco
             {PREVIEW.map((p) => (
               <Button key={p.id} variant="secondary" size="sm" onClick={async () => { await audio.unlock(); audio.play(p.id, { force: true }); }} data-testid={`preview-${p.id}`}><Play className="size-3" aria-hidden /> {p.label}</Button>
             ))}
+          </div>
+          <p className="mt-1 text-sm font-semibold">Music <span className="font-normal text-ink-3">in the {STYLES[s.style].label} style</span></p>
+          <div className="flex flex-wrap gap-1.5">
+            {MUSIC_PREVIEW.map((m) => (
+              <Button key={m.id} variant="secondary" size="sm" title={`“${COMPOSITIONS[m.id].title}”`} onClick={() => void audio.previewMusic(m.id, s.style)} data-testid={`preview-music-${m.id}`}><Play className="size-3" aria-hidden /> {m.label}</Button>
+            ))}
+            {previewing && <Button variant="ghost" size="sm" onClick={() => audio.stopPreview()} data-testid="preview-music-stop"><Square className="size-3" aria-hidden /> Stop</Button>}
           </div>
         </div>
       )}

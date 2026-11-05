@@ -1,3 +1,4 @@
+import { SOUND_STYLES, type SoundStyle } from '@classinteract/shared';
 import { useSyncExternalStore } from 'react';
 import { store } from '@/lib/storage';
 
@@ -19,24 +20,29 @@ export interface SoundSettings {
   sfx: number;
   music: number;
   musicEnabled: boolean;
-  pack: 'classic' | 'arcade' | 'soft';
+  /** Instruments and feel; see styles.ts. */
+  style: SoundStyle;
   /** Play flourishes even when the OS asks for reduced motion (an explicit choice in Settings). */
   forcePlayful?: boolean;
 }
 
 export const DEFAULT_SOUND: Record<AudioScope, SoundSettings> = {
-  studio: { level: 'subtle', muted: false, master: 0.7, sfx: 0.8, music: 0.5, musicEnabled: false, pack: 'classic' },
+  studio: { level: 'subtle', muted: false, master: 0.7, sfx: 0.8, music: 0.5, musicEnabled: false, style: 'bright' },
   // phones: essential feedback only, quietly, and no music: the room's sound comes from the projector
-  participant: { level: 'subtle', muted: false, master: 0.5, sfx: 0.8, music: 0, musicEnabled: false, pack: 'classic' },
-  projector: { level: 'subtle', muted: false, master: 0.8, sfx: 0.8, music: 0.5, musicEnabled: false, pack: 'classic' },
+  participant: { level: 'subtle', muted: false, master: 0.5, sfx: 0.8, music: 0, musicEnabled: false, style: 'bright' },
+  projector: { level: 'subtle', muted: false, master: 0.8, sfx: 0.8, music: 0.5, musicEnabled: false, style: 'bright' },
 };
 
 const key = (scope: AudioScope) => `ci:sound:${scope}`;
 const EVENT = 'ci:sound';
 
 export function soundSettingsFor(scope: AudioScope): SoundSettings {
-  const saved = store.get<Partial<SoundSettings>>(key(scope)) ?? {};
-  const s = { ...DEFAULT_SOUND[scope], ...saved };
+  const saved = store.get<Partial<SoundSettings> & { pack?: string }>(key(scope)) ?? {};
+  const { pack, ...rest } = saved;
+  const s: SoundSettings = { ...DEFAULT_SOUND[scope], ...rest };
+  // settings saved before styles existed chose a "pack": keep the closest match
+  if (!rest.style && pack) s.style = pack === 'arcade' ? 'arcade' : pack === 'soft' ? 'calm' : 'bright';
+  if (!(SOUND_STYLES as readonly string[]).includes(s.style)) s.style = 'bright';
   if (scope === 'participant') s.musicEnabled = false;
   return s;
 }

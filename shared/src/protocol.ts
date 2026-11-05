@@ -19,6 +19,9 @@ export type Role = 'presenter' | 'projector' | 'participant';
 // ---------------------------------------------------------------------------------------
 
 export type SoundLevel = 'off' | 'subtle' | 'playful';
+/** The character of the sounds and music: instruments, drum kit and feel. The compositions are the same in every style. */
+export const SOUND_STYLES = ['bright', 'chill', 'arcade', 'calm', 'gameshow'] as const;
+export type SoundStyle = (typeof SOUND_STYLES)[number];
 export type ProjectorAppearance = 'theme' | 'light' | 'dark';
 export type PulseValue = 'got' | 'unsure' | 'lost';
 export const PULSE_VALUES: PulseValue[] = ['got', 'unsure', 'lost'];
@@ -27,6 +30,7 @@ export interface ProjectorSettings {
   /** Follow the presentation's own appearance, or force light / dark. Never follows the projector computer's OS. */
   appearance: ProjectorAppearance;
   sound: SoundLevel;
+  style: SoundStyle;
   music: boolean;
   /** 0–1 */
   volume: number;
@@ -59,7 +63,7 @@ export const DEFAULT_FEATURES: SessionFeatures = {
   teams: { enabled: false, assignment: 'auto' },
   continuity: false,
   phoneSounds: true,
-  projector: { appearance: 'theme', sound: 'subtle', music: false, volume: 0.8 },
+  projector: { appearance: 'theme', sound: 'subtle', style: 'bright', music: false, volume: 0.8 },
   selfPaced: { deadlineAt: null, reveal: 'after-close' },
   rehearsal: false,
 };
@@ -87,7 +91,7 @@ export const featuresPatchSchema = z
     teams: z.object({ enabled: z.boolean(), assignment: z.enum(['auto', 'manual']) }).partial().strict(),
     continuity: z.boolean(),
     phoneSounds: z.boolean(),
-    projector: z.object({ appearance: z.enum(['theme', 'light', 'dark']), sound: soundLevel, music: z.boolean(), volume: z.number().min(0).max(1) }).partial().strict(),
+    projector: z.object({ appearance: z.enum(['theme', 'light', 'dark']), sound: soundLevel, style: z.enum(SOUND_STYLES), music: z.boolean(), volume: z.number().min(0).max(1) }).partial().strict(),
     selfPaced: z.object({ deadlineAt: z.number().int().positive().nullable(), reveal: z.enum(['immediately', 'after-close', 'never']) }).partial().strict(),
   })
   .partial()

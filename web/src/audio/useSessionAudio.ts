@@ -13,9 +13,9 @@ export function useSessionAudio(snapshot: Snapshot | null, role: 'projector' | '
 
   // which device's settings are in force (and, for the projector, the presenter's choices from the dashboard)
   useEffect(() => {
-    if (role === 'projector' && projector) audio.configure('projector', { level: projector.sound, musicEnabled: projector.music, master: projector.volume * settings.master, muted: settings.muted });
+    if (role === 'projector' && projector) audio.configure('projector', { level: projector.sound, style: projector.style ?? 'bright', musicEnabled: projector.music, master: projector.volume * settings.master, muted: settings.muted });
     else audio.configure(scope, extra.disabled ? { level: 'off' } : null);
-  }, [role, scope, projector?.sound, projector?.music, projector?.volume, settings.master, settings.muted, extra.disabled, JSON.stringify(settings)]);
+  }, [role, scope, projector?.sound, projector?.style, projector?.music, projector?.volume, settings.master, settings.muted, extra.disabled, JSON.stringify(settings)]);
 
   useEffect(() => {
     if (!snapshot) return;
