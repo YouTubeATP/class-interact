@@ -51,18 +51,134 @@ To create it, send it to `POST /api/studio/presentations/import` (section 9). Th
 
 ---
 
-## 2. Concepts
+## 2. Concepts: lessons and sessions
 
-- A **presentation** is metadata, a theme and an ordered list of **slides** (at most 150).
+- A **presentation** (a lesson) is metadata, a theme and an ordered list of **slides** (at most 150).
 - A slide is either a **content** slide (something to show) or an **activity** that phones answer: `quiz`, `poll`,
   `wordcloud`, `open`, `rating`, `survey`.
 - The JSON describes **content and intent**, never positions or sizes. The renderer chooses a layout for the projector
   (16:9) and for phones, and shrinks text to fit.
-- The same document runs in every session mode: **standalone** (slides in order), **companion** (the presenter launches
-  activities alongside their own slides) and **self-paced** (people work through on their own until a deadline). Mode is
-  chosen when a session starts; it is not part of the document.
-- Live-session behaviour (teams, Q&A, the understanding pulse, breaks, sound, projector look) is set per session, not
-  in the document.
+- A **session** is one live run of a lesson with an audience. The same lesson can be run any number of times, in any
+  mode, with different session settings (section 9.8). None of that is stored in the lesson.
+
+This section explains what happens to a lesson when it is run, so the fields later in this document make sense. You do
+not control a session from the JSON; a presenter does, from the dashboard or a phone remote.
+
+### 2.1 Three screens, one server
+
+| Screen | Who | Sees |
+| --- | --- | --- |
+| **Dashboard** (`/session/<id>`) | The presenter, co-presenters, moderators | Everything: the slide, live counts and results, correct answers, speaker `notes`, misconceptions, branch suggestions, the participant list, Q&A, the pulse, review and moderation queues. |
+| **Projector** (`/project/<id>`) | The room | Only what the audience may see: the slide, results once shown, the answer once revealed, and a join ticket (QR code, address and PIN) in the corner. |
+| **Phones** (`/join/<pin>`) | Each participant | The current slide or activity, their own answers, and feedback and results once shown. Each phone has its own light or dark look and sound settings. |
+
+The server is the single source of truth. The presenter sends commands ("next", "open", "reveal"), the server checks
+and applies them, and every screen receives a fresh snapshot of what it is allowed to see. Answer keys, `notes`,
+`misconception`s, `concepts` and `branch` never reach the projector or phones before the reveal, and some never do.
+A refreshed or reconnected screen picks up exactly where the session is.
+
+**Starting a session copies the slides.** Editing or deleting the lesson afterwards never changes a session that is
+running or has finished, or its results.
+
+### 2.2 Joining
+
+People scan the QR code or type the six-digit PIN; no app or account is needed. They give a display name (or get a
+friendly generated one when the session doesn't collect names) and stay connected for the whole session, whatever is
+on screen. Latecomers can join at any time until the session ends and land on whatever is current. If a phone loses
+its connection, an answer tapped meanwhile is held briefly and sent when it reconnects.
+
+### 2.3 The life of a slide
+
+The session starts in the **lobby** (the projector shows the join QR and the names arriving). The presenter starts it,
+then moves through the slides. A content slide is simply shown, on the projector and on phones. An activity moves
+through these phases:
+
+```
+          enter slide                open                 close or timer               show results / reveal answer
+lobby ──▶ ready ─────(autoOpen)────▶ open ─────────────────▶ closed ─────────────────────▶ revealed ──▶ next slide
+                                       ▲                       │
+                                       └──── reopen ───────────┘          (leaving an activity marks it completed)
+```
+
+| Phase | Projector | Phones | Set by |
+| --- | --- | --- | --- |
+| `ready` | The question, not yet accepting answers | The question, marked "Get ready" | Entering an activity with `autoOpen: false` |
+| `open` | The question, a timer if `timeLimitSec` is set, a response count, and live results if `liveResults` is on | Answer controls | Entering with `autoOpen: true` (the default), or the presenter pressing Open |
+| `closed` | Responses closed; results hidden | Their answer, marked "Closed" | The presenter, or the timer: when `timeLimitSec` runs out the server closes responses itself |
+| `revealed` | Results and/or the correct answer, with the `explanation` | Right or wrong with points and the `explanation` (quizzes); results if `showResultsToParticipants` | The presenter showing results or revealing the answer (either one closes responses first) |
+| `completed` | The activity with its results | The results | Leaving an activity that ran; coming back to it later shows it here |
+| `standby` | A "back in a moment" screen with who is here | A waiting screen | Companion mode, between activities |
+| `ended` | A closing screen | A thank-you, with their score and rank if points were awarded | The presenter ending the session |
+
+How the slide fields shape this:
+
+- `autoOpen` decides whether answers open as soon as the activity appears.
+- `timeLimitSec` sets the countdown from the moment responses open.
+- `liveResults` shows results on the projector while answers arrive. Quizzes never show live results, so nobody can
+  copy the most popular answer; their results appear when the presenter shows them.
+- `showResultsToParticipants` decides whether phones also see the results once they are shown.
+- **Quiz points count once the answer is revealed.** Until then nothing reaches the leaderboard. Phones learn whether
+  they were right at the reveal, never before. `scored: false` questions never award points.
+- `speedBonus` is measured from when responses opened.
+- The leaderboard can be shown between activities, never while responses are open. With teams on, it can switch
+  between individuals and teams.
+- `branch` makes the dashboard suggest the next slide once results are in. The presenter follows it or not.
+- A typed, numeric or hotspot answer that is nearly right goes to the presenter's Review tab. Accepting it marks it
+  correct and awards the points.
+- With `moderation: "premoderate"` (word clouds and open questions), answers wait on the dashboard until approved.
+
+**Run again.** After an activity has run, the presenter can run it again as a new round: the phones start clean, and
+the round either counts for the leaderboard, is practice (no points), replaces the earlier points, or adds to them.
+The dashboard and the results page compare rounds side by side (before and after teaching, for example). So one quiz
+slide can serve as both a pre-test and a post-test.
+
+### 2.4 Modes
+
+| Mode | How the presenter moves | Use it when |
+| --- | --- | --- |
+| **Standalone** | Next and previous through the slides in order, or jump to any slide. | ClassInteract is the whole presentation. |
+| **Companion** | Launch any activity when they reach it in their own slides (Canva, PowerPoint, Google Slides), and send everyone to standby in between. Content slides are mostly unused. | The lesson's teaching lives elsewhere and only the activities run here. |
+| **Self-paced** | The presenter opens the session for responses and closes it (or a deadline does). Each person moves through the slides on their own phone, back and forth, and can skip and return. | Homework, revision, stations. |
+
+Standalone and companion can be switched mid-session. Self-paced is chosen at the start and stays. In self-paced mode
+there is no presenter-led flow and no speed bonus, a `branch` uses the person's own answer to choose their next slide, and
+whether people see right or wrong is set per session: immediately, after the session closes, or never.
+
+### 2.5 What the presenter adds live
+
+These belong to the session, not to the lesson, so they are not in the JSON. They are listed so you know what the
+presenter has available, and don't try to build them out of slides:
+
+- **Audience Q&A**: questions from phones, upvoted, optionally approved first; a question can be shown large on the
+  projector or a board of them put up.
+- **Understanding pulse**: Got it / Unsure / Lost buttons on every phone, private to the presenter unless shown.
+- **Breaks and countdowns**: a Break, Get ready or Work time screen with an optional timer, over everything, on the
+  projector and phones. The activity underneath is untouched.
+- **Projector overlays**: the full-screen join QR, the Q&A board and the pulse.
+- **Teams**, **removing a participant**, **merging similar word-cloud answers**, and the projector's look and sound.
+- **Helpers**: co-presenter and moderator links, and a phone remote.
+
+So a lesson does not need slides like "Any questions?" (Q&A is always available) or "Take a 10-minute break" (the
+presenter starts a break with a timer). A slide announcing group work with `steps` is still useful.
+
+### 2.6 After the session
+
+Ending the session closes everything, the codes stop working, and phones show a closing screen. Results stay
+available: every response per activity and round, a CSV export, and insights built from the lesson's teaching
+metadata. `concepts` group correctness by topic, `misconception`s are counted, a rating with `confidenceFor` is set
+against correctness, and repeated rounds are compared. Rehearsal sessions (simulated participants) are kept out of
+results and reports. Sessions that track progress (opt-in, per device) build a history across lessons.
+
+### 2.7 What this means when writing a lesson
+
+- Every activity is a moment where the room stops and answers; budget time for opening, answering, revealing and
+  discussing (often 1–3 minutes each).
+- The `explanation` is what everyone reads on their phone right after the reveal: make it teach.
+- Put what the presenter should say or do in `notes`; only they see it.
+- Teaching metadata (`misconception`, `concepts`, `confidenceFor`, `branch`) costs nothing on screen and powers the
+  dashboard and the insights.
+- Keep the lesson usable in any mode: activities should make sense when launched on their own (companion mode), and
+  content slides should read well on a phone (self-paced).
 
 ---
 
@@ -684,7 +800,8 @@ might change later. Writing defaults yourself is allowed but not needed.
 
 ### 9.8 Starting a session
 
-Running a lesson is not part of the document: the same lesson can be run many times, in any mode.
+Running a lesson is not part of the document: the same lesson can be run many times, in any mode (section 2 explains
+how a session runs).
 `POST /api/studio/presentations/:id/sessions` starts one and returns `201 { "id", "pin" }`. The presentation needs at
 least one slide (a self-paced session needs at least one activity).
 
