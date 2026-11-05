@@ -22,8 +22,15 @@ importer is the final judge. Every complete example document in this file is val
 projector at the front, every person answering on their own phone, and a presenter steering from a dashboard.
 If you know **Mentimeter** (Menti) or **Kahoot!**, it is the same kind of thing: people join with a code, answer live
 polls, word clouds and timed quizzes on their phones, and the results and leaderboard appear on the big screen.
-ClassInteract combines both, and adds teaching content slides (with maths, code and chemistry), more question types,
-and insights for the teacher afterwards. The
+ClassInteract combines both in one session, so:
+
+- **One QR code from start to end.** Participants scan once (or type the PIN) and stay connected through every content
+  slide, poll, word cloud and quiz until the session ends. Nobody switches tools or joins again between activities.
+- **Analytics as well as play.** Alongside Kahoot!-style timed quizzes, points and leaderboards, the presenter gets
+  results for every activity, insights by concept and misconception, confidence against correctness, before-and-after
+  rounds and a CSV export.
+
+It also adds teaching content slides (with maths, code and chemistry) and more question types. The
 audience spends the session *doing* things: answering, voting, typing, tapping a picture, rating how sure they are.
 Content slides exist to set those moments up.
 
