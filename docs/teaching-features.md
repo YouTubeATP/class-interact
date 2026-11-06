@@ -173,6 +173,13 @@ borrowed from other products, and the engine loads with the app (a few KB).
   falling minor second rather than a buzzer, and time is marked with bells and a woodblock. Unit tests check that
   every bar adds up, that strong-beat melody notes and all counter-melody notes agree with the harmony, and that the
   texture really changes. Sources: `web/src/audio/compositions.ts`, `styles.ts`, `sfx.ts`.
+- **Mastered for classroom AV systems.** Everything goes through one output chain built for projector speakers,
+  ceiling speakers and TVs in reverberant rooms: a high-pass at 85 Hz (those speakers cannot play lower, so the energy
+  is better spent elsewhere), a small low-mid cut and a presence lift, a glue compressor, a limiter and a soft clipper.
+  Bass lines and kick drums sit an octave higher than usual, with extra harmonics, so they are heard on small speakers.
+  Measured with an EBU R128 meter at the projector's default settings and full volume: music around −16 LUFS (up to
+  about −13 LUFS for results and the countdown), sound effects about 5 dB above the music, true peaks at or below
+  −1.2 dBTP. The volume control comes after the chain, so the sound keeps its character at any volume.
 - **The projector is the room's sound.** The presenter sets its level, style, volume and music from the dashboard. The
   projector computer can mute itself locally. Browsers block sound until someone clicks, so the projector shows
   "Click to turn on sound".

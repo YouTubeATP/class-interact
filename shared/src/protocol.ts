@@ -63,7 +63,7 @@ export const DEFAULT_FEATURES: SessionFeatures = {
   teams: { enabled: false, assignment: 'auto' },
   continuity: false,
   phoneSounds: true,
-  projector: { appearance: 'theme', sound: 'subtle', style: 'bright', music: false, volume: 0.8 },
+  projector: { appearance: 'theme', sound: 'subtle', style: 'bright', music: false, volume: 1 },
   selfPaced: { deadlineAt: null, reveal: 'after-close' },
   rehearsal: false,
 };

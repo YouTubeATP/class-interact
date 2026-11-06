@@ -62,14 +62,14 @@ export const STYLES: Record<SoundStyle, Style> = {
     voices: { lead: I.epiano, counter: I.pad, comp: I.epiano, pad: I.pad, bass: I.subBass }, kit: I.dusty, drums: true,
     comping: 'epiano', bassLine: 'lazy', swing: 0.62, tone: 3200, crackle: true,
     mix: { lead: 0.5, counter: 0.5, comp: 0.32, pad: 0.2, bass: 0.55, drum: 0.6 },
-    level: 0.66, sfx: { lead: I.epiano, chord: I.epiano, gain: 0.42 },
+    level: 0.66, sfx: { lead: I.epiano, chord: I.epiano, gain: 0.26 },
   },
   arcade: {
     id: 'arcade', label: 'Arcade', hint: '8-bit chiptune: pulse waves and fast arpeggios.',
     voices: { lead: I.pulse, counter: I.pulse, comp: I.pulse, pad: I.pulse, bass: I.chipBass }, kit: I.chip, drums: true,
     comping: 'chipArp', bassLine: 'octaves', swing: 0.5, tone: 9000,
     mix: { lead: 0.5, counter: 0.28, comp: 0.2, pad: 0, bass: 0.5, drum: 0.5 },
-    level: 1.26, sfx: { lead: I.pulse, chord: I.pulse, gain: 1.2 },
+    level: 1.26, sfx: { lead: I.pulse, chord: I.pulse, gain: 0.8 },
   },
   calm: {
     id: 'calm', label: 'Calm', hint: 'Soft bells and pads, no drums. For focused or quiet rooms.',

@@ -27,10 +27,10 @@ export interface SoundSettings {
 }
 
 export const DEFAULT_SOUND: Record<AudioScope, SoundSettings> = {
-  studio: { level: 'subtle', muted: false, master: 0.7, sfx: 0.8, music: 0.5, musicEnabled: false, style: 'bright' },
+  studio: { level: 'subtle', muted: false, master: 0.9, sfx: 0.8, music: 0.7, musicEnabled: false, style: 'bright' },
   // phones: essential feedback only, quietly, and no music: the room's sound comes from the projector
-  participant: { level: 'subtle', muted: false, master: 0.5, sfx: 0.8, music: 0, musicEnabled: false, style: 'bright' },
-  projector: { level: 'subtle', muted: false, master: 0.8, sfx: 0.8, music: 0.5, musicEnabled: false, style: 'bright' },
+  participant: { level: 'subtle', muted: false, master: 0.6, sfx: 0.8, music: 0, musicEnabled: false, style: 'bright' },
+  projector: { level: 'subtle', muted: false, master: 1, sfx: 0.8, music: 0.7, musicEnabled: false, style: 'bright' },
 };
 
 const key = (scope: AudioScope) => `ci:sound:${scope}`;

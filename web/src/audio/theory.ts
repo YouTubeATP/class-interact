@@ -100,8 +100,11 @@ function movement(next: number[], prev: number[]): number {
   return next.reduce((sum, n) => sum + Math.min(...prev.map((p) => Math.abs(p - n))), 0) + Math.abs(centre(next) - centre(prev));
 }
 
-/** The bass note for a chord, in the octave starting at `low` (default E1 to D#2: a clear, warm bass register). */
-export function bassNote(chord: Chord, low = 33): number {
+/**
+ * The bass note for a chord, in the octave starting at `low`. The default (E2 to D#3, 82–156 Hz) is low enough to be
+ * bass and high enough that projector, TV and ceiling speakers, which reproduce little below about 80–100 Hz, play it.
+ */
+export function bassNote(chord: Chord, low = 40): number {
   return noteAtOrAbove(chord.bass, low);
 }
 

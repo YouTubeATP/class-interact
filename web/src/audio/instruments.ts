@@ -180,15 +180,17 @@ export const pad: Voice = (ctx, out, t, midi, dur, vel) => {
 // Bass voices
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Round sub bass with a little body. */
+/** Round bass with enough upper harmonics to be heard on small speakers that cannot play its fundamental. */
 export const subBass: Voice = (ctx, out, t, midi, dur, vel) => {
   const f = midiToFreq(midi);
-  const amp = envelope(ctx, t, vel * 0.7, 0.008, 0.25, 0.6, dur * 0.92, 0.08);
+  const amp = envelope(ctx, t, vel * 0.65, 0.008, 0.25, 0.6, dur * 0.92, 0.08);
   osc(ctx, 'sine', f, t, amp.end).connect(amp.g);
-  const body = ctx.createGain();
-  body.gain.value = 0.35;
-  osc(ctx, 'triangle', f * 2, t, amp.end).connect(body);
-  body.connect(amp.g);
+  for (const [mult, level] of [[2, 0.55], [3, 0.22], [4, 0.1]] as const) {
+    const h = ctx.createGain();
+    h.gain.value = level;
+    osc(ctx, mult === 2 ? 'triangle' : 'sine', f * mult, t, amp.end).connect(h);
+    h.connect(amp.g);
+  }
   amp.g.connect(out);
 };
 
@@ -263,8 +265,9 @@ function tone(ctx: Ctx, out: AudioNode, t: number, vel: number, f: number, decay
 export type Kit = Record<DrumId, Drum>;
 
 const shared = {
-  block: (ctx: Ctx, out: AudioNode, t: number, vel: number) => { tone(ctx, out, t, vel * 0.5, 1650, 0.05); tone(ctx, out, t, vel * 0.18, 4100, 0.02); },
-  blockHigh: (ctx: Ctx, out: AudioNode, t: number, vel: number) => { tone(ctx, out, t, vel * 0.6, 2150, 0.06); tone(ctx, out, t, vel * 0.22, 5300, 0.025); },
+  // the countdown ticks: woodblock-like, in the 1.5–5 kHz range where they cut through a room
+  block: (ctx: Ctx, out: AudioNode, t: number, vel: number) => { tone(ctx, out, t, vel * 1.3, 1650, 0.06); tone(ctx, out, t, vel * 0.5, 4100, 0.025); },
+  blockHigh: (ctx: Ctx, out: AudioNode, t: number, vel: number) => { tone(ctx, out, t, vel * 1.6, 2150, 0.07); tone(ctx, out, t, vel * 0.6, 5300, 0.03); },
   roll: (ctx: Ctx, out: AudioNode, t: number, vel: number) => {
     // a short snare roll that swells into the downbeat
     for (let i = 0; i < 12; i++) noiseHit(ctx, out, t + i * 0.03, vel * (0.15 + 0.5 * (i / 11)), 'bandpass', 2400, 0.05, 0.9);
@@ -277,7 +280,8 @@ const shared = {
 
 /** Clean acoustic-ish kit. */
 export const bright: Kit = {
-  kick: (c, o, t, v) => kick(c, o, t, v, 140, 48, 0.32),
+  // kicks end around 60 Hz with a click on top, so they still thump on speakers without real low end
+  kick: (c, o, t, v) => { kick(c, o, t, v, 160, 60, 0.3); tone(c, o, t, v * 0.12, 3000, 0.006); },
   snare: (c, o, t, v) => { noiseHit(c, o, t, v * 0.45, 'bandpass', 1900, 0.16); tone(c, o, t, v * 0.25, 190, 0.08, 'triangle'); },
   hat: (c, o, t, v) => noiseHit(c, o, t, v * 0.25, 'highpass', 7500, 0.035),
   openHat: (c, o, t, v) => noiseHit(c, o, t, v * 0.22, 'highpass', 7000, 0.22),
@@ -289,7 +293,7 @@ export const bright: Kit = {
 /** Dusty lo-fi kit: soft, low-passed, a bit behind the beat. */
 export const dusty: Kit = {
   ...bright,
-  kick: (c, o, t, v) => kick(c, o, t, v * 0.85, 110, 42, 0.38),
+  kick: (c, o, t, v) => { kick(c, o, t, v * 0.85, 130, 56, 0.36); tone(c, o, t, v * 0.08, 2200, 0.008); },
   snare: (c, o, t, v) => { noiseHit(c, o, t, v * 0.3, 'bandpass', 1300, 0.2, 0.6); tone(c, o, t, v * 0.18, 170, 0.1, 'triangle'); },
   hat: (c, o, t, v) => noiseHit(c, o, t, v * 0.14, 'bandpass', 6000, 0.03, 0.7),
   openHat: (c, o, t, v) => noiseHit(c, o, t, v * 0.12, 'bandpass', 6000, 0.16, 0.7),
@@ -298,7 +302,7 @@ export const dusty: Kit = {
 /** 8-bit kit: pitched-noise percussion. */
 export const chip: Kit = {
   ...bright,
-  kick: (c, o, t, v) => kick(c, o, t, v * 0.7, 220, 50, 0.12, 'square'),
+  kick: (c, o, t, v) => kick(c, o, t, v * 0.7, 240, 65, 0.12, 'square'),
   snare: (c, o, t, v) => noiseHit(c, o, t, v * 0.4, 'lowpass', 5200, 0.1),
   hat: (c, o, t, v) => noiseHit(c, o, t, v * 0.18, 'highpass', 9000, 0.02),
   openHat: (c, o, t, v) => noiseHit(c, o, t, v * 0.16, 'highpass', 8500, 0.09),
@@ -309,6 +313,6 @@ export const chip: Kit = {
 /** Big, punchy kit for the game-show style. */
 export const punchy: Kit = {
   ...bright,
-  kick: (c, o, t, v) => { kick(c, o, t, v * 1.05, 160, 45, 0.3); tone(c, o, t, v * 0.15, 2600, 0.008); },
+  kick: (c, o, t, v) => { kick(c, o, t, v * 1.05, 180, 60, 0.3); tone(c, o, t, v * 0.15, 2600, 0.008); },
   snare: (c, o, t, v) => { noiseHit(c, o, t, v * 0.55, 'bandpass', 2100, 0.17); tone(c, o, t, v * 0.3, 210, 0.07, 'triangle'); },
 };

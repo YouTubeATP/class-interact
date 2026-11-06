@@ -88,7 +88,7 @@ describe('styles', () => {
         expect(Number.isFinite(e.beat) && e.beat >= 0 && e.beat < total, `${e.part} at ${e.beat}`).toBe(true);
         expect(e.vel).toBeGreaterThan(0);
         if (e.part === 'bass') expect(e.midi).toBeGreaterThanOrEqual(28);
-        if (e.part === 'bass') expect(e.midi).toBeLessThanOrEqual(60);
+        if (e.part === 'bass') expect(e.midi).toBeLessThanOrEqual(64);
         if (e.part === 'comp' || e.part === 'pad') expect(e.midi).toBeGreaterThanOrEqual(48);
       }
       // the texture changes between sections: some sections have no drums, some build up with fills and crashes

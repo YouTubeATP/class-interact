@@ -10,7 +10,8 @@
  * (styles.ts, instruments.ts) and the sound-effect phrases (sfx.ts).
  */
 import type { SoundStyle } from '@classinteract/shared';
-import { soundSettingsFor, type AudioScope, type SoundSettings } from './settings';
+import { DEFAULT_SOUND, soundSettingsFor, type AudioScope, type SoundSettings } from './settings';
+import { masterChain } from './mastering';
 import { SFX } from './sfx';
 import { arrangement, STYLES, type MusicEvent, type Style } from './styles';
 
@@ -41,6 +42,7 @@ class AudioEngine {
   private sfxBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
   private duck: GainNode | null = null;
+  private mix: AudioNode | null = null;
   private scope: AudioScope = 'participant';
   private override: Partial<SoundSettings> | null = null;
   private lastPlayed = new Map<SoundId, number>();
@@ -116,14 +118,13 @@ class AudioEngine {
     this.sfxBus = ctx.createGain();
     this.musicBus = ctx.createGain();
     this.duck = ctx.createGain();
-    const comp = ctx.createDynamicsCompressor(); // keeps everything at a calm, even loudness
-    comp.threshold.value = -18;
-    comp.ratio.value = 4;
-    this.sfxBus.connect(this.master);
+    // effects and music meet in the mastering chain (shaped for classroom AV systems); the volume comes after it,
+    // so the sound has the same character at any volume
+    this.mix = masterChain(ctx, this.master);
+    this.sfxBus.connect(this.mix);
     this.musicBus.connect(this.duck);
-    this.duck.connect(this.master);
-    this.master.connect(comp);
-    comp.connect(ctx.destination);
+    this.duck.connect(this.mix);
+    this.master.connect(ctx.destination);
     ctx.onstatechange = () => this.emit();
     this.applyVolumes();
     return ctx;
@@ -231,10 +232,10 @@ class AudioEngine {
   async previewMusic(id: MusicId, style: SoundStyle, seconds = 12): Promise<void> {
     this.preview?.();
     const ctx = this.ensure();
-    if (!ctx || !this.master) return;
+    if (!ctx || !this.mix) return;
     if (ctx.state !== 'running') await ctx.resume().catch(() => undefined);
     if (ctx.state !== 'running') return;
-    const stop = this.startTrack(ctx, id, style, this.master);
+    const stop = this.startTrack(ctx, id, style, this.mix);
     const timer = setTimeout(() => this.preview?.(), seconds * 1000);
     this.preview = () => { clearTimeout(timer); stop(); this.preview = null; this.emit(); };
     this.emit();
@@ -271,7 +272,8 @@ class AudioEngine {
   }
 }
 
-const MUSIC_LEVEL = 0.32;
+/** Music level into the mastering chain: about −16 LUFS at default settings, so effects stand clear above it. */
+const MUSIC_LEVEL = 0.17;
 
 function toWavBase64(samples: Float32Array, rate: number): string {
   const buf = new ArrayBuffer(44 + samples.length * 2);
@@ -330,17 +332,19 @@ function playSfx(ctx: BaseAudioContext, dest: AudioNode, t0: number, id: SoundId
 export async function renderOffline(what: { music: MusicId } | { sfx: SoundId }, style: SoundStyle, seconds: number): Promise<Float32Array> {
   const rate = 44100;
   const ctx = new OfflineAudioContext(1, Math.ceil(rate * seconds), rate);
-  const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -18;
-  comp.ratio.value = 4;
-  comp.connect(ctx.destination);
+  // the projector's signal path at its default settings and full volume: bus levels, then the mastering chain
+  const defaults = DEFAULT_SOUND.projector;
+  const mix = masterChain(ctx, ctx.destination);
+  const bus = ctx.createGain();
+  bus.gain.value = 'music' in what ? defaults.music : defaults.sfx;
+  bus.connect(mix);
   if ('music' in what) {
-    const out = musicChain(ctx, comp, style);
+    const out = musicChain(ctx, bus, style);
     out.gain.value = MUSIC_LEVEL * STYLES[style].level;
     const { events, beats, bpm } = arrangement(what.music, style);
     const spb = 60 / bpm;
     scheduleEvents(ctx, out, events, beats, 0, seconds / spb, 0.05, spb, STYLES[style]);
-  } else playSfx(ctx, comp, 0.02, what.sfx, style);
+  } else playSfx(ctx, bus, 0.02, what.sfx, style);
   const buf = await ctx.startRendering();
   return buf.getChannelData(0);
 }
