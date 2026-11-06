@@ -63,5 +63,8 @@ describe('background music', () => {
     expect(musicFor(snap({ phase: 'open', deadlineAt: 30_000 }, { activity: quiz }), 25_000)).toBe('countdown');
     expect(musicFor(snap({ phase: 'open', breakScreen: { kind: 'break' } }), 0)).toBe('break');
     expect(musicFor(snap({ phase: 'open' }, { activity: { id: 'p', type: 'poll' } }), 0)).toBeNull();
+    // the session's end has its own piece, even with the final podium on screen
+    expect(musicFor(snap({ phase: 'ended' }), 0)).toBe('ended');
+    expect(musicFor(snap({ phase: 'ended', leaderboardVisible: true }), 0)).toBe('ended');
   });
 });

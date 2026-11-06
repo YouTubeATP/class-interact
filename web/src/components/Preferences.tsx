@@ -68,7 +68,7 @@ const LEVELS: { id: SoundLevel; label: string; hint: string }[] = [
 
 const MUSIC_PREVIEW: { id: MusicId; label: string }[] = [
   { id: 'lobby', label: 'Lobby' }, { id: 'quiz', label: 'Timed quiz' }, { id: 'countdown', label: 'Last 10 seconds' },
-  { id: 'results', label: 'Results' }, { id: 'break', label: 'Break' },
+  { id: 'results', label: 'Results' }, { id: 'break', label: 'Break' }, { id: 'ended', label: 'Session end' },
 ];
 
 /** The five sound styles as a choice of cards. */

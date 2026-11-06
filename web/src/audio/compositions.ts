@@ -34,6 +34,10 @@ export interface Texture {
   fill?: boolean;
   /** A cymbal crash on the first beat of the section. */
   crash?: boolean;
+  /** "HKUST" tapped in Morse code on a woodblock from the first bar (and again halfway through long sections). */
+  morse?: boolean;
+  /** Sea waves under the section, one every two bars. */
+  surf?: boolean;
 }
 
 export interface Section {
@@ -286,7 +290,31 @@ const breakTime: Composition = {
   ],
 };
 
-export const COMPOSITIONS: Record<MusicId, Composition> = { lobby, quiz, countdown, results, break: breakTime };
+// ---------------------------------------------------------------------------------------------------------------
+// Encore: the session has ended. A major, about 1½ minutes, warm and unhurried while people read their results.
+// Intro → theme → B in the relative minor, with the borrowed minor iv (Dm6), the wistful "goodbye" chord →
+// theme with counter-melody → a plagal coda, D – Dm6 – A, the minor iv softening the final cadence.
+// ---------------------------------------------------------------------------------------------------------------
+
+const ENCORE_THEME = { chords: 'A | C#m7 | Dmaj7 | E7 | F#m7 | Bm7 | Dmaj7 E7 | A', melody: 'E5:1 A5:1 C#6:1.5 B5:.5 | G#5:2 E5:1 C#5:1 | F#5:1.5 E5:.5 D5:1 C#5:1 | B4:2 D5:1 E5:1 | A5:1 C#6:1 E5:2 | D6:1.5 C#6:.5 B5:2 | A5:2 G#5:2 | A5:4' };
+const encore: Composition = {
+  id: 'ended',
+  title: 'Encore',
+  bpm: 84,
+  sections: [
+    { name: 'intro', chords: 'A | F#m7 | Dmaj7 | E7sus4 E7', texture: { drums: 'light', pad: true } },
+    { name: 'theme', ...ENCORE_THEME, texture: { drums: 'light' } },
+    {
+      name: 'b', chords: 'F#m | Dmaj7 | Bm7 | E7 | Dmaj7 | Dm6 | C#m7 F#7 | Bm7 E7',
+      melody: 'C#6:2 A5:1 F#5:1 | A5:2 C#6:2 | D6:1 B5:1 F#5:2 | G#5:3 r:1 | F#5:2 A5:2 | F5:2 B5:2 | E5:2 A#5:2 | D5:2 B4:1 G#4:1',
+      texture: { drums: 'half', pad: true, fill: true },
+    },
+    { name: 'theme with counter-melody', ...ENCORE_THEME, counter: 'C#5:4 | B4:4 | A4:4 | G#4:4 | A4:4 | A4:4 | A4:2 G#4:2 | A4:4', texture: { drums: 'groove', crash: true, fill: true } },
+    { name: 'plagal coda', chords: 'D | Dm6 | A | A', melody: 'F#5:4 | F5:4 | E5:4 | A4:4', texture: { drums: 'none', pad: true, comp: false } },
+  ],
+};
+
+export const COMPOSITIONS: Record<MusicId, Composition> = { lobby, quiz, countdown, results, break: breakTime, ended: encore };
 
 /** A section with its notation resolved, placed at `start` beats into the piece. */
 export interface ResolvedSection {

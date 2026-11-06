@@ -7,6 +7,10 @@
  */
 import type { SoundStyle } from '@classinteract/shared';
 import { COMPOSITIONS, loopBeats, resolve, type Composition, type Energy } from './compositions';
+import { HKUST_COMPOSITIONS, MORSE_HKUST } from './compositions-hkust';
+import type { SfxDef } from './sfx';
+import { HKUST_SFX } from './sfx';
+import type { SoundId } from './engine';
 import type { MusicId } from './engine';
 import * as I from './instruments';
 import { bassNote, parseChord, voiceChord } from './theory';
@@ -22,8 +26,8 @@ export interface MusicEvent {
   drum?: I.DrumId;
 }
 
-type Comping = 'mallets' | 'epiano' | 'chipArp' | 'pad' | 'brass';
-type BassLine = 'walk' | 'lazy' | 'octaves' | 'whole' | 'pump';
+type Comping = 'mallets' | 'epiano' | 'chipArp' | 'pad' | 'brass' | 'orchestra';
+type BassLine = 'walk' | 'lazy' | 'octaves' | 'whole' | 'pump' | 'march';
 
 export interface Style {
   id: SoundStyle;
@@ -47,6 +51,13 @@ export interface Style {
   crackle?: boolean;
   /** Overall music level, so every style plays at about the same loudness (measured by rendering each piece). */
   level: number;
+  /** Music of its own instead of the shared compositions. */
+  compositions?: Record<MusicId, Composition>;
+  /** Its own sound effects (a complete set) instead of the shared ones. */
+  sfxDefs?: Record<SoundId, SfxDef>;
+  /** Its own drum patterns and section fill. */
+  patterns?: Record<Energy, Pattern>;
+  fill?: Pattern;
 }
 
 export const STYLES: Record<SoundStyle, Style> = {
@@ -84,6 +95,14 @@ export const STYLES: Record<SoundStyle, Style> = {
     comping: 'brass', bassLine: 'pump', swing: 0.5, tone: 9000,
     mix: { lead: 0.5, counter: 0.45, comp: 0.3, pad: 0.22, bass: 0.5, drum: 0.65 },
     level: 0.76, sfx: { lead: I.brass, chord: I.brass, gain: 0.92 },
+  },
+  hkust: {
+    id: 'hkust', label: 'HKUST', hint: 'A set of its own for HKUST: orchestral pieces on the anthem’s melodies, the sea at Clear Water Bay, HKUST spelled in notes and Morse, and effects to match.',
+    voices: { lead: I.trumpet, counter: I.horn, comp: I.pluck, pad: I.strings, bass: I.pluckBass }, kit: I.orchestral, drums: true,
+    comping: 'orchestra', bassLine: 'march', swing: 0.5, tone: 8000,
+    mix: { lead: 0.55, counter: 0.5, comp: 0.26, pad: 0.55, bass: 0.5, drum: 0.6 },
+    level: 0.86, sfx: { lead: I.trumpet, chord: I.strings, gain: 0.8 },
+    compositions: HKUST_COMPOSITIONS, sfxDefs: HKUST_SFX,
   },
 };
 
@@ -126,6 +145,18 @@ const FILL: Pattern = {
 };
 const SECTION_LEVEL: Record<Energy, number> = { none: 0.8, light: 0.88, half: 0.9, groove: 1, drive: 1.05 };
 
+/** HKUST: orchestral percussion. Timpani on the strong beats, a march snare with pickups, a shaker for time. */
+const sixteenths = (vel: (s: number) => number): Hits => Array.from({ length: 16 }, (_, s): [number, number] => [s, vel(s)]);
+STYLES.hkust.patterns = {
+  none: {},
+  light: { kick: [[0, 0.55]], hat: sixteenths((s) => (s % 4 === 0 ? 0.22 : s % 2 ? 0.1 : 0.15)) },
+  half: { kick: [[0, 0.75], [8, 0.5]], snare: [[8, 0.45]], hat: [0, 2, 4, 6, 8, 10, 12, 14].map((s): [number, number] => [s, 0.16]) },
+  groove: { kick: [[0, 0.85], [8, 0.7]], snare: [[4, 0.55], [12, 0.6], [14, 0.25], [15, 0.32]], hat: [0, 2, 4, 6, 8, 10, 12, 14].map((s): [number, number] => [s, s % 4 ? 0.14 : 0.22]) },
+  drive: { kick: [[0, 1], [4, 0.65], [8, 0.95], [12, 0.65]], snare: sixteenths((s) => (s % 8 === 4 ? 0.7 : s % 2 ? 0.12 : 0.2)), hat: [0, 4, 8, 12].map((s): [number, number] => [s, 0.25]) },
+};
+/** A timpani roll that swells into the next section. */
+STYLES.hkust.fill = { kick: [[0, 0.8], ...Array.from({ length: 8 }, (_, i): [number, number] => [8 + i, 0.35 + i * 0.07])], snare: [[12, 0.3], [14, 0.4]] };
+
 // ---------------------------------------------------------------------------------------------------------------
 // The arranger
 // ---------------------------------------------------------------------------------------------------------------
@@ -158,7 +189,7 @@ export function arrange(composition: Composition, style: Style): MusicEvent[] {
       const long = beats >= 4;
 
       if (tex.pad || quiet) for (const n of v) push({ beat: t, beats, part: 'pad', midi: n, vel: 0.32 * level });
-      if (tex.comp !== false) comp(style, v, t, beats, long, level, push);
+      if (tex.comp !== false) comp(style, v, t, beats, long, level, push, tex.drums);
       else if (!tex.pad && !quiet) for (const n of v) push({ beat: t, beats, part: 'pad', midi: n, vel: 0.3 * level });
 
       if (tex.bass !== false) {
@@ -170,7 +201,7 @@ export function arrange(composition: Composition, style: Style): MusicEvent[] {
 
     // drums
     const energy: Energy = style.drums ? tex.drums : tex.drums === 'drive' ? 'light' : 'none';
-    const pattern: Pattern = style.drums ? PATTERNS[energy] : energy === 'light' ? { hat: [[0, 0.3], [4, 0.25], [8, 0.3], [12, 0.25]] } : {};
+    const pattern: Pattern = style.drums ? (style.patterns ?? PATTERNS)[energy] : energy === 'light' ? { hat: [[0, 0.3], [4, 0.25], [8, 0.3], [12, 0.25]] } : {};
     const barsInSection = sec.beats / 4;
     for (let bar = 0; bar < barsInSection; bar++) {
       const at = sec.start + bar * 4;
@@ -178,10 +209,16 @@ export function arrange(composition: Composition, style: Style): MusicEvent[] {
       for (const [drum, hits] of Object.entries(pattern) as [I.DrumId, Hits][]) {
         for (const [step, vel] of hits) if (!(fillBar && step >= 8)) push({ beat: at + step / 4, beats: 0.25, part: 'drum', midi: 0, drum, vel: vel * level });
       }
-      if (fillBar) for (const [drum, hits] of Object.entries(FILL) as [I.DrumId, Hits][]) for (const [step, vel] of hits) if (step >= 8) push({ beat: at + step / 4, beats: 0.25, part: 'drum', midi: 0, drum, vel });
+      if (fillBar) for (const [drum, hits] of Object.entries(style.fill ?? FILL) as [I.DrumId, Hits][]) for (const [step, vel] of hits) if (step >= 8) push({ beat: at + step / 4, beats: 0.25, part: 'drum', midi: 0, drum, vel });
       if (style.crackle) push({ beat: at, beats: 4, part: 'drum', midi: 0, drum: 'crackle', vel: 1 });
     }
     if (tex.crash && style.drums) push({ beat: sec.start, beats: 2, part: 'drum', midi: 0, drum: 'crash', vel: 0.6 });
+    if (tex.morse) {
+      for (const at of barsInSection >= 8 ? [0, sec.beats / 2] : [0]) {
+        for (const [step, dash] of MORSE_HKUST) push({ beat: sec.start + at + step / 4, beats: 0.25, part: 'drum', midi: 0, drum: dash ? 'blockHigh' : 'block', vel: dash ? 0.55 : 0.45 });
+      }
+    }
+    if (tex.surf) for (let b = 0; b < sec.beats; b += 8) push({ beat: sec.start + b, beats: 8, part: 'drum', midi: 0, drum: 'surf', vel: 1 });
   }
 
   // swing the off-beat eighths
@@ -191,7 +228,7 @@ export function arrange(composition: Composition, style: Style): MusicEvent[] {
 
 type Push = (e: MusicEvent) => void;
 
-function comp(style: Style, v: number[], t: number, beats: number, long: boolean, level: number, push: Push) {
+function comp(style: Style, v: number[], t: number, beats: number, long: boolean, level: number, push: Push, energy: Energy) {
   switch (style.comping) {
     case 'mallets':
       for (let b = 0.5, k = 0; b < beats; b += 1, k++) push({ beat: t + b, beats: 0.5, part: 'comp', midi: v[k % v.length] + 12, vel: 0.3 * level });
@@ -209,6 +246,25 @@ function comp(style: Style, v: number[], t: number, beats: number, long: boolean
       for (const n of v) push({ beat: t, beats, part: 'comp', midi: n, vel: 0.6 * level });
       push({ beat: t, beats, part: 'pad', midi: v[v.length - 1] + 12, vel: 0.25 * level });
       break;
+    case 'orchestra': {
+      // strings hold the harmony; what moves over them depends on the section
+      for (const n of v) push({ beat: t, beats, part: 'pad', midi: n, vel: 0.45 * level });
+      if (energy === 'none' || energy === 'light') {
+        // harp: arpeggios rising through two octaves in eighths, falling back on the last beat
+        const up = [...v, ...v.map((n) => n + 12)];
+        for (let b = 0, k = 0; b < beats; b += 0.5, k++) push({ beat: t + b, beats: 0.9, part: 'comp', midi: up[b >= beats - 1 ? up.length - 1 - (k % up.length) : k % up.length], vel: (k % 4 === 0 ? 0.38 : 0.28) * level });
+      } else if (energy === 'half') {
+        // harp on the beat, low and spacious
+        for (let b = 0, k = 0; b < beats; b += 1, k++) push({ beat: t + b, beats: 1.4, part: 'comp', midi: v[k % v.length], vel: 0.32 * level });
+      } else if (energy === 'groove') {
+        // pizzicato ostinato: bass of the chord on the beat, the upper notes on the off-beats
+        for (let b = 0, k = 0; b < beats; b += 0.5, k++) push({ beat: t + b, beats: 0.3, part: 'comp', midi: k % 2 ? v[1 + (Math.floor(k / 2) % (v.length - 1))] + 12 : v[0], vel: (k % 2 ? 0.26 : 0.34) * level });
+      } else {
+        // driving sixteenths on the two lowest notes, accented on each beat
+        for (let b = 0, k = 0; b < beats; b += 0.25, k++) push({ beat: t + b, beats: 0.18, part: 'comp', midi: v[k % 2], vel: (k % 4 === 0 ? 0.4 : 0.24) * level });
+      }
+      break;
+    }
     case 'brass':
       for (const [b, len, vel] of (long ? [[0, 0.45, 0.85], [1.5, 0.4, 0.6], [3, 0.6, 0.75]] : [[0, 0.45, 0.85], [1.5, 0.4, 0.6]]) as [number, number, number][]) {
         for (const n of v) push({ beat: t + b, beats: len, part: 'comp', midi: n + 12, vel: vel * level });
@@ -233,6 +289,11 @@ function bass(line: BassLine, root: number, approach: number, t: number, beats: 
     case 'whole':
       note(0, beats - 0.1, root, 0.7);
       break;
+    case 'march':
+      // root on one, fifth on three, an eighth-note pickup into the next chord
+      if (long) { note(0, 1.5, root, 0.9); note(2, 1.3, root + 7, 0.7); note(3.5, 0.45, approach, 0.6); }
+      else { note(0, 1.3, root, 0.9); note(1.5, 0.45, approach, 0.6); }
+      break;
     case 'pump':
       for (let b = 0, k = 0; b < beats; b += 0.5, k++) note(b, 0.4, root + (b % 2 === 1.5 ? 12 : 0), k % 2 ? 0.55 : 0.85);
       break;
@@ -240,8 +301,12 @@ function bass(line: BassLine, root: number, approach: number, t: number, beats: 
 }
 
 const cache = new Map<string, MusicEvent[]>();
+export function compositionFor(id: MusicId, style: SoundStyle): Composition {
+  return STYLES[style].compositions?.[id] ?? COMPOSITIONS[id];
+}
+
 export function arrangement(id: MusicId, style: SoundStyle): { events: MusicEvent[]; beats: number; bpm: number } {
-  const c = COMPOSITIONS[id];
+  const c = compositionFor(id, style);
   const key = `${id}:${style}`;
   if (!cache.has(key)) cache.set(key, arrange(c, STYLES[style]));
   return { events: cache.get(key)!, beats: loopBeats(c), bpm: c.bpm * (style === 'calm' ? 0.92 : 1) };

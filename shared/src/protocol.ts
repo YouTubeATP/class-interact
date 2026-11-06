@@ -19,8 +19,8 @@ export type Role = 'presenter' | 'projector' | 'participant';
 // ---------------------------------------------------------------------------------------
 
 export type SoundLevel = 'off' | 'subtle' | 'playful';
-/** The character of the sounds and music: instruments, drum kit and feel. The compositions are the same in every style. */
-export const SOUND_STYLES = ['bright', 'chill', 'arcade', 'calm', 'gameshow'] as const;
+/** The character of the sounds and music: instruments, drum kit and feel. HKUST also has its own compositions. */
+export const SOUND_STYLES = ['bright', 'chill', 'arcade', 'calm', 'gameshow', 'hkust'] as const;
 export type SoundStyle = (typeof SOUND_STYLES)[number];
 export type ProjectorAppearance = 'theme' | 'light' | 'dark';
 export type PulseValue = 'got' | 'unsure' | 'lost';

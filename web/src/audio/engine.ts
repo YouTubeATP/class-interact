@@ -21,7 +21,7 @@ export type SoundId =
   | 'results' | 'points' | 'leaderboard' | 'rankUp' | 'podium'
   | 'poll' | 'word' | 'survey' | 'question' | 'upvote' | 'breakStart' | 'breakEnd' | 'joined' | 'allAnswered';
 
-export type MusicId = 'lobby' | 'quiz' | 'countdown' | 'results' | 'break';
+export type MusicId = 'lobby' | 'quiz' | 'countdown' | 'results' | 'break' | 'ended';
 
 /** essential: plays at "subtle" and "playful"; flourish: "playful" only. */
 const IMPORTANCE: Record<SoundId, 'essential' | 'flourish'> = {
@@ -318,7 +318,7 @@ function scheduleEvents(ctx: BaseAudioContext, out: AudioNode, events: MusicEven
 /** Plays one sound effect into `dest` at `t0` with the style's instruments. */
 function playSfx(ctx: BaseAudioContext, dest: AudioNode, t0: number, id: SoundId, styleId: SoundStyle) {
   const style = STYLES[styleId];
-  const def = SFX[id];
+  const def = style.sfxDefs?.[id] ?? SFX[id];
   const g = def.gain * style.sfx.gain;
   for (const [midi, at, len, level = 1] of def.notes ?? []) style.sfx.lead(ctx, dest, t0 + at, midi, len, g * level);
   for (const [notes, at, len, level = 1] of def.chords ?? []) for (const n of notes) style.sfx.chord(ctx, dest, t0 + at, n, len, (g * level) / Math.sqrt(notes.length));

@@ -149,11 +149,32 @@ borrowed from other products, and the engine loads with the app (a few KB).
 - Levels: Off, Subtle (essential cues: start, time up, reveal, correct/incorrect, leaderboard) and Playful (adds
   flourishes such as people joining, ticks and background music). Master, effects and music volumes, and mute. All
   settings are saved per device and kept separate for the Studio, phones and the projector.
-- **Five sound styles**, each with its own instruments, drum kit and feel: **Bright** (warm mallets and a light
-  band), **Chill** (lo-fi electric piano, swung beats, vinyl dust), **Arcade** (8-bit chiptune), **Calm** (bells and
-  pads, no drums) and **Game show** (brass stabs and punchy drums). Every style plays the same compositions and
-  sound-effect phrases, balanced to the same loudness, so changing style never changes what a sound means.
-- **The music is composed in sections, not looped noise.** Five pieces, one per situation, each one to three minutes
+- **Six sound styles.** Five share the same compositions, each with its own instruments, drum kit and feel:
+  **Bright** (warm mallets and a light band), **Chill** (lo-fi electric piano, swung beats, vinyl dust), **Arcade**
+  (8-bit chiptune), **Calm** (bells and pads, no drums) and **Game show** (brass stabs and punchy drums).
+- **HKUST is a set of its own.** It shares nothing with the other five: six orchestral pieces (trumpet, horns,
+  strings, harp, pizzicato, timpani), its own arrangements and percussion, and its own version of every one of the 29
+  sound effects. It is built on material from and about the university:
+  - two leitmotifs from the HKUST University Anthem (melody by Prof. Kelvin Yuen, 2023, © HKUST), quoted at the
+    anthem's own rhythm: the opening *call* (F♯ G, A · A A, E E F♯, D C♯ D E) and the *climb* (D D G F♯ G G B, down
+    through A F♯ F♯ E D D B, turning up C♯ D). They were transcribed from the official recording: the voices separated
+    from the accompaniment (Demucs), each sung note's onset detected and its pitch taken from a pYIN pitch track, and
+    the onsets quantized to the beat. Only these two short phrases are quoted, inside original music;
+  - "HKUST" spelled in notes with German letter names (H = B♮, S = E♭): B–D–G–E♭–F. In D major the E♭ is the
+    Neapolitan chord, which colours every bridge. It is also spelled in Morse code (···· −·− ··− ··· −) on a
+    woodblock;
+  - the lobby at 91 beats a minute for 1991, sea waves for Clear Water Bay, and titles from campus life: *Atrium*
+    (lobby, D major, about 1¾ min), *Problem set* (quiz, D minor, the motifs in the minor), *Ten seconds* (countdown,
+    the call's turn climbing a step every bar), *Piazza* (results: a fanfare, a procession on the climb, a trio in G
+    and the procession again a step higher), *Clear Water Bay* (break, about 2 min) and *Commencement* (session end).
+  - *Commencement* is in A major: the call becomes a hymn in A, the climb follows, the music turns home to the
+    anthem's D, and it ends with a plagal "amen" cadence from D to A.
+
+  Its effects come from the same motifs: the session opens with the call and signs off with the cryptogram, a
+  correct answer is the climb's closing B–C♯–D, an incorrect one is the cryptogram's E♭ sinking to D, the winner gets
+  the whole climb, and a break begins with G–E♭–D. All styles are balanced to the same loudness, so changing style
+  never changes the volume.
+- **The music is composed in sections, not looped noise.** Six pieces, one per situation, each one to three minutes
   long before it repeats:
   - *Doors open* (lobby, F major, about 2¼ min): a theme with variations that use secondary dominants, a B section
     with the borrowed minor iv (B♭m6), a bridge that jumps a minor third to A♭ and slides home through D♭, and a
@@ -166,6 +187,8 @@ borrowed from other products, and the engine loads with the app (a few KB).
     (Fm6), and the theme again a whole step up for the last chorus.
   - *Coffee* (breaks, E♭ major, swung, about 2¾ min): a ninth-chord head, a B section on A♭m6, and a solo chorus of
     eighth-note lines over a ii–V chain.
+  - *Encore* (the end of the session, A major, about 1½ min): a slower, warmer goodbye with its own theme, a B section,
+    the theme again with a counter-melody, and a plagal coda that settles on A.
 
   Chords are voice-led (each moves to the nearest notes of the next). The arrangement changes from section to section
   (intros without drums, half-time bridges, fills and crashes into big returns), and each style voices it its own way.

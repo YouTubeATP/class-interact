@@ -199,15 +199,15 @@ test('self-paced: people work through at their own speed and the presenter sees 
 test('every sound style renders every piece of music and every effect cleanly, and each device keeps its own style', async ({ page }) => {
   await page.goto('/settings');
   await page.waitForFunction(() => (window as any).__ciAudio?.render);
-  const styles = ['bright', 'chill', 'arcade', 'calm', 'gameshow'];
+  const styles = ['bright', 'chill', 'arcade', 'calm', 'gameshow', 'hkust'];
   for (const style of styles) {
-    for (const music of ['lobby', 'quiz', 'countdown', 'results', 'break']) {
+    for (const music of ['lobby', 'quiz', 'countdown', 'results', 'break', 'ended']) {
       const r = await page.evaluate(([music, style]) => (window as any).__ciAudio.render({ music }, style, 4), [music, style]);
       expect(r.finite, `${style} ${music}`).toBe(true);
       expect(r.peak, `${style} ${music} clips`).toBeLessThan(0.99);
       expect(r.rms, `${style} ${music} is silent`).toBeGreaterThan(0.01);
     }
-    for (const sfx of ['correct', 'incorrect', 'timeUp', 'podium', 'tickFinal']) {
+    for (const sfx of ['sessionStart', 'correct', 'incorrect', 'timeUp', 'podium', 'tickFinal', 'sessionEnd']) {
       const r = await page.evaluate(([sfx, style]) => (window as any).__ciAudio.render({ sfx }, style, 2), [sfx, style]);
       expect(r.finite && r.peak < 0.99 && r.rms > 0.002, `${style} ${sfx}`).toBe(true);
     }

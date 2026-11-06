@@ -857,7 +857,7 @@ least one slide (a self-paced session needs at least one activity).
 | `features.teams` | `{ "enabled": false, "assignment": "auto" }` | `auto` shares people out evenly; `manual` lets the presenter place them. |
 | `features.continuity` | `false` | Offer the opt-in "remember me" for progress across sessions. |
 | `features.phoneSounds` | `true` | Whether phones may play sounds at all. |
-| `features.projector` | `{ "appearance": "theme", "sound": "subtle", "style": "bright", "music": false, "volume": 0.8 }` | `appearance`: `theme` (as the lesson's theme says), `light` or `dark`. `sound`: `off`, `subtle` or `playful`. `style`: `bright`, `chill`, `arcade`, `calm` or `gameshow`. `volume` 0–1. |
+| `features.projector` | `{ "appearance": "theme", "sound": "subtle", "style": "bright", "music": false, "volume": 0.8 }` | `appearance`: `theme` (as the lesson's theme says), `light` or `dark`. `sound`: `off`, `subtle` or `playful`. `style`: `bright`, `chill`, `arcade`, `calm`, `gameshow` or `hkust`. `volume` 0–1. |
 | `features.selfPaced` | `{ "deadlineAt": null, "reveal": "after-close" }` | `deadlineAt`: a time in milliseconds since 1970 (UTC), or `null`. `reveal`: `immediately`, `after-close` or `never`. |
 
 Any part of `features` may be left out; only what you send changes. Then:

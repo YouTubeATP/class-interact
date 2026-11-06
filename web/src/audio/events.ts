@@ -54,7 +54,8 @@ export function musicFor(s: Snapshot, now: number): MusicId | null {
   const st = s.state;
   if (st.breakScreen) return 'break';
   if (st.phase === 'lobby' || st.phase === 'standby') return 'lobby';
-  if (st.phase === 'ended' || st.leaderboardVisible) return 'results';
+  if (st.phase === 'ended') return 'ended';
+  if (st.leaderboardVisible) return 'results';
   if (st.phase === 'open' && st.deadlineAt && s.activity?.type === 'quiz') return st.deadlineAt - now <= 10_000 ? 'countdown' : 'quiz';
   if (st.phase === 'revealed' && s.activity?.type === 'quiz') return 'results';
   return null;

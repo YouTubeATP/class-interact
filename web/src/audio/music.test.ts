@@ -1,11 +1,12 @@
 import { SOUND_STYLES } from '@classinteract/shared';
 import { describe, expect, it } from 'vitest';
 import { barLengths, chordAt, COMPOSITIONS, loopBeats, parseChordBars, resolve } from './compositions';
-import { SFX } from './sfx';
-import { arrange, STYLES } from './styles';
+import { HKUST_COMPOSITIONS, MORSE_HKUST } from './compositions-hkust';
+import { HKUST_SFX, SFX } from './sfx';
+import { arrange, compositionFor, STYLES } from './styles';
 import { chordTones, parseChord, voiceChord } from './theory';
 
-const pieces = Object.values(COMPOSITIONS);
+const pieces = [...Object.values(COMPOSITIONS), ...Object.values(HKUST_COMPOSITIONS)];
 
 describe('music theory', () => {
   it('parses chord symbols, including slash chords and extensions', () => {
@@ -35,7 +36,8 @@ describe('compositions', () => {
     const seconds = (loopBeats(c) / c.bpm) * 60;
     // the countdown only plays for the last ten seconds, so it must simply outlast them
     expect(seconds).toBeGreaterThanOrEqual(c.id === 'countdown' ? 12 : 75);
-    expect(c.sections.length).toBeGreaterThanOrEqual(c.id === 'countdown' ? 4 : 6);
+    // the countdown can be one idea climbing; everything else needs a journey (an end piece's five sections included)
+    expect(c.sections.length).toBeGreaterThanOrEqual(c.id === 'countdown' ? 2 : 5);
   });
 
   it.each(pieces)('$title: every bar adds up to four beats, and melodies line up with the chords', (c) => {
@@ -124,6 +126,52 @@ describe('sound effects', () => {
         expect(n, id).toBeLessThanOrEqual(96);
       }
       expect(def.gain).toBeLessThanOrEqual(0.6);
+    }
+  });
+});
+
+describe('HKUST style', () => {
+  it('spells HKUST in Morse code', () => {
+    // ···· −·− ··− ··· −
+    expect(MORSE_HKUST).toHaveLength(14);
+    expect(MORSE_HKUST.map(([, dash]) => (dash ? '-' : '.')).join('')).toBe('....-.-..-...-');
+  });
+
+  it('plays its own compositions, with the Morse woodblock and the sea where they are written', () => {
+    expect(compositionFor('lobby', 'hkust').title).toBe('Atrium');
+    expect(compositionFor('lobby', 'bright').title).toBe('Doors open');
+    const lobby = arrange(HKUST_COMPOSITIONS.lobby, STYLES.hkust);
+    expect(lobby.filter((e) => e.drum === 'block' || e.drum === 'blockHigh').length).toBe(MORSE_HKUST.length * 2);
+    expect(lobby.some((e) => e.drum === 'surf')).toBe(true);
+    expect(HKUST_COMPOSITIONS.lobby.bpm).toBe(91);
+  });
+
+  it('quotes the anthem motifs and the HKUST cryptogram', () => {
+    const melody = (id: keyof typeof HKUST_COMPOSITIONS) => resolve(HKUST_COMPOSITIONS[id]).flatMap((r) => r.melody.map((n) => n[1]));
+    // compared by interval, so a quotation in another key (the hymn in A, the procession a step up) still counts
+    const steps = (ns: number[]) => ns.slice(1).map((n, i) => n - ns[i]);
+    const contains = (hay: number[], needle: number[]) => {
+      const h = steps(hay).join(','), n = steps(needle).join(',');
+      return `,${h},`.includes(`,${n},`);
+    };
+    const call = [78, 79, 69, 69, 69, 76, 76, 78, 74, 73, 74, 76]; // F# G A | A A E E F# D C# D E, as the anthem has it
+    const climb = [79, 78, 79, 79, 83, 81, 78, 78, 76, 74, 74, 71, 73, 74]; // G F# G G B | A F# F# E D D B C# D
+    const hkust = [71, 74, 79, 75, 77]; // B D G Eb F
+    for (const id of ['lobby', 'ended'] as const) {
+      expect(contains(melody(id), call), `${id}: call`).toBe(true);
+      expect(contains(melody(id), climb), `${id}: climb`).toBe(true);
+    }
+    expect(contains(melody('lobby'), hkust)).toBe(true);
+  });
+
+  it('has a complete set of effects of its own, none borrowed from the other styles', () => {
+    expect(Object.keys(HKUST_SFX).sort()).toEqual(Object.keys(SFX).sort());
+    for (const id of Object.keys(SFX) as (keyof typeof SFX)[]) expect(HKUST_SFX[id], id).not.toBe(SFX[id]);
+    for (const [id, def] of Object.entries(HKUST_SFX)) {
+      const notes = [...(def.notes ?? []).map((n) => n[0]), ...(def.chords ?? []).flatMap((c) => c[0])];
+      expect(notes.length + (def.perc?.length ?? 0), id).toBeGreaterThan(0);
+      for (const n of notes) expect(n, id).toBeGreaterThanOrEqual(40), expect(n, id).toBeLessThanOrEqual(96);
+      expect(def.gain, id).toBeLessThanOrEqual(0.6);
     }
   });
 });
