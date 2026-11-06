@@ -55,6 +55,8 @@ export interface ScoredSection extends Passage {
 export interface Score extends Composition<ScoredSection> {
   /** The two timpani's tuning for the piece, usually the tonic and the dominant, e.g. `['D3', 'A2']`. */
   timpani: [number, number];
+  /** Level correction in dB, so every piece plays at about the same loudness whatever its dynamics (measured). */
+  trim?: number;
 }
 
 export interface OrchEvent {

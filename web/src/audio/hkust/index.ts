@@ -33,8 +33,13 @@ export function hkustTrack(id: MusicId) {
   return t;
 }
 
-/** A stage for the music in its hall, playing into `dest`. */
-export const hkustStage = (ctx: Ctx, dest: AudioNode): Stage => stage(ctx, dest);
+/** A stage for a piece in its hall, playing into `dest` at the piece's trimmed level. */
+export function hkustStage(ctx: Ctx, dest: AudioNode, id: MusicId): Stage {
+  const trim = ctx.createGain();
+  trim.gain.value = 10 ** ((HKUST_PIECES[id].trim ?? 0) / 20);
+  trim.connect(dest);
+  return stage(ctx, trim);
+}
 
 export function playOrch(ctx: Ctx, s: Stage, e: OrchEvent, t: number, spb: number) {
   ORCHESTRA[e.inst](ctx, s.seat(e.inst), t, e.midi, e.beats * spb, e.vel);

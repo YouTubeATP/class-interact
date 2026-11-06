@@ -173,6 +173,12 @@ borrowed from other products, and the engine loads with the app (a few KB).
     in a synthesised concert hall: early reflections, then a 2.2-second tail that darkens as it decays. The hall's low
     end is cut so it does not boom in reverberant classrooms. Quiet passages are kept in a narrower dynamic range than
     a concert would use, so they still carry on a projector's speakers.
+  - **Light enough to play live.** The orchestra renders at about 7–10× real time on a modest CPU. Timpani rolls are
+    one sustained voice rather than dozens of strokes, the string body resonance is applied once per section rather
+    than per note, filter sweeps are automated per block, and every oscillator, noise source and LFO disconnects itself
+    when it ends. Browsers keep nodes that feed an AudioParam in the graph until they are disconnected, so without that
+    a long piece would get heavier the longer it played. Offline renders (tests and previews) schedule a second at a
+    time, as live playback does.
   - **Its material:**
     - two leitmotifs from the HKUST University Anthem (melody by Prof. Kelvin Yuen, 2023, © HKUST), quoted at the
       anthem's own rhythm: the opening *call* (F♯ G, A · A A, E E F♯, D C♯ D E) and the *climb* (D D G F♯ G G B, down

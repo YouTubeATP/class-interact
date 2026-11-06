@@ -314,7 +314,7 @@ function openTrack(ctx: BaseAudioContext, dest: AudioNode, id: MusicId, style: S
     return { out, bpm, schedule: (from, to, start) => loop(events, beats, from, to, (e, at) => playBand(ctx, out, e, start + at * spb, spb, STYLES[style])) };
   }
   const { events, beats, bpm } = hkustTrack(id);
-  const s = hkustStage(ctx, dest);
+  const s = hkustStage(ctx, dest, id);
   const spb = 60 / bpm;
   return { out: s.out, bpm, schedule: (from, to, start) => loop(events, beats, from, to, (e, at) => playOrch(ctx, s, e, start + at * spb, spb)) };
 }
@@ -374,7 +374,20 @@ export async function renderOffline(what: { music: MusicId } | { sfx: SoundId },
   if ('music' in what) {
     const track = openTrack(ctx, bus, what.music, style);
     track.out.gain.value = MUSIC_LEVEL * levelOf(style);
-    track.schedule(0, seconds / (60 / track.bpm), 0.05);
+    // schedule a second at a time, a little ahead, as live playback does: creating every note of a long piece up
+    // front would leave thousands of waiting nodes in the graph and make long renders far slower than real time
+    const spb = 60 / track.bpm;
+    let cursor = 0;
+    const ahead = (sec: number) => {
+      const until = Math.min(seconds, sec + 1.5) / spb;
+      if (until > cursor) track.schedule(cursor, until, 0.05);
+      cursor = until;
+    };
+    ahead(0);
+    for (let sec = 1; sec < seconds - 0.5; sec += 1) {
+      const at = (Math.round((sec * rate) / 128) * 128) / rate;
+      void ctx.suspend(at).then(() => { ahead(at); void ctx.resume(); });
+    }
   } else playSfx(ctx, bus, 0.02, what.sfx, style);
   const buf = await ctx.startRendering();
   return buf.getChannelData(0);

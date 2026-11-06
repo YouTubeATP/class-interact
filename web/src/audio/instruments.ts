@@ -19,7 +19,20 @@ export function osc(ctx: Ctx, type: OscillatorType, f: number, t: number, end: n
   if (detune) o.detune.setValueAtTime(detune, t);
   o.start(t);
   o.stop(end + 0.05);
+  release(o);
   return o;
+}
+
+/**
+ * Disconnects a source once it has finished, and any `also` nodes with it (such as an LFO's depth control). Browsers
+ * keep nodes that feed an AudioParam in the audio graph until they are disconnected, so without this a long piece
+ * with vibrato or tremolo would get steadily heavier to play.
+ */
+export function release(src: AudioScheduledSourceNode, ...also: AudioNode[]) {
+  src.addEventListener('ended', () => {
+    src.disconnect();
+    for (const n of also) n.disconnect();
+  });
 }
 
 /** A gain envelope: attack to `peak`, decay to `sustain × peak` over `decay`, hold until `t + hold`, release. */
@@ -62,6 +75,7 @@ export function noise(ctx: Ctx, t: number, len: number) {
   src.loop = true;
   src.start(t, Math.random() * 0.5);
   src.stop(t + len + 0.05);
+  release(src);
   return src;
 }
 
@@ -141,6 +155,7 @@ export const pulse: Voice = (ctx, out, t, midi, dur, vel) => {
     depth.gain.linearRampToValueAtTime(f * 0.012, t + Math.min(dur, 0.6));
     lfo.connect(depth);
     depth.connect(o.frequency);
+    release(lfo, depth);
   }
   o.connect(flt);
   flt.connect(amp.g);

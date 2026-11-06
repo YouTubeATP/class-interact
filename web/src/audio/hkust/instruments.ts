@@ -7,7 +7,7 @@
  * Each instrument plays one note into `out` at audio time `t` for `dur` seconds at velocity `vel` (0–1) and schedules
  * its own stop, like the band voices, so it works live and in an OfflineAudioContext.
  */
-import { envelope, lowpass, noise, osc, Q, type Ctx } from '../instruments';
+import { envelope, lowpass, noise, osc, Q, release, type Ctx } from '../instruments';
 import { midiToFreq } from '../theory';
 
 export type Play = (ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, vel: number) => void;
@@ -32,6 +32,15 @@ function vibrato(ctx: Ctx, t: number, end: number, f: number, rate: number, dept
   g.gain.linearRampToValueAtTime(f * depth, t + delay + 0.35);
   lfo.connect(g);
   for (const o of targets) g.connect(o.frequency);
+  release(lfo, g);
+}
+
+/**
+ * Automate a filter once per 128-sample block instead of every sample: inaudible on a filter sweep, and far cheaper
+ * (an automated filter at audio rate has its coefficients recomputed for every sample).
+ */
+function blockRate(p: AudioParam) {
+  try { p.automationRate = 'k-rate'; } catch { /* older browsers: stays at audio rate */ }
 }
 
 /** A short burst of filtered noise (bow, breath, mallet, pluck). */
@@ -60,9 +69,13 @@ function partials(ctx: Ctx, out: AudioNode, t: number, f: number, level: number,
 // Strings
 // ---------------------------------------------------------------------------------------------------------------
 
-interface Section { players: number; spread: number; bright: number; cap: number; level: number; tremolo?: boolean }
+interface Section { players: number; spread: number; bright: number; cap: number; level: number; tremolo?: boolean; solo?: boolean }
 
-/** A bowed string section: `players` sawtooth "players", detuned and staggered, a bow noise, vibrato on long notes. */
+/**
+ * A bowed string section: `players` sawtooth "players", detuned and staggered. Lines that are heard on their own
+ * (`solo`: the tune, the bass) also get a bow noise and a vibrato on long notes; harmony parts leave them out, which
+ * keeps the whole orchestra light enough to play live. The body resonance is added once per section, at its seat.
+ */
 function bowed(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, vel: number, s: Section) {
   const f = midiToFreq(midi);
   // short notes are bowed crisply (spiccato), long ones swell in
@@ -70,7 +83,6 @@ function bowed(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, v
   const amp = envelope(ctx, t, vel * s.level, attack, 0.3, 0.9, dur, dur < 0.25 ? 0.08 : clamp(0.3 + dur * 0.08, 0.3, 0.7));
   // louder is brighter, as on a real instrument
   const flt = lowpass(ctx, Math.min(s.cap, f * s.bright * (0.55 + 0.6 * vel)), 0.5);
-  const body = filter(ctx, 'peaking', 1200, 0.9, 2.5);
   const oscs: OscillatorNode[] = [];
   for (let i = 0; i < s.players; i++) {
     const spread = s.players > 1 ? (i / (s.players - 1)) * 2 - 1 : 0;
@@ -78,7 +90,7 @@ function bowed(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, v
     o.connect(flt);
     oscs.push(o);
   }
-  if (dur > 0.45) vibrato(ctx, t, amp.end, f, 5.3, 0.0045, 0.2, oscs);
+  if (s.solo && dur > 0.45) vibrato(ctx, t, amp.end, f, 5.3, 0.0045, 0.2, oscs);
   if (s.tremolo) {
     // bowed tremolo: the bow moves fast, so the level flutters
     const trem = ctx.createGain();
@@ -88,42 +100,36 @@ function bowed(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, v
     depth.gain.value = 0.38;
     lfo.connect(depth);
     depth.connect(trem.gain);
+    release(lfo, depth);
     flt.connect(trem);
-    trem.connect(body);
-  } else flt.connect(body);
-  body.connect(amp.g);
+    trem.connect(amp.g);
+  } else flt.connect(amp.g);
   amp.g.connect(out);
-  burst(ctx, out, t, vel * s.level * 0.5, 'bandpass', f * 2.5, dur < 0.25 ? 0.03 : 0.07, 1.2, 0.01);
+  if (s.solo) burst(ctx, out, t, vel * s.level * 0.5, 'bandpass', f * 2.5, dur < 0.25 ? 0.03 : 0.07, 1.2, 0.01);
 }
 
-export const violins: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 4, spread: 13, bright: 7, cap: 7000, level: 0.17 });
+export const violins: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 3, spread: 13, bright: 7, cap: 7000, level: 0.19, solo: true });
 /** Violas and cellos together: the warm middle of the strings, and the cellos an octave above the basses. */
-export const celli: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 3, spread: 10, bright: 5, cap: 3600, level: 0.24 });
-export const basses: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 2, spread: 8, bright: 7, cap: 2000, level: 0.34 });
+export const celli: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: d < 0.3 ? 2 : 3, spread: 10, bright: 5, cap: 3600, level: 0.24, solo: d > 0.3 });
+export const basses: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 2, spread: 8, bright: 7, cap: 2000, level: 0.34, solo: true });
 /** Divided strings holding the harmony. */
-export const strings: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 3, spread: 12, bright: 5, cap: 5200, level: 0.13 });
-export const tremolo: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 3, spread: 12, bright: 6, cap: 6000, level: 0.15, tremolo: true });
+export const strings: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 2, spread: 12, bright: 5, cap: 5200, level: 0.16 });
+export const tremolo: Play = (c, o, t, m, d, v) => bowed(c, o, t, m, d, v, { players: 2, spread: 12, bright: 6, cap: 6000, level: 0.18, tremolo: true });
 
-/** Pizzicato section: three players plucking not quite together, a woody body and a quick decay (longer when low). */
+/**
+ * Pizzicato section: two players plucking not quite together into one filter, a quick decay (longer when low), and a
+ * woody thump. The body resonance is added once, at the section's seat. (No filter sweep: automating a filter makes
+ * the browser recompute it every sample, which is too heavy for a part that plays on every beat.)
+ */
 export const pizz: Play = (ctx, out, t, midi, _dur, vel) => {
   const f = midiToFreq(midi);
   const decay = clamp(0.95 - (midi - 36) * 0.014, 0.16, 0.85);
-  for (let i = 0; i < 3; i++) {
-    const ti = t + i * 0.011;
-    const amp = envelope(ctx, ti, (vel * 0.3) / 2, 0.003, decay, 0.001, 0, 0.03);
-    const flt = lowpass(ctx, Math.min(8000, f * 5), 0.9);
-    flt.frequency.setValueAtTime(Math.min(8000, f * 5), ti);
-    flt.frequency.exponentialRampToValueAtTime(Math.max(150, f * 1.3), ti + decay * 0.5);
-    osc(ctx, 'triangle', f, ti, amp.end, (i - 1) * 6).connect(flt);
-    const saw = ctx.createGain();
-    saw.gain.value = 0.35;
-    osc(ctx, 'sawtooth', f, ti, amp.end, (i - 1) * 6).connect(saw);
-    saw.connect(flt);
-    const body = filter(ctx, 'peaking', 380, 1.2, 4);
-    flt.connect(body);
-    body.connect(amp.g);
-    amp.g.connect(out);
-  }
+  const amp = envelope(ctx, t, vel * 0.32, 0.003, decay, 0.001, 0, 0.03);
+  const flt = lowpass(ctx, Math.min(6000, f * (2 + 2 * vel)), 0.9);
+  osc(ctx, 'triangle', f, t, amp.end, -6).connect(flt);
+  osc(ctx, 'sawtooth', f, t + 0.013, amp.end, 6).connect(flt);
+  flt.connect(amp.g);
+  amp.g.connect(out);
   burst(ctx, out, t, vel * 0.06, 'lowpass', 1100, 0.025);
 };
 
@@ -131,7 +137,7 @@ export const pizz: Play = (ctx, out, t, midi, _dur, vel) => {
 export const harp: Play = (ctx, out, t, midi, _dur, vel) => {
   const f = midiToFreq(midi);
   const ring = clamp(3.2 - (midi - 48) * 0.045, 0.9, 3.4);
-  partials(ctx, out, t, f, vel * 0.26, [[1, 1, ring], [2, 0.32, ring * 0.45], [3, 0.12, ring * 0.25], [4, 0.05, ring * 0.15]]);
+  partials(ctx, out, t, f, vel * 0.26, [[1, 1, ring], [2, 0.33, ring * 0.45], [3, 0.13, ring * 0.25]]);
   burst(ctx, out, t, vel * 0.035, 'highpass', 2600, 0.012);
 };
 
@@ -192,6 +198,7 @@ function brassNote(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: numbe
   const amp = envelope(ctx, t, vel * o.level, o.attack, 0.12, 0.82, dur, 0.14);
   const target = Math.min(o.cap, f * (o.low + o.high * vel));
   const flt = lowpass(ctx, target, 0.8);
+  blockRate(flt.frequency);
   flt.frequency.setValueAtTime(f * 1.1, t);
   flt.frequency.exponentialRampToValueAtTime(target * 1.25, t + o.attack + 0.02);
   flt.frequency.exponentialRampToValueAtTime(target, t + o.attack + 0.25);
@@ -218,16 +225,45 @@ export const timpani: Play = (ctx, out, t, midi, _dur, vel) => {
   partials(ctx, out, t, midiToFreq(midi), vel * 0.42, TIMPANI_MODES, 0.012);
   burst(ctx, out, t, vel * 0.22, 'lowpass', 700, 0.05);
 };
+/**
+ * A timpani roll: one sustained voice rather than dozens of strokes (which would be too heavy to play live). The drum's
+ * modes are held and fluttered by fast, slightly uneven sticking, over a soft bed of mallet noise.
+ */
+function roll(ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, from: number, to: number) {
+  const f = midiToFreq(midi);
+  const end = t + dur + 0.9;
+  const level = ctx.createGain();
+  level.gain.setValueAtTime(Math.max(from, Q), t);
+  level.gain.exponentialRampToValueAtTime(Math.max(to, Q), t + dur);
+  level.gain.exponentialRampToValueAtTime(Q, end);
+  // the sticking: each stroke is a bump in level, about 13 a second
+  const flutter = ctx.createGain();
+  flutter.gain.value = 0.6;
+  const sticks = osc(ctx, 'sawtooth', 13.3, t, end);
+  const depth = ctx.createGain();
+  depth.gain.value = 0.4;
+  sticks.connect(depth);
+  depth.connect(flutter.gain);
+  release(sticks, depth);
+  for (const [ratio, amp] of TIMPANI_MODES.slice(0, 4)) {
+    const g = ctx.createGain();
+    g.gain.value = amp * 0.42;
+    osc(ctx, 'sine', f * ratio, t, end).connect(g);
+    g.connect(flutter);
+  }
+  const bed = lowpass(ctx, 600, 0.5);
+  const bedLevel = ctx.createGain();
+  bedLevel.gain.value = 0.25;
+  noise(ctx, t, end - t).connect(bed);
+  bed.connect(bedLevel);
+  bedLevel.connect(flutter);
+  flutter.connect(level);
+  level.connect(out);
+}
 /** A timpani roll that grows from soft to `vel` over `dur`, into the next downbeat. */
-export const timpaniRoll: Play = (ctx, out, t, midi, dur, vel) => {
-  const n = Math.max(4, Math.round(dur / 0.06));
-  for (let i = 0; i < n; i++) timpani(ctx, out, t + (i * dur) / n, midi, 0.3, vel * (0.22 + 0.78 * (i / (n - 1)) ** 1.6) * 0.55);
-};
+export const timpaniRoll: Play = (ctx, out, t, midi, dur, vel) => roll(ctx, out, t, midi, dur, vel * 0.08, vel * 0.5);
 /** A soft, steady timpani roll, held. */
-export const timpaniTrem: Play = (ctx, out, t, midi, dur, vel) => {
-  const n = Math.max(4, Math.round(dur / 0.075));
-  for (let i = 0; i < n; i++) timpani(ctx, out, t + (i * dur) / n, midi, 0.3, vel * 0.32 * (i % 2 ? 0.9 : 1));
-};
+export const timpaniTrem: Play = (ctx, out, t, midi, dur, vel) => roll(ctx, out, t, midi, dur, vel * 0.16, vel * 0.16);
 
 /** Tubular bells: the university bell. Inharmonic partials with a long ring and a slow beat between two of them. */
 export const bells: Play = (ctx, out, t, midi, _dur, vel) => {
@@ -287,11 +323,11 @@ export const fieldDrum: Play = (ctx, out, t, _m, _d, vel) => {
 export const triangle: Play = (ctx, out, t, _m, _d, vel) => partials(ctx, out, t, 2300, vel * 0.05, [[1, 1, 1.6], [1.53, 0.7, 1.3], [2.26, 0.5, 1], [3.43, 0.3, 0.7]]);
 /** Temple block: the Morse code, and the countdown's ticks. In the 1–3 kHz range that cuts through a room. */
 export const block: Play = (ctx, out, t, _m, _d, vel) => {
-  partials(ctx, out, t, 1180, vel * 2, [[1, 1, 0.06], [2.43, 0.35, 0.025]]);
+  partials(ctx, out, t, 1180, vel * 2, [[1, 1, 0.11], [2.43, 0.35, 0.04]]);
   burst(ctx, out, t, vel * 0.45, 'bandpass', 1180, 0.03, 6);
 };
 export const blockHigh: Play = (ctx, out, t, _m, _d, vel) => {
-  partials(ctx, out, t, 1560, vel * 2.4, [[1, 1, 0.07], [2.43, 0.4, 0.03]]);
+  partials(ctx, out, t, 1560, vel * 2.4, [[1, 1, 0.16], [2.43, 0.4, 0.05]]);
   burst(ctx, out, t, vel * 0.55, 'bandpass', 1560, 0.035, 6);
 };
 /** A wave at Clear Water Bay rolling in and drawing back over about four seconds. */
@@ -301,6 +337,7 @@ export const surf: Play = (ctx, out, t, _m, _d, vel) => {
   g.gain.exponentialRampToValueAtTime(vel * 0.16, t + 1.6);
   g.gain.exponentialRampToValueAtTime(Q, t + 4.2);
   const flt = filter(ctx, 'lowpass', 500, 0.4);
+  blockRate(flt.frequency);
   flt.frequency.setValueAtTime(500, t);
   flt.frequency.exponentialRampToValueAtTime(2600, t + 1.6);
   flt.frequency.exponentialRampToValueAtTime(400, t + 4.2);

@@ -21,6 +21,8 @@ const SEATS: Record<Instrument, [pan: number, hall: number, level: number]> = {
   block: [0, 0.14, 1], blockHigh: [0, 0.14, 1], surf: [0, 0.1, 1],
 };
 
+const BOWED = new Set<Instrument>(['violins', 'celli', 'basses', 'strings', 'tremolo', 'pizz']);
+
 const impulses = new WeakMap<Ctx, AudioBuffer>();
 
 /** The hall's impulse response for this context (made once, deterministic so renders repeat exactly). */
@@ -88,7 +90,16 @@ export function stage(ctx: Ctx, dest: AudioNode, hallLevel = 0.42): Stage {
         input.gain.value = level;
         const panner = ctx.createStereoPanner();
         panner.pan.value = pan;
-        input.connect(panner);
+        if (BOWED.has(inst)) {
+          // the wooden body of the string instruments, once per section rather than once per note
+          const body = ctx.createBiquadFilter();
+          body.type = 'peaking';
+          body.frequency.value = inst === 'pizz' ? 380 : 1200;
+          body.Q.value = inst === 'pizz' ? 1.2 : 0.9;
+          body.gain.value = inst === 'pizz' ? 4 : 2.5;
+          input.connect(body);
+          body.connect(panner);
+        } else input.connect(panner);
         panner.connect(out);
         const s = ctx.createGain();
         s.gain.value = send;

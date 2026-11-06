@@ -98,6 +98,7 @@ const SET_MELODY = `${CALL_MINOR} | ${CLIMB_MINOR} | G5:1 Bb5:1 A5:1 G5:1 | E5:3
 const problemSet: Score = {
   id: 'quiz',
   title: 'Problem set',
+  trim: 2.3,
   timpani: D3_A2,
   bpm: 108,
   sections: [
@@ -136,6 +137,7 @@ const turn = (a: string, b: string, c: string, d: string) => `${a}:.25 ${b}:.25 
 const tenSeconds: Score = {
   id: 'countdown',
   title: 'Last call',
+  trim: 0.9,
   timpani: D3_A2,
   bpm: 132,
   sections: [
@@ -189,6 +191,7 @@ const BAY_CALL = { chords: 'A13 | Dmaj9 | Bm9 | Gmaj9 | Em9 | A13 | Dmaj9 | A7su
 const clearWaterBay: Score = {
   id: 'break',
   title: 'Clear Water Bay',
+  trim: 1.9,
   timpani: D3_A2,
   bpm: 76,
   sections: [
@@ -219,6 +222,7 @@ const clearWaterBay: Score = {
 const commencement: Score = {
   id: 'ended',
   title: 'Commencement',
+  trim: -1.7,
   timpani: [noteToMidi('A2'), noteToMidi('E3')],
   bpm: 80,
   sections: [
