@@ -6,14 +6,16 @@
  * (`setMusic('quiz')`), and the engine applies the device's settings (off / subtle / playful, mute, volumes, style),
  * stops duplicates, ducks the music under important effects and copes with browsers that block autoplay.
  *
- * What is played lives elsewhere: the compositions (compositions.ts), how each style arranges and voices them
- * (styles.ts, instruments.ts) and the sound-effect phrases (sfx.ts).
+ * What is played lives elsewhere: the five band styles' compositions (compositions.ts), how each arranges and voices
+ * them (styles.ts, instruments.ts) and their sound-effect phrases (sfx.ts); and the HKUST set, which is entirely its
+ * own (hkust/: orchestral pieces, orchestrator, instruments, concert hall and effects).
  */
 import type { SoundStyle } from '@classinteract/shared';
 import { DEFAULT_SOUND, soundSettingsFor, type AudioScope, type SoundSettings } from './settings';
 import { masterChain } from './mastering';
 import { SFX } from './sfx';
-import { arrangement, STYLES, type MusicEvent, type Style } from './styles';
+import { arrangement, isBand, STYLES, type MusicEvent, type Style } from './styles';
+import { hkustStage, hkustTrack, HKUST_SET, playCue, playOrch } from './hkust';
 
 export type SoundId =
   | 'sessionStart' | 'activityStart' | 'transition' | 'standbyIn' | 'standbyOut' | 'sessionEnd'
@@ -60,7 +62,7 @@ class AudioEngine {
       (window as unknown as { __ciAudio: unknown }).__ciAudio = {
         log: this.log, state: () => this.state(), settings: () => this.settings(), music: () => this.currentMusic(),
         /** Length of one full pass of a piece, in seconds. */
-        duration: (id: MusicId, style: SoundStyle) => { const a = arrangement(id, style); return (a.beats * 60) / a.bpm; },
+        duration: (id: MusicId, style: SoundStyle) => { const a = trackLength(id, style); return (a.beats * 60) / a.bpm; },
         /** Offline render with simple measurements (and optionally a 16-bit WAV as base64), for tests and examples. */
         render: async (what: { music: MusicId } | { sfx: SoundId }, style: SoundStyle, seconds: number, wav = false) => {
           const d = await renderOffline(what, style, seconds);
@@ -245,18 +247,18 @@ class AudioEngine {
   private preview: (() => void) | null = null;
 
   private startTrack(ctx: AudioContext, id: MusicId, style: SoundStyle, dest: AudioNode = this.musicBus!): () => void {
-    const out = musicChain(ctx, dest, style);
+    const track = openTrack(ctx, dest, id, style);
+    const out = track.out;
     out.gain.setValueAtTime(0.0001, ctx.currentTime);
-    out.gain.exponentialRampToValueAtTime(MUSIC_LEVEL * STYLES[style].level, ctx.currentTime + 1.2); // fade in
-    const { events, beats, bpm } = arrangement(id, style);
-    const spb = 60 / bpm;
+    out.gain.exponentialRampToValueAtTime(MUSIC_LEVEL * levelOf(style), ctx.currentTime + 1.2); // fade in
+    const spb = 60 / track.bpm;
     const start = ctx.currentTime + 0.1;
     let cursor = 0; // in beats from `start`
     // look-ahead scheduler: a timer wakes every 100 ms and schedules the next 400 ms precisely on the audio clock
     const tick = () => {
       const until = (ctx.currentTime + 0.4 - start) / spb;
       if (until <= cursor) return;
-      scheduleEvents(ctx, out, events, beats, cursor, until, start, spb, STYLES[style]);
+      track.schedule(cursor, until, start);
       cursor = until;
     };
     tick();
@@ -289,36 +291,67 @@ function toWavBase64(samples: Float32Array, rate: number): string {
   return btoa(bin);
 }
 
-/** The music's own gain and tone (a gentle low-pass that sets how warm the style sounds). */
-function musicChain(ctx: BaseAudioContext, dest: AudioNode, style: SoundStyle): GainNode {
+const levelOf = (style: SoundStyle) => (isBand(style) ? STYLES[style].level : HKUST_SET.level);
+
+function trackLength(id: MusicId, style: SoundStyle): { beats: number; bpm: number } {
+  return isBand(style) ? arrangement(id, style) : hkustTrack(id);
+}
+
+interface OpenTrack {
+  /** The track's output level (for fades). */
+  out: GainNode;
+  bpm: number;
+  /** Schedules what falls in [fromBeat, toBeat), beats counted from `start`, looping the piece. */
+  schedule(fromBeat: number, toBeat: number, start: number): void;
+}
+
+/** Sets up a piece to play into `dest`: the band styles through their arrangement, HKUST on its stage in its hall. */
+function openTrack(ctx: BaseAudioContext, dest: AudioNode, id: MusicId, style: SoundStyle): OpenTrack {
+  if (isBand(style)) {
+    const { events, beats, bpm } = arrangement(id, style);
+    const out = musicChain(ctx, dest, STYLES[style]);
+    const spb = 60 / bpm;
+    return { out, bpm, schedule: (from, to, start) => loop(events, beats, from, to, (e, at) => playBand(ctx, out, e, start + at * spb, spb, STYLES[style])) };
+  }
+  const { events, beats, bpm } = hkustTrack(id);
+  const s = hkustStage(ctx, dest);
+  const spb = 60 / bpm;
+  return { out: s.out, bpm, schedule: (from, to, start) => loop(events, beats, from, to, (e, at) => playOrch(ctx, s, e, start + at * spb, spb)) };
+}
+
+/** Calls `play` for each event of a looping piece (`loop` beats long) that falls in [fromBeat, toBeat). */
+function loop<E extends { beat: number }>(events: E[], length: number, fromBeat: number, toBeat: number, play: (e: E, at: number) => void) {
+  for (let base = Math.floor(fromBeat / length) * length; base < toBeat; base += length) {
+    for (const e of events) {
+      const at = base + e.beat;
+      if (at >= fromBeat && at < toBeat) play(e, at);
+    }
+  }
+}
+
+/** A band style's gain and tone (a gentle low-pass that sets how warm the style sounds). */
+function musicChain(ctx: BaseAudioContext, dest: AudioNode, style: Style): GainNode {
   const out = ctx.createGain();
   const tone = ctx.createBiquadFilter();
   tone.type = 'lowpass';
-  tone.frequency.value = STYLES[style].tone;
+  tone.frequency.value = style.tone;
   tone.Q.value = 0.5;
   out.connect(tone);
   tone.connect(dest);
   return out;
 }
 
-/** Schedules the events of a looping arrangement that fall in [fromBeat, toBeat) (beats counted from `start`). */
-function scheduleEvents(ctx: BaseAudioContext, out: AudioNode, events: MusicEvent[], loop: number, fromBeat: number, toBeat: number, start: number, spb: number, style: Style) {
-  for (let base = Math.floor(fromBeat / loop) * loop; base < toBeat; base += loop) {
-    for (const e of events) {
-      const at = base + e.beat;
-      if (at < fromBeat || at >= toBeat) continue;
-      const t = start + at * spb;
-      const vel = e.vel * style.mix[e.part];
-      if (e.part === 'drum') style.kit[e.drum!](ctx, out, t, vel);
-      else style.voices[e.part](ctx, out, t, e.midi, e.beats * spb, vel);
-    }
-  }
+function playBand(ctx: BaseAudioContext, out: AudioNode, e: MusicEvent, t: number, spb: number, style: Style) {
+  const vel = e.vel * style.mix[e.part];
+  if (e.part === 'drum') style.kit[e.drum!](ctx, out, t, vel);
+  else style.voices[e.part](ctx, out, t, e.midi, e.beats * spb, vel);
 }
 
-/** Plays one sound effect into `dest` at `t0` with the style's instruments. */
+/** Plays one sound effect into `dest` at `t0`: a band style's phrase on its instruments, or an HKUST cue. */
 function playSfx(ctx: BaseAudioContext, dest: AudioNode, t0: number, id: SoundId, styleId: SoundStyle) {
+  if (!isBand(styleId)) return playCue(ctx, dest, t0, id);
   const style = STYLES[styleId];
-  const def = style.sfxDefs?.[id] ?? SFX[id];
+  const def = SFX[id];
   const g = def.gain * style.sfx.gain;
   for (const [midi, at, len, level = 1] of def.notes ?? []) style.sfx.lead(ctx, dest, t0 + at, midi, len, g * level);
   for (const [notes, at, len, level = 1] of def.chords ?? []) for (const n of notes) style.sfx.chord(ctx, dest, t0 + at, n, len, (g * level) / Math.sqrt(notes.length));
@@ -339,11 +372,9 @@ export async function renderOffline(what: { music: MusicId } | { sfx: SoundId },
   bus.gain.value = 'music' in what ? defaults.music : defaults.sfx;
   bus.connect(mix);
   if ('music' in what) {
-    const out = musicChain(ctx, bus, style);
-    out.gain.value = MUSIC_LEVEL * STYLES[style].level;
-    const { events, beats, bpm } = arrangement(what.music, style);
-    const spb = 60 / bpm;
-    scheduleEvents(ctx, out, events, beats, 0, seconds / spb, 0.05, spb, STYLES[style]);
+    const track = openTrack(ctx, bus, what.music, style);
+    track.out.gain.value = MUSIC_LEVEL * levelOf(style);
+    track.schedule(0, seconds / (60 / track.bpm), 0.05);
   } else playSfx(ctx, bus, 0.02, what.sfx, style);
   const buf = await ctx.startRendering();
   return buf.getChannelData(0);

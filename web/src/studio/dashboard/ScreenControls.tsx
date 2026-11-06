@@ -1,7 +1,7 @@
 import { Coffee, Gauge, MessageCircleQuestion, Moon, Play, QrCode, Sun, Users, Volume2, VolumeX } from 'lucide-react';
 import { useState } from 'react';
 import { SOUND_STYLES, type BreakScreen, type Overlay, type PresenterCommand, type PresenterSnapshot, type ProjectorAppearance, type SoundLevel, type SoundStyle } from '@classinteract/shared';
-import { STYLES } from '@/audio/styles';
+import { STYLE_INFO } from '@/audio/styles';
 import { Button } from '@/components/ui/button';
 import { DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/label';
@@ -88,7 +88,8 @@ export function ScreenControls({ snap, send, compact = false }: { snap: Presente
         </label>
         <label className="grid gap-1 text-xs font-semibold text-ink-2">Sound style
           <Select value={proj.style ?? 'bright'} onChange={(e) => setProj({ style: e.target.value as SoundStyle })} disabled={proj.sound === 'off'} aria-label="Projector sound style" data-testid="projector-style">
-            {SOUND_STYLES.map((id) => <option key={id} value={id}>{STYLES[id].label}</option>)}
+            <optgroup label="Band styles">{SOUND_STYLES.filter((id) => id !== 'hkust').map((id) => <option key={id} value={id}>{STYLE_INFO[id].label}</option>)}</optgroup>
+            <optgroup label="Music of its own"><option value="hkust">{STYLE_INFO.hkust.label} (orchestra)</option></optgroup>
           </Select>
         </label>
         <div className="grid gap-1 text-xs font-semibold text-ink-2">

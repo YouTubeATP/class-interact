@@ -3,7 +3,7 @@ import { Monitor, Moon, Play, Square, Sun, Volume1, Volume2, VolumeX } from 'luc
 import { useSyncExternalStore } from 'react';
 import { audio, type MusicId, type SoundId } from '@/audio/engine';
 import { COMPOSITIONS } from '@/audio/compositions';
-import { STYLES } from '@/audio/styles';
+import { STYLE_INFO } from '@/audio/styles';
 import { saveSoundSettings, useSoundSettings, type AudioScope, type SoundLevel } from '@/audio/settings';
 import { Button } from '@/components/ui/button';
 import { SwitchRow } from '@/components/ui/switch';
@@ -71,17 +71,23 @@ const MUSIC_PREVIEW: { id: MusicId; label: string }[] = [
   { id: 'results', label: 'Results' }, { id: 'break', label: 'Break' }, { id: 'ended', label: 'Session end' },
 ];
 
-/** The five sound styles as a choice of cards. */
+/**
+ * The sound choices as cards: the five band styles, which play the same music in different arrangements, and below
+ * them the HKUST set, which has music, an orchestra and effects of its own.
+ */
 export function SoundStylePicker({ value, onChange }: { value: string; onChange: (style: (typeof SOUND_STYLES)[number]) => void }) {
+  const card = (id: (typeof SOUND_STYLES)[number], extra = '') => (
+    <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)} data-testid={`sound-style-${id}`}
+      className={cn('grid gap-0.5 rounded-xl border-2 p-2.5 text-left transition-colors', value === id ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-2', extra)}>
+      <span className="font-bold">{STYLE_INFO[id].label}</span>
+      <span className="text-xs leading-snug text-ink-2">{STYLE_INFO[id].hint}</span>
+    </button>
+  );
   return (
-    <div role="radiogroup" aria-label="Sound style" className="grid gap-2 sm:grid-cols-2" data-testid="sound-style">
-      {SOUND_STYLES.map((id) => (
-        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)} data-testid={`sound-style-${id}`}
-          className={cn('grid gap-0.5 rounded-xl border-2 p-2.5 text-left transition-colors', value === id ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-2')}>
-          <span className="font-bold">{STYLES[id].label}</span>
-          <span className="text-xs leading-snug text-ink-2">{STYLES[id].hint}</span>
-        </button>
-      ))}
+    <div role="radiogroup" aria-label="Sound style" className="grid gap-2" data-testid="sound-style">
+      <div className="grid gap-2 sm:grid-cols-2">{SOUND_STYLES.filter((id) => id !== 'hkust').map((id) => card(id))}</div>
+      <p className="mt-1 text-xs text-ink-3">Or a set with music of its own</p>
+      {card('hkust', 'border-dashed')}
     </div>
   );
 }
@@ -144,7 +150,7 @@ export function SoundSettingsPanel({ scope, preview = false }: { scope: AudioSco
               <Button key={p.id} variant="secondary" size="sm" onClick={async () => { await audio.unlock(); audio.play(p.id, { force: true }); }} data-testid={`preview-${p.id}`}><Play className="size-3" aria-hidden /> {p.label}</Button>
             ))}
           </div>
-          <p className="mt-1 text-sm font-semibold">Music <span className="font-normal text-ink-3">in the {STYLES[s.style].label} style</span></p>
+          <p className="mt-1 text-sm font-semibold">Music <span className="font-normal text-ink-3">in the {STYLE_INFO[s.style].label} style</span></p>
           <div className="flex flex-wrap gap-1.5">
             {MUSIC_PREVIEW.map((m) => (
               <Button key={m.id} variant="secondary" size="sm" title={`“${COMPOSITIONS[m.id].title}”`} onClick={() => void audio.previewMusic(m.id, s.style)} data-testid={`preview-music-${m.id}`}><Play className="size-3" aria-hidden /> {m.label}</Button>

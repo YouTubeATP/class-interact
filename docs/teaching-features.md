@@ -149,31 +149,60 @@ borrowed from other products, and the engine loads with the app (a few KB).
 - Levels: Off, Subtle (essential cues: start, time up, reveal, correct/incorrect, leaderboard) and Playful (adds
   flourishes such as people joining, ticks and background music). Master, effects and music volumes, and mute. All
   settings are saved per device and kept separate for the Studio, phones and the projector.
-- **Six sound styles.** Five share the same compositions, each with its own instruments, drum kit and feel:
+- **Five band styles and the HKUST set.** The five band styles share the same compositions, each with its own instruments, drum kit and feel:
   **Bright** (warm mallets and a light band), **Chill** (lo-fi electric piano, swung beats, vinyl dust), **Arcade**
   (8-bit chiptune), **Calm** (bells and pads, no drums) and **Game show** (brass stabs and punchy drums).
-- **HKUST is a set of its own.** It shares nothing with the other five: six orchestral pieces (trumpet, horns,
-  strings, harp, pizzicato, timpani), its own arrangements and percussion, and its own version of every one of the 29
-  sound effects. It is built on material from and about the university:
-  - two leitmotifs from the HKUST University Anthem (melody by Prof. Kelvin Yuen, 2023, © HKUST), quoted at the
-    anthem's own rhythm: the opening *call* (F♯ G, A · A A, E E F♯, D C♯ D E) and the *climb* (D D G F♯ G G B, down
-    through A F♯ F♯ E D D B, turning up C♯ D). They were transcribed from the official recording: the voices separated
-    from the accompaniment (Demucs), each sung note's onset detected and its pitch taken from a pYIN pitch track, and
-    the onsets quantized to the beat. Only these two short phrases are quoted, inside original music;
-  - "HKUST" spelled in notes with German letter names (H = B♮, S = E♭): B–D–G–E♭–F. In D major the E♭ is the
-    Neapolitan chord, which colours every bridge. It is also spelled in Morse code (···· −·− ··− ··· −) on a
-    woodblock;
-  - the lobby at 91 beats a minute for 1991, sea waves for Clear Water Bay, and titles from campus life: *Atrium*
-    (lobby, D major, about 1¾ min), *Problem set* (quiz, D minor, the motifs in the minor), *Ten seconds* (countdown,
-    the call's turn climbing a step every bar), *Piazza* (results: a fanfare, a procession on the climb, a trio in G
-    and the procession again a step higher), *Clear Water Bay* (break, about 2 min) and *Commencement* (session end).
-  - *Commencement* is in A major: the call becomes a hymn in A, the climb follows, the music turns home to the
-    anthem's D, and it ends with a plagal "amen" cadence from D to A.
+- **HKUST is a set of its own, not a sixth arrangement.** The five band styles play the same compositions through
+  one arranger with different instruments. HKUST shares none of that. It has its own six pieces, its own orchestrator,
+  its own synthesised orchestra, its own concert hall and its own version of every one of the 29 sound effects
+  (`web/src/audio/hkust/`). In the picker it sits apart from the band styles, as "a set with music of its own".
+  - **Scored, not patterned.** Each section is orchestrated by hand: who has the tune and who doubles it (a solo horn,
+    violins with the flute an octave up, the trumpet with tubular bells), how the harmony is held (divided strings,
+    bowed tremolo, clarinets and flute, a trombone-and-horn chorale), what moves underneath (harp arpeggios in triplets
+    at slow tempos, rolled harp chords, pizzicato, a cello spiccato ostinato, march afterbeats in the horns), the bass
+    (arco basses with cellos an octave up, pizzicato, a march, a pedal), and the dynamic with its crescendo or
+    diminuendo. There is no drum kit: the timpani are tuned to two notes per piece and struck only when their note is
+    in the chord, with rolls into new sections, and there are clashed and suspended cymbals, bass drum, field drum
+    and triangle. Ritardandos really slow the music: the closing bars of a marked section stretch to about two-thirds
+    of the tempo and the last chord is held.
+  - **Its own orchestra.** Strings are sections of several players, slightly out of tune and out of time with each
+    other, each with a bow noise and a vibrato that starts late. The pizzicato section plucks raggedly. The harp rings
+    for seconds. The flute breathes, brass gets brighter as it gets louder, timpani use a real drum's modes, and
+    tubular bells and glockenspiel use their inharmonic partials.
+  - **Its own room.** The players are seated across the stereo field (violins left, cellos and basses right) and heard
+    in a synthesised concert hall: early reflections, then a 2.2-second tail that darkens as it decays. The hall's low
+    end is cut so it does not boom in reverberant classrooms. Quiet passages are kept in a narrower dynamic range than
+    a concert would use, so they still carry on a projector's speakers.
+  - **Its material:**
+    - two leitmotifs from the HKUST University Anthem (melody by Prof. Kelvin Yuen, 2023, © HKUST), quoted at the
+      anthem's own rhythm: the opening *call* (F♯ G, A · A A, E E F♯, D C♯ D E) and the *climb* (D D G F♯ G G B, down
+      through A F♯ F♯ E D D B, turning up C♯ D). They were transcribed from the official recording: the voices were
+      separated from the accompaniment (Demucs), each sung note's onset detected and its pitch taken from a pYIN
+      pitch track, and the onsets quantized to the beat. Only these two short phrases are quoted, inside original
+      music;
+    - "HKUST" spelled in notes with German letter names (H = B♮, S = E♭): B–D–G–E♭–F, rung on tubular bells like a
+      campus bell. In D major the E♭ is the Neapolitan chord, which colours every bridge. It is also spelled in Morse
+      code (···· −·− ··− ··· −) on a temple block;
+    - the lobby at 91 beats a minute for 1991, and waves for Clear Water Bay.
+  - **The pieces:**
+    - *Atrium* (lobby, D major, about 1¾ min): the bell, then the call on a solo horn over harp and the sea;
+    - *Problem set* (quiz, D minor): clarinet and pizzicato, steady enough to think over;
+    - *Last call* (countdown): the call's turn climbing a step every bar over string tremolo and spiccato cellos;
+    - *Piazza* (results): a march with field drum, a lyrical trio in G for flute and clarinet, and the procession a
+      step higher;
+    - *Clear Water Bay* (break, about 2 min): flute over harp and waves, and a quiet brass chorale;
+    - *Commencement* (session end, A major): a hymn in A, the climb in A on horns, a return to the anthem's D, and a
+      plagal "amen" from D to A that slows and holds.
 
-  Its effects come from the same motifs: the session opens with the call and signs off with the cryptogram, a
-  correct answer is the climb's closing B–C♯–D, an incorrect one is the cryptogram's E♭ sinking to D, the winner gets
-  the whole climb, and a break begins with G–E♭–D. All styles are balanced to the same loudness, so changing style
-  never changes the volume.
+  Its effects are orchestral cues on the same stage:
+  - the session opens with the call on trumpet, the timpani rolling on A into the full orchestra on D;
+  - it signs off with the cryptogram on the bell;
+  - a correct answer is the climb's closing B–C♯–D on the harp with a glockenspiel;
+  - an incorrect one is the cryptogram's E♭ sinking to D in the low clarinet;
+  - the winner gets the whole climb on trumpet and a cymbal clash;
+  - the countdown ticks are a temple block.
+
+  All styles and the HKUST set are balanced to the same loudness, so changing between them never changes the volume.
 - **The music is composed in sections, not looped noise.** Six pieces, one per situation, each one to three minutes
   long before it repeats:
   - *Doors open* (lobby, F major, about 2¼ min): a theme with variations that use secondary dominants, a B section

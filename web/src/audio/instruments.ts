@@ -5,14 +5,14 @@
  */
 import { midiToFreq } from './theory';
 
-type Ctx = BaseAudioContext;
+export type Ctx = BaseAudioContext;
 export type Voice = (ctx: Ctx, out: AudioNode, t: number, midi: number, dur: number, vel: number) => void;
-export type DrumId = 'kick' | 'snare' | 'hat' | 'openHat' | 'clap' | 'crash' | 'block' | 'blockHigh' | 'roll' | 'crackle' | 'surf';
+export type DrumId = 'kick' | 'snare' | 'hat' | 'openHat' | 'clap' | 'crash' | 'block' | 'blockHigh' | 'roll' | 'crackle';
 export type Drum = (ctx: Ctx, out: AudioNode, t: number, vel: number) => void;
 
-const Q = 0.0001;
+export const Q = 0.0001;
 
-function osc(ctx: Ctx, type: OscillatorType, f: number, t: number, end: number, detune = 0) {
+export function osc(ctx: Ctx, type: OscillatorType, f: number, t: number, end: number, detune = 0) {
   const o = ctx.createOscillator();
   o.type = type;
   o.frequency.setValueAtTime(f, t);
@@ -23,7 +23,7 @@ function osc(ctx: Ctx, type: OscillatorType, f: number, t: number, end: number, 
 }
 
 /** A gain envelope: attack to `peak`, decay to `sustain × peak` over `decay`, hold until `t + hold`, release. */
-function envelope(ctx: Ctx, t: number, peak: number, a: number, decay: number, sustain: number, hold: number, release: number) {
+export function envelope(ctx: Ctx, t: number, peak: number, a: number, decay: number, sustain: number, hold: number, release: number) {
   const g = ctx.createGain();
   const p = Math.max(peak, Q * 2);
   const s = Math.max(p * sustain, Q);
@@ -36,7 +36,7 @@ function envelope(ctx: Ctx, t: number, peak: number, a: number, decay: number, s
   return { g, end: holdEnd + release };
 }
 
-function lowpass(ctx: Ctx, f: number, q = 0.7) {
+export function lowpass(ctx: Ctx, f: number, q = 0.7) {
   const flt = ctx.createBiquadFilter();
   flt.type = 'lowpass';
   flt.frequency.value = f;
@@ -45,7 +45,7 @@ function lowpass(ctx: Ctx, f: number, q = 0.7) {
 }
 
 const noiseBuffers = new WeakMap<Ctx, AudioBuffer>();
-function noise(ctx: Ctx, t: number, len: number) {
+export function noise(ctx: Ctx, t: number, len: number) {
   let buf = noiseBuffers.get(ctx);
   if (!buf) {
     buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -176,59 +176,6 @@ export const pad: Voice = (ctx, out, t, midi, dur, vel) => {
   amp.g.connect(out);
 };
 
-/** Trumpet: bright brass with a filter that opens on the attack and a vibrato that grows on long notes. */
-export const trumpet: Voice = (ctx, out, t, midi, dur, vel) => {
-  const f = midiToFreq(midi);
-  const amp = envelope(ctx, t, vel * 0.34, 0.03, 0.1, 0.8, dur, 0.12);
-  const flt = lowpass(ctx, f * 3, 0.9);
-  flt.frequency.setValueAtTime(f * 1.2, t);
-  flt.frequency.exponentialRampToValueAtTime(Math.min(9500, f * 9), t + 0.045);
-  flt.frequency.exponentialRampToValueAtTime(Math.min(8000, f * 5), t + 0.3);
-  const a = osc(ctx, 'sawtooth', f, t, amp.end);
-  const b = osc(ctx, 'square', f, t, amp.end, 4);
-  const sq = ctx.createGain();
-  sq.gain.value = 0.35;
-  b.connect(sq);
-  if (dur > 0.4) {
-    const lfo = osc(ctx, 'sine', 5.5, t, amp.end);
-    const depth = ctx.createGain();
-    depth.gain.setValueAtTime(0, t);
-    depth.gain.setValueAtTime(0, t + 0.25);
-    depth.gain.linearRampToValueAtTime(f * 0.008, t + Math.min(dur, 0.8));
-    lfo.connect(depth);
-    depth.connect(a.frequency);
-    depth.connect(b.frequency);
-  }
-  a.connect(flt);
-  sq.connect(flt);
-  flt.connect(amp.g);
-  amp.g.connect(out);
-};
-
-/** French horn: round, dark brass with a soft attack, for counter-melodies. */
-export const horn: Voice = (ctx, out, t, midi, dur, vel) => {
-  const f = midiToFreq(midi);
-  const amp = envelope(ctx, t, vel * 0.4, 0.07, 0.2, 0.85, dur, 0.25);
-  const flt = lowpass(ctx, Math.min(2600, f * 3), 0.7);
-  osc(ctx, 'sawtooth', f, t, amp.end, -4).connect(flt);
-  osc(ctx, 'triangle', f, t, amp.end, 4).connect(flt);
-  flt.connect(amp.g);
-  amp.g.connect(out);
-};
-
-/** String section: three slightly detuned saws, a slow bow attack and a long release. */
-export const strings: Voice = (ctx, out, t, midi, dur, vel) => {
-  const f = midiToFreq(midi);
-  const amp = envelope(ctx, t, vel * 0.2, Math.min(0.3, 0.08 + dur * 0.1), 0.2, 0.9, dur, 0.45);
-  const flt = lowpass(ctx, Math.min(4200, f * 6), 0.6);
-  for (const d of [-11, 0, 11]) osc(ctx, 'sawtooth', f, t, amp.end, d).connect(flt);
-  flt.connect(amp.g);
-  amp.g.connect(out);
-};
-
-/** Glockenspiel: a short, bright FM bell for sparkle in sound effects. */
-export const glock: Voice = (ctx, out, t, midi, dur, vel) => bell(ctx, out, t, midi + 12, Math.min(dur, 0.4), vel * 0.8);
-
 // ---------------------------------------------------------------------------------------------------------------
 // Bass voices
 // ---------------------------------------------------------------------------------------------------------------
@@ -325,22 +272,6 @@ const shared = {
     // a short snare roll that swells into the downbeat
     for (let i = 0; i < 12; i++) noiseHit(ctx, out, t + i * 0.03, vel * (0.15 + 0.5 * (i / 11)), 'bandpass', 2400, 0.05, 0.9);
   },
-  surf: (ctx: Ctx, out: AudioNode, t: number, vel: number) => {
-    // a wave rolling in and drawing back over about four seconds: low-passed noise that swells and recedes
-    const amp = ctx.createGain();
-    amp.gain.setValueAtTime(Q, t);
-    amp.gain.exponentialRampToValueAtTime(vel * 0.16, t + 1.6);
-    amp.gain.exponentialRampToValueAtTime(Q, t + 4.2);
-    const flt = ctx.createBiquadFilter();
-    flt.type = 'lowpass';
-    flt.Q.value = 0.4;
-    flt.frequency.setValueAtTime(500, t);
-    flt.frequency.exponentialRampToValueAtTime(2600, t + 1.6);
-    flt.frequency.exponentialRampToValueAtTime(400, t + 4.2);
-    noise(ctx, t, 4.3).connect(flt);
-    flt.connect(amp);
-    amp.connect(out);
-  },
   crackle: (ctx: Ctx, out: AudioNode, t: number, vel: number) => {
     // vinyl dust: a few faint clicks spread over a beat
     for (let i = 0; i < 3; i++) noiseHit(ctx, out, t + Math.random() * 0.5, vel * (0.04 + Math.random() * 0.05), 'highpass', 3000, 0.004, 0.5);
@@ -384,15 +315,4 @@ export const punchy: Kit = {
   ...bright,
   kick: (c, o, t, v) => { kick(c, o, t, v * 1.05, 180, 60, 0.3); tone(c, o, t, v * 0.15, 2600, 0.008); },
   snare: (c, o, t, v) => { noiseHit(c, o, t, v * 0.55, 'bandpass', 2100, 0.17); tone(c, o, t, v * 0.3, 210, 0.07, 'triangle'); },
-};
-
-/** Orchestral percussion: timpani for the low beat, a concert snare, shaker for time, a suspended cymbal. */
-export const orchestral: Kit = {
-  ...bright,
-  kick: (c, o, t, v) => { kick(c, o, t, v * 0.9, 110, 73, 0.7); noiseHit(c, o, t, v * 0.12, 'lowpass', 900, 0.08); },
-  snare: (c, o, t, v) => { noiseHit(c, o, t, v * 0.42, 'bandpass', 2600, 0.14, 1.1); tone(c, o, t, v * 0.18, 230, 0.05, 'triangle'); },
-  hat: (c, o, t, v) => noiseHit(c, o, t, v * 0.16, 'bandpass', 5500, 0.05, 0.9),
-  openHat: (c, o, t, v) => noiseHit(c, o, t, v * 0.14, 'bandpass', 5000, 0.18, 0.9),
-  clap: (c, o, t, v) => noiseHit(c, o, t, v * 0.3, 'bandpass', 2400, 0.12, 1.1),
-  crash: (c, o, t, v) => noiseHit(c, o, t, v * 0.22, 'highpass', 4200, 2.2, 0.4),
 };

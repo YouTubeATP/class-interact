@@ -1,12 +1,16 @@
 import { SOUND_STYLES } from '@classinteract/shared';
 import { describe, expect, it } from 'vitest';
-import { barLengths, chordAt, COMPOSITIONS, loopBeats, parseChordBars, resolve } from './compositions';
-import { HKUST_COMPOSITIONS, MORSE_HKUST } from './compositions-hkust';
-import { HKUST_SFX, SFX } from './sfx';
-import { arrange, compositionFor, STYLES } from './styles';
+import { barLengths, chordAt, COMPOSITIONS, loopBeats, parseChordBars, resolve, type Composition, type Passage } from './compositions';
+import { ORCHESTRA, RANGE, type Instrument } from './hkust/instruments';
+import { HKUST_PIECES } from './hkust/pieces';
+import { fitLine, MORSE_HKUST, orchestrate, timeWarp } from './hkust/score';
+import { HKUST_CUES } from './hkust/sfx';
+import { SFX } from './sfx';
+import { arrange, STYLE_INFO, STYLES, type BandStyle } from './styles';
 import { chordTones, parseChord, voiceChord } from './theory';
 
-const pieces = [...Object.values(COMPOSITIONS), ...Object.values(HKUST_COMPOSITIONS)];
+const pieces: Composition<Passage>[] = [...Object.values(COMPOSITIONS), ...Object.values(HKUST_PIECES)];
+const bandStyles = Object.keys(STYLES) as BandStyle[];
 
 describe('music theory', () => {
   it('parses chord symbols, including slash chords and extensions', () => {
@@ -79,9 +83,14 @@ describe('compositions', () => {
   });
 });
 
-describe('styles', () => {
-  for (const style of SOUND_STYLES) {
-    it.each(pieces)(`${style} arranges $title`, (c) => {
+describe('band styles', () => {
+  it('are every sound choice except HKUST, which is a set of its own', () => {
+    expect(bandStyles.sort()).toEqual(SOUND_STYLES.filter((s) => s !== 'hkust').sort());
+    for (const s of SOUND_STYLES) expect(STYLE_INFO[s].label).toBeTruthy();
+  });
+
+  for (const style of bandStyles) {
+    it.each(Object.values(COMPOSITIONS))(`${style} arranges $title`, (c) => {
       const events = arrange(c, STYLES[style]);
       const total = loopBeats(c);
       expect(events.filter((e) => e.part === 'lead')).toHaveLength(resolve(c).reduce((n, r) => n + r.melody.length, 0));
@@ -130,30 +139,87 @@ describe('sound effects', () => {
   });
 });
 
-describe('HKUST style', () => {
+describe('HKUST set', () => {
+  const pitched = (i: Instrument) => !!RANGE[i];
+
   it('spells HKUST in Morse code', () => {
     // ···· −·− ··− ··· −
     expect(MORSE_HKUST).toHaveLength(14);
     expect(MORSE_HKUST.map(([, dash]) => (dash ? '-' : '.')).join('')).toBe('....-.-..-...-');
   });
 
-  it('plays its own compositions, with the Morse woodblock and the sea where they are written', () => {
-    expect(compositionFor('lobby', 'hkust').title).toBe('Atrium');
-    expect(compositionFor('lobby', 'bright').title).toBe('Doors open');
-    const lobby = arrange(HKUST_COMPOSITIONS.lobby, STYLES.hkust);
-    expect(lobby.filter((e) => e.drum === 'block' || e.drum === 'blockHigh').length).toBe(MORSE_HKUST.length * 2);
-    expect(lobby.some((e) => e.drum === 'surf')).toBe(true);
-    expect(HKUST_COMPOSITIONS.lobby.bpm).toBe(91);
+  it('has music of its own, scored for orchestra rather than given band textures', () => {
+    const shared = new Set(Object.values(COMPOSITIONS).map((c) => c.title));
+    for (const score of Object.values(HKUST_PIECES)) {
+      expect(shared.has(score.title), score.title).toBe(false);
+      for (const sec of score.sections) {
+        expect(sec.scoring, `${score.title}: ${sec.name}`).toBeDefined();
+        expect('texture' in sec).toBe(false);
+      }
+    }
+    expect(HKUST_PIECES.lobby.bpm).toBe(91);
+  });
+
+  it.each(Object.values(HKUST_PIECES))('orchestrates $title on orchestral instruments, each in its range', (score) => {
+    const { events, beats } = orchestrate(score);
+    expect(beats).toBeGreaterThanOrEqual(loopBeats(score));
+    expect(events.length).toBeGreaterThan(50);
+    for (const e of events) {
+      expect(ORCHESTRA[e.inst], e.inst).toBeDefined();
+      expect(Number.isFinite(e.beat) && e.beat >= 0 && e.beat < beats, `${e.inst} at ${e.beat}`).toBe(true);
+      expect(e.beats).toBeGreaterThan(0);
+      expect(e.vel).toBeGreaterThan(0);
+      expect(e.vel).toBeLessThanOrEqual(1);
+      const range = RANGE[e.inst];
+      if (range) expect(e.midi, `${e.inst} ${e.midi}`).toBeGreaterThanOrEqual(range[0] - 5), expect(e.midi, `${e.inst} ${e.midi}`).toBeLessThanOrEqual(range[1] + 5);
+      if (e.inst === 'timpani' || e.inst === 'timpaniRoll' || e.inst === 'timpaniTrem') expect(score.timpani).toContain(e.midi);
+    }
+    expect(events.every((e, i) => i === 0 || events[i - 1].beat <= e.beat)).toBe(true);
+    // nothing from the band: no drum kit, no synth voices
+    expect(new Set(events.map((e) => e.inst)).has('kick' as Instrument)).toBe(false);
+  });
+
+  it.each(Object.values(HKUST_PIECES).filter((s) => s.id !== 'countdown'))('changes its orchestration from section to section in $title', (score) => {
+    const leads = score.sections.map((s) => JSON.stringify([s.scoring.tune?.[0], s.scoring.harmony, s.scoring.figure]));
+    expect(new Set(leads).size).toBeGreaterThanOrEqual(Math.min(4, score.sections.length - 1));
+    expect(new Set(score.sections.map((s) => s.scoring.dyn)).size).toBeGreaterThan(1);
+  });
+
+  it('strikes the timpani only on a note of the chord', () => {
+    // no ritardando in the countdown, so its score beats are its performed beats
+    const score = HKUST_PIECES.countdown;
+    for (const e of orchestrate(score).events.filter((e) => e.inst === 'timpani')) {
+      expect(chordTones(parseChord(chordAt(score, e.beat))), `beat ${e.beat}`).toContain(e.midi % 12);
+    }
+  });
+
+  it('slows down where a ritardando is marked, and only there', () => {
+    const warp = timeWarp([[8, 16]], 20);
+    expect(warp(8)).toBeCloseTo(8, 6);
+    expect(warp(16) - warp(8)).toBeGreaterThan(9);
+    expect(warp(20) - warp(16)).toBeCloseTo(4, 6);
+    expect(orchestrate(HKUST_PIECES.lobby).beats).toBeGreaterThan(loopBeats(HKUST_PIECES.lobby) + 1);
+    expect(orchestrate(HKUST_PIECES.countdown).beats).toBeCloseTo(loopBeats(HKUST_PIECES.countdown), 6);
+  });
+
+  it('keeps a phrase in one octave when it moves it into an instrument\'s range', () => {
+    expect(fitLine([76, 78, 86], 'trumpet')).toBe(-12);
+    expect(fitLine([69, 74, 78], 'violins')).toBe(0);
+    expect(fitLine([45, 50], 'flute')).toBe(24);
+  });
+
+  it('taps the Morse code and lets the sea in where the score asks', () => {
+    const { events } = orchestrate(HKUST_PIECES.lobby);
+    expect(events.filter((e) => e.inst === 'block' || e.inst === 'blockHigh').length).toBe(MORSE_HKUST.length * 2);
+    expect(events.some((e) => e.inst === 'surf')).toBe(true);
+    expect(events.some((e) => e.inst === 'bells')).toBe(true);
   });
 
   it('quotes the anthem motifs and the HKUST cryptogram', () => {
-    const melody = (id: keyof typeof HKUST_COMPOSITIONS) => resolve(HKUST_COMPOSITIONS[id]).flatMap((r) => r.melody.map((n) => n[1]));
+    const melody = (id: keyof typeof HKUST_PIECES) => resolve(HKUST_PIECES[id]).flatMap((r) => r.melody.map((n) => n[1]));
     // compared by interval, so a quotation in another key (the hymn in A, the procession a step up) still counts
     const steps = (ns: number[]) => ns.slice(1).map((n, i) => n - ns[i]);
-    const contains = (hay: number[], needle: number[]) => {
-      const h = steps(hay).join(','), n = steps(needle).join(',');
-      return `,${h},`.includes(`,${n},`);
-    };
+    const contains = (hay: number[], needle: number[]) => `,${steps(hay).join(',')},`.includes(`,${steps(needle).join(',')},`);
     const call = [78, 79, 69, 69, 69, 76, 76, 78, 74, 73, 74, 76]; // F# G A | A A E E F# D C# D E, as the anthem has it
     const climb = [79, 78, 79, 79, 83, 81, 78, 78, 76, 74, 74, 71, 73, 74]; // G F# G G B | A F# F# E D D B C# D
     const hkust = [71, 74, 79, 75, 77]; // B D G Eb F
@@ -164,14 +230,18 @@ describe('HKUST style', () => {
     expect(contains(melody('lobby'), hkust)).toBe(true);
   });
 
-  it('has a complete set of effects of its own, none borrowed from the other styles', () => {
-    expect(Object.keys(HKUST_SFX).sort()).toEqual(Object.keys(SFX).sort());
-    for (const id of Object.keys(SFX) as (keyof typeof SFX)[]) expect(HKUST_SFX[id], id).not.toBe(SFX[id]);
-    for (const [id, def] of Object.entries(HKUST_SFX)) {
-      const notes = [...(def.notes ?? []).map((n) => n[0]), ...(def.chords ?? []).flatMap((c) => c[0])];
-      expect(notes.length + (def.perc?.length ?? 0), id).toBeGreaterThan(0);
-      for (const n of notes) expect(n, id).toBeGreaterThanOrEqual(40), expect(n, id).toBeLessThanOrEqual(96);
-      expect(def.gain, id).toBeLessThanOrEqual(0.6);
+  it('has an orchestral cue of its own for every sound effect', () => {
+    expect(Object.keys(HKUST_CUES).sort()).toEqual(Object.keys(SFX).sort());
+    for (const [id, set] of Object.entries(HKUST_CUES)) {
+      expect(set.cues.length, id).toBeGreaterThan(0);
+      expect(set.gain, id).toBeLessThanOrEqual(0.6);
+      for (const [inst, midi, at, len] of set.cues) {
+        expect(ORCHESTRA[inst], `${id} ${inst}`).toBeDefined();
+        expect(at).toBeGreaterThanOrEqual(0);
+        expect(len).toBeGreaterThan(0);
+        const range = RANGE[inst];
+        if (pitched(inst)) expect(midi >= range![0] - 5 && midi <= range![1] + 5, `${id}: ${inst} ${midi}`).toBe(true);
+      }
     }
   });
 });

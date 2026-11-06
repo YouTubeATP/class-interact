@@ -1,8 +1,9 @@
 /**
  * The background music, written as compositions in sections, so a piece develops for one to three minutes before it
  * repeats instead of cycling a few bars. Each section has a chord progression, a melody, optionally a counter-melody,
- * and a texture (how much of the band plays). Each style (styles.ts) arranges the same music with its own
- * instruments, so a piece keeps its identity whatever the style.
+ * and a texture (how much of the band plays). The five band styles (styles.ts) arrange the same music with their
+ * own instruments, so a piece keeps its identity whatever the style. (The HKUST set, in hkust/, has its own music,
+ * written in the same notation but scored for orchestra.)
  *
  * Notation, one string per section, bars separated by `|`:
  *   chords   `Fmaj7 | Am7 D7 | Gm7 |`  (two chords in a bar split it evenly)
@@ -34,27 +35,28 @@ export interface Texture {
   fill?: boolean;
   /** A cymbal crash on the first beat of the section. */
   crash?: boolean;
-  /** "HKUST" tapped in Morse code on a woodblock from the first bar (and again halfway through long sections). */
-  morse?: boolean;
-  /** Sea waves under the section, one every two bars. */
-  surf?: boolean;
 }
 
-export interface Section {
+/** The music of a section, without how it is played. */
+export interface Passage {
   name: string;
   chords: string;
   melody?: string;
   counter?: string;
-  texture: Texture;
   /** Transpose the melody, counter and chords by this many semitones (to restate a section in a new key). */
   transpose?: number;
 }
 
-export interface Composition {
+/** A section of the shared compositions: the music and how much of the band plays it. */
+export interface Section extends Passage {
+  texture: Texture;
+}
+
+export interface Composition<S extends Passage = Section> {
   id: MusicId;
   title: string;
   bpm: number;
-  sections: Section[];
+  sections: S[];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -317,8 +319,8 @@ const encore: Composition = {
 export const COMPOSITIONS: Record<MusicId, Composition> = { lobby, quiz, countdown, results, break: breakTime, ended: encore };
 
 /** A section with its notation resolved, placed at `start` beats into the piece. */
-export interface ResolvedSection {
-  section: Section;
+export interface ResolvedSection<S extends Passage = Section> {
+  section: S;
   start: number;
   beats: number;
   chords: [string, number][];
@@ -326,15 +328,15 @@ export interface ResolvedSection {
   counter: MelodyNote[];
 }
 
-const resolvedCache = new Map<Composition, ResolvedSection[]>();
-export function resolve(c: Composition): ResolvedSection[] {
-  if (resolvedCache.has(c)) return resolvedCache.get(c)!;
+const resolvedCache = new Map<Composition<Passage>, ResolvedSection<Passage>[]>();
+export function resolve<S extends Passage>(c: Composition<S>): ResolvedSection<S>[] {
+  if (resolvedCache.has(c)) return resolvedCache.get(c)! as ResolvedSection<S>[];
   let start = 0;
   const out = c.sections.map((section) => {
     const t = section.transpose ?? 0;
     const chords = parseChordBars(section.chords, t);
     const beats = chords.reduce((n, [, b]) => n + b, 0);
-    const r: ResolvedSection = { section, start, beats, chords, melody: section.melody ? parseMelody(section.melody, t) : [], counter: section.counter ? parseMelody(section.counter, t) : [] };
+    const r: ResolvedSection<S> = { section, start, beats, chords, melody: section.melody ? parseMelody(section.melody, t) : [], counter: section.counter ? parseMelody(section.counter, t) : [] };
     start += beats;
     return r;
   });
@@ -342,10 +344,10 @@ export function resolve(c: Composition): ResolvedSection[] {
   return out;
 }
 
-export const loopBeats = (c: Composition) => resolve(c).reduce((n, s) => n + s.beats, 0);
+export const loopBeats = (c: Composition<Passage>) => resolve(c).reduce((n, s) => n + s.beats, 0);
 
 /** The chord sounding at `beat` (within one loop). */
-export function chordAt(c: Composition, beat: number): string {
+export function chordAt(c: Composition<Passage>, beat: number): string {
   for (const s of resolve(c)) {
     if (beat >= s.start + s.beats) continue;
     let t = s.start;
