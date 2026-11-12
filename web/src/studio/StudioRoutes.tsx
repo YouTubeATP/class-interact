@@ -18,6 +18,7 @@ const DashboardPage = lazy(() => import('./Dashboard'));
 const ResultsPage = lazy(() => import('./Results'));
 const StudioHelp = lazy(() => import('@/help/StudioHelp'));
 const RemotePage = lazy(() => import('./Remote'));
+const SpeakerPage = lazy(() => import('./Speaker'));
 const LearnersPage = lazy(() => import('./Learners'));
 const SettingsPage = lazy(() => import('./Settings'));
 
@@ -101,6 +102,8 @@ export default function StudioRoutes() {
       <Route path="/settings" element={<RequireStudio><Suspense fallback={<Loading />}><SettingsPage /></Suspense></RequireStudio>} />
       {/* not behind the Studio password: a co-presenter's link carries its own revocable token */}
       <Route path="/remote/:id" element={<Suspense fallback={<Loading />}><RemotePage /></Suspense>} />
+      {/* presenter phones: the shared Presenter QR carries its own revocable token */}
+      <Route path="/speak/:id" element={<Suspense fallback={<Loading />}><SpeakerPage /></Suspense>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

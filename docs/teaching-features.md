@@ -49,10 +49,45 @@ untouched.
 | --- | --- | --- |
 | Co-presenter | move through slides, open/close/reveal, run again, projector overlays, breaks, projector look and sound, moderate responses and questions | end the session, remove people, change session settings, create access links |
 | Moderator | approve and hide responses and questions, review typed answers, manage participants and teams | change what is on screen |
+| Presenter phone | go to the next or previous slide (see below) | anything else: no `goto`, start, end, overlays or settings |
 
 An access link carries a random token. Only its hash is stored, it never reveals the Studio password, and
 **Revoke** cuts the link off at once on every device using it. The server checks every command against the
 permission table in `shared/src/permissions.ts`. The screen only hides what a role cannot do, as a convenience.
+
+**Presenter phones.** For group presentations and co-teaching. Assign slides with each slide's **Presenter** field,
+or in bulk under presentation settings → Presenters; add up to five **Phone cues** per slide. On the dashboard's
+**Presenters** tab, each presenter scans the **Presenter QR** or types the six-digit **presenter code** on the
+normal join page (separate from the join PIN and the projector code, like the projector code). They pick their name
+from the roster built from the slides. A name that matches no slide joins as a *helper*. The tab lists connected
+phones, lets you remove one, and **Reset QR** replaces both the QR and the code and disconnects every phone.
+
+- **Haptic turns.** A phone buzzes two short taps when the room reaches the slide before its presenter's turn, one
+  long buzz when the turn starts, and a tiny tick on handing over. Each rhythm is distinct, so presenters can tell
+  them apart without looking. iOS Safari has no Vibration API, so iPhones flash the screen edge instead, and the
+  name step says so. There are no sounds, because the audience would hear them.
+- **Turn-aware buttons.** The person whose slide is on screen moves with one tap. Anyone else's tap buzzes, and the
+  button itself turns into **Confirm next?** for three seconds. It is not a dialog, so nothing covers the screen. The
+  server allows any phone to move one slide, because the confirm step is about intent, not permission. The usual
+  version check stops two phones from skipping two slides.
+
+The phone is designed so it stays a safety net and does not become a teleprompter:
+
+- **Cues, not lines.** Speaker `notes` never reach a phone. Cues are capped at five per slide and 80 characters
+  each, and the editor nudges any cue longer than eight words towards a keyword.
+- **Only now and next.** While live, a phone gets its own cues for the slide on screen, and only the *title* of the
+  next slide. Other presenters' cues are never sent. The whole run of show, which includes practice mode ("say your
+  cues out loud, then check"), is only sent before the first slide.
+- **Heads-up dimming.** The phone is always dark. During your turn the cue card fades to 10% after five seconds, and
+  a tap brings it back. A wake lock keeps the page alive for buzzes, but the screen does not stay bright.
+- **Private reflection.** At the end the phone says how often and how long its presenter peeked during their
+  turn, with a tip. This is counted and kept on that phone only. The host never sees it.
+
+Built on the access-link machinery. The `speaker` grant is one shared grant per session, and its token is derived
+from the server secret and a generation number, so the QR can be shown again without being stored. Each phone
+sends its name in the socket handshake. Phones get a separate, minimal `SpeakerSnapshot`, not the presenter
+snapshot. Tested in `server/test/presenter-phones.test.ts`, `shared/test/presenters.test.ts`,
+`web/src/lib/haptics.test.ts` and `e2e/presenter-phone.spec.ts`.
 
 **Contradictory commands.** Several screens can control one session (dashboard, remote, co-presenter). Every
 navigation command carries the state version it was based on. If a *different* screen has changed the state since
@@ -277,6 +312,10 @@ and every existing submission is attached to it, so old sessions, results and CS
 The CSV keeps its original columns first and adds new ones at the end. The migration is applied by
 `npm run db:migrate` (`prisma migrate deploy`), which the Docker entrypoint runs on start. It is tested against a
 database populated at the previous schema in `server/test/migration.test.ts`.
+
+`20261112120000_speaker_code` adds the nullable, unique `Session.liveSpeakerCode` (the presenter code), allocated
+on first use like `liveProjectorCode`. Presenter phones need no other schema change: `presenter` and `cues` live in
+the slide configuration JSON, and the shared Presenter QR is an `AccessGrant` with role `speaker`.
 
 ## Known limits
 

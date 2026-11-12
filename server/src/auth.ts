@@ -19,6 +19,8 @@ export interface Auth {
   presenterToken(sessionId: string): string;
   /** Key that lets a screen show the projector view of one session. Participants never receive it. */
   projectorKey(sessionId: string): string;
+  /** Token behind a session's Presenter QR. `generation` moves on each time the QR is reset. */
+  speakerToken(sessionId: string, generation: number): string;
   verifyPresenter(sessionId: string, token: string): boolean;
   verifyProjector(sessionId: string, key: string): boolean;
   issueStudioToken(): string;
@@ -45,6 +47,7 @@ export function createAuth(config: Config): Auth {
     studioProtected: !!config.studioPassword,
     presenterToken: (id) => mac('presenter', id),
     projectorKey: (id) => mac('projector', id),
+    speakerToken: (id, generation) => mac('speaker', `${id}:${generation}`),
     verifyPresenter: (id, t) => safeEqual(mac('presenter', id), t),
     verifyProjector: (id, k) => safeEqual(mac('projector', id), k),
     issueStudioToken() {

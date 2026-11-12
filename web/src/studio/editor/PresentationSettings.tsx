@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { SwitchRow } from '@/components/ui/switch';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { PresenterTurns } from './PresenterTurns';
 import { Section, SelectField, TextField, errorAt, type FieldIssue } from './fields';
 
 const SWATCH: Record<string, string> = { azure: '#3347ff', lavender: '#6c4bff', mint: '#0e8f63', peach: '#dd5a14', rose: '#cf2f63', slate: '#334155' };
@@ -38,6 +39,7 @@ export function PresentationSettings({ doc, onChange, issues }: { doc: Presentat
         <TextField label="Title" value={doc.title} onChange={(title) => onChange({ title })} issues={issues} path="title" maxLength={140} testId="presentation-title" />
         <TextField label="Description" value={doc.description} onChange={(description) => onChange({ description })} issues={issues} path="description" multiline rows={3} maxLength={600} hint="Shown on the library card." />
       </Section>
+      <PresenterTurns doc={doc} onChange={onChange} />
       <Section title="Theme" hint="Colours follow the theme on the projector and on phones. Each activity type keeps its own tone.">
         <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap items-center gap-3">
           {PALETTES.map((p) => (

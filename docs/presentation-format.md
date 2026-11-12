@@ -54,6 +54,8 @@ Every slide may also have:
 | Field | Notes |
 | --- | --- |
 | `notes` | Private speaker notes. Never sent to the projector or phones. |
+| `presenter` | Who presents this slide (≤ 60 characters), for group or co-taught sessions. Consecutive slides with the same name form one turn; presenter phones buzz before and at each turn. Matched ignoring case, accents and spacing. |
+| `cues` | Up to 5 cue points of ≤ 80 characters each, shown on the presenter's phone during their own slide. Keywords, not lines to read. Never sent to the projector or the audience. |
 | `image` | `{ "url", "alt", "fit" }`. `url` must be `https://…`, `http://…` or an uploaded `/uploads/…` path. `fit` is `cover` (default) or `contain`. Failed loads show a placeholder. |
 | `media` | `{ "url", "kind", "title", "start", "phones" }`. A YouTube or Vimeo link (embedded through the privacy-enhanced players), an `https://` audio or video file, or an uploaded `/uploads/…` file. `kind` is `video` (default) or `audio`, `start` is in seconds, and `phones: true` also shows the player on phones (otherwise it plays on the main screen only). |
 

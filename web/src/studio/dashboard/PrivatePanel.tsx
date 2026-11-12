@@ -1,6 +1,7 @@
 import { Check, EyeOff, Lock, StickyNote, UserX, Users } from 'lucide-react';
 import { useState } from 'react';
 import { quizCorrectIds, type ModerationItem, type PresenterCommand, type PresenterSnapshot, type QuizConfig, type WordcloudConfig } from '@classinteract/shared';
+import { PresenterPhonesPanel } from './PresenterPhones';
 import { AccessPanel, ComparePanel, MergePanel, PulsePanel, QaPanel, ReviewPanel, TeamsPanel } from './RoomPanels';
 import { quizAnswerLabel, quizAnswerLines } from '@/lib/quiz';
 import { RichInline } from '@/components/RichText';
@@ -92,7 +93,7 @@ export function PrivatePanel({ snap, send, sessionId, aiEnabled }: { snap: Prese
   const tab = picked ?? (hasActivity ? 'results' : 'qa');
   const available = [
     hasActivity && 'results', hasActivity && text && 'moderate', snap.reviews.length > 0 && 'review', snap.runs.length > 1 && 'compare', 'qa', 'pulse',
-    perms.includes('participants') && 'teams', perms.includes('access') && 'access', hasActivity && 'notes',
+    perms.includes('participants') && 'teams', perms.includes('access') && 'presenters', perms.includes('access') && 'access', hasActivity && 'notes',
   ].filter(Boolean) as string[];
   // a tab that does not apply to the new activity falls back to the first one that does
   const shown = available.includes(tab) ? tab : available[0];
@@ -107,6 +108,7 @@ export function PrivatePanel({ snap, send, sessionId, aiEnabled }: { snap: Prese
         <TabsTrigger value="qa" data-testid="tab-qa">Q&amp;A{qaPending > 0 ? <Badge variant="warn" className="ml-1">{qaPending}</Badge> : qaOpen > 0 ? <Badge className="ml-1">{qaOpen}</Badge> : null}</TabsTrigger>
         <TabsTrigger value="pulse" data-testid="tab-pulse">Pulse</TabsTrigger>
         {perms.includes('participants') && <TabsTrigger value="teams" data-testid="tab-teams">Teams</TabsTrigger>}
+        {perms.includes('access') && <TabsTrigger value="presenters" data-testid="tab-presenters">Presenters{snap.speakers.length > 0 && <Badge className="ml-1">{snap.speakers.length}</Badge>}</TabsTrigger>}
         {perms.includes('access') && <TabsTrigger value="access" data-testid="tab-access">Access</TabsTrigger>}
         {hasActivity && <TabsTrigger value="notes" data-testid="tab-notes"><StickyNote className="size-3.5" aria-hidden /> Notes</TabsTrigger>}
       </TabsList>
@@ -142,6 +144,7 @@ export function PrivatePanel({ snap, send, sessionId, aiEnabled }: { snap: Prese
       <TabsContent value="qa" className="outline-none"><QaPanel snap={snap} send={send} /></TabsContent>
       <TabsContent value="pulse" className="outline-none"><PulsePanel snap={snap} send={send} /></TabsContent>
       {perms.includes('participants') && <TabsContent value="teams" className="outline-none"><TeamsPanel snap={snap} send={send} /></TabsContent>}
+      {perms.includes('access') && <TabsContent value="presenters" className="outline-none"><PresenterPhonesPanel snap={snap} send={send} sessionId={sessionId} /></TabsContent>}
       {perms.includes('access') && <TabsContent value="access" className="outline-none"><AccessPanel snap={snap} sessionId={sessionId} /></TabsContent>}
       {hasActivity && (
         <TabsContent value="notes" className="outline-none">

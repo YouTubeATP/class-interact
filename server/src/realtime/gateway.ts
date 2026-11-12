@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import {
-  askQuestionSchema, can, presenterCommandSchema, pulseSchema, socketAuthSchema, submitRequestSchema, voteSchema,
-  type Ack, type Permission, type PresenterCommand, type Role, type StaffRole,
+  SPEAKER_ACTIONS, askQuestionSchema, can, sameName, presenterCommandSchema, pulseSchema, socketAuthSchema, submitRequestSchema, voteSchema,
+  type Ack, type Permission, type PresenterCommand, type PresenterSnapshot, type Role, type SpeakerInfo, type StaffRole,
 } from '@classinteract/shared';
 import type { Auth } from '../auth';
 import { AppError } from '../lib/errors';
@@ -17,6 +17,8 @@ interface Conn {
   staffRole?: StaffRole;
   grantId?: string;
   label?: string;
+  /** Presenter phones: the name typed on the phone. */
+  speakerName?: string;
 }
 
 const DEBOUNCE_MS = 120;
@@ -47,6 +49,8 @@ export function permissionFor(c: PresenterCommand): Permission {
     case 'teams':
     case 'kick':
       return 'participants';
+    case 'kickSpeaker':
+      return 'access';
     case 'moderate':
     case 'review':
     case 'merge':
@@ -88,7 +92,9 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       } else if (a.role === 'delegate') {
         const g = await service.authDelegate(a.sessionId, a.token);
         if (!g) return next(new Error('UNAUTHORIZED'));
-        socket.data = { role: 'presenter', sessionId: a.sessionId, staffRole: g.role, grantId: g.grantId, label: g.label };
+        const speakerName = g.role === 'speaker' ? (a.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) : undefined;
+        if (g.role === 'speaker' && !speakerName) return next(new Error('NAME_REQUIRED'));
+        socket.data = { role: 'presenter', sessionId: a.sessionId, staffRole: g.role, grantId: g.grantId, label: g.label, speakerName };
       } else if (a.role === 'projector') {
         if (!auth.verifyProjector(a.sessionId, a.key)) return next(new Error('UNAUTHORIZED'));
         socket.data = { role: 'projector', sessionId: a.sessionId };
@@ -102,6 +108,20 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       next(new Error('INTERNAL'));
     }
   });
+
+  /** Phones joined through the Presenter QR, for the screens that manage access. */
+  const speakersOf = (sessionId: string, roster: string[]): SpeakerInfo[] =>
+    [...connsOf(sessionId)]
+      .filter((c) => c.staffRole === 'speaker')
+      .map((c) => ({ id: c.socket.id, name: c.speakerName ?? '', matched: roster.some((r) => sameName(r, c.speakerName)) }));
+
+  /** The snapshot a control screen receives, narrowed to its role. */
+  const controlSnapshot = (c: Conn, snaps: Awaited<ReturnType<SessionService['buildSnapshots']>>) => {
+    if (c.staffRole === 'speaker') return snaps.forSpeaker(c.speakerName ?? '');
+    const p: PresenterSnapshot = c.staffRole === 'owner' ? snaps.presenter : service.delegateView(snaps.presenter, c.staffRole!, c.label ?? '');
+    if (!can(c.staffRole!, 'access')) return p;
+    return { ...p, speakers: speakersOf(c.sessionId, snaps.forSpeaker('').roster) };
+  };
 
   // --- broadcasting ------------------------------------------------------------------
   const pending = new Map<string, { scopes: Set<ChangeScope>; timer?: NodeJS.Timeout; running: boolean; dirty: boolean }>();
@@ -130,7 +150,7 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       const participantsNeedUpdate = has('control') || has('qa') || (has('roster') && waiting) || (has('data') && snaps.participantsSeeLiveData);
       const projectorNeedsUpdate = has('control') || has('data') || has('roster') || (has('qa') && (snaps.projectorShowsQa || !!snaps.projector.highlight)) || (has('pulse') && snaps.projectorShowsPulse);
       for (const c of targets) {
-        if (c.role === 'presenter') c.socket.emit('snapshot', c.staffRole === 'owner' ? snaps.presenter : service.delegateView(snaps.presenter, c.staffRole!, c.label ?? ''));
+        if (c.role === 'presenter') c.socket.emit('snapshot', controlSnapshot(c, snaps));
         else if (c.role === 'projector') { if (projectorNeedsUpdate) c.socket.emit('snapshot', snaps.projector); }
         else if (participantsNeedUpdate && c.participantId) {
           const snap = snaps.forParticipant(c.participantId);
@@ -188,15 +208,15 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
   async function sendSnapshot(c: Conn) {
     const snaps = await service.buildSnapshots(c.sessionId, onlineParticipants(c.sessionId), onlineGrants(c.sessionId));
     const snap = c.role === 'presenter'
-      ? (c.staffRole === 'owner' ? snaps.presenter : service.delegateView(snaps.presenter, c.staffRole!, c.label ?? ''))
+      ? controlSnapshot(c, snaps)
       : c.role === 'projector' ? snaps.projector : snaps.forParticipant(c.participantId!);
     if (snap) c.socket.emit('snapshot', snap);
   }
 
   // --- connections -------------------------------------------------------------------
   io.on('connection', (socket) => {
-    const { role, sessionId, participantId, staffRole, grantId, label } = socket.data as Conn;
-    const conn: Conn = { socket, role, sessionId, participantId, staffRole, grantId, label };
+    const { role, sessionId, participantId, staffRole, grantId, label, speakerName } = socket.data as Conn;
+    const conn: Conn = { socket, role, sessionId, participantId, staffRole, grantId, label, speakerName };
     if (!conns.has(sessionId)) conns.set(sessionId, new Set());
     conns.get(sessionId)!.add(conn);
 
@@ -288,6 +308,10 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
       if (!parsed.success) return reply({ ok: false, code: 'INVALID', message: 'Unknown command.' });
       const c = parsed.data;
       if (!can(conn.staffRole, permissionFor(c))) return reply({ ok: false, code: 'FORBIDDEN', message: 'Your access link does not allow that.' });
+      // A presenter phone moves one slide at a time and nothing else.
+      if (conn.staffRole === 'speaker' && !(c.cmd === 'action' && (SPEAKER_ACTIONS as readonly string[]).includes(c.action.type))) {
+        return reply({ ok: false, code: 'FORBIDDEN', message: 'A presenter phone can only go to the next or previous slide.' });
+      }
       const actor = { id: socket.id, role: conn.staffRole };
       try {
         if (c.cmd === 'action') await service.act(sessionId, c.action, { actor, expectVersion: c.expectVersion });
@@ -295,6 +319,12 @@ export function attachGateway(io: Server, service: SessionService, auth: Auth, o
         else if (c.cmd === 'nextPlain') await service.act(sessionId, { type: 'next' }, { actor, expectVersion: c.expectVersion, ignoreBranch: true });
         else if (c.cmd === 'moderate') await service.moderate(sessionId, c);
         else if (c.cmd === 'kick') await service.kick(sessionId, c.participantId);
+        else if (c.cmd === 'kickSpeaker') {
+          const target = [...connsOf(sessionId)].find((x) => x.staffRole === 'speaker' && x.socket.id === c.id);
+          if (!target) return reply({ ok: false, code: 'NOT_FOUND', message: 'That phone is no longer connected.' });
+          target.socket.emit('removed');
+          target.socket.disconnect(true);
+        }
         else if (c.cmd === 'setMode') await service.setMode(sessionId, c.mode);
         else if (c.cmd === 'qa') await service.moderateQuestion(sessionId, c.op, c.id, actor);
         else if (c.cmd === 'features') await service.updateFeatures(sessionId, c.patch);

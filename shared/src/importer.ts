@@ -9,7 +9,7 @@
  *   options       answer options separated by |        (or columns option_a … option_f / option1 … option6)
  *   correct       letter(s) like B or A,C, or the option text; for typed answers the accepted answers (a|b); for numeric the number
  *   tolerance     numeric: allowed difference (absolute), or e.g. 5% for relative
- *   unit, time_limit, points, explanation, concepts (a|b), notes, body, min, max, min_label, max_label, multiple (yes/no)
+ *   unit, time_limit, points, explanation, concepts (a|b), notes, presenter, cues (a|b), body, min, max, min_label, max_label, multiple (yes/no)
  */
 import { defaultConfig, nextId } from './activities';
 import { parseSlideConfig } from './document';
@@ -62,7 +62,7 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
-const KNOWN = ['type', 'kind', 'question', 'prompt', 'title', 'options', 'correct', 'answer', 'tolerance', 'unit', 'time_limit', 'timelimit', 'time', 'points', 'explanation', 'concepts', 'notes', 'body', 'min', 'max', 'min_label', 'max_label', 'multiple'];
+const KNOWN = ['type', 'kind', 'question', 'prompt', 'title', 'options', 'correct', 'answer', 'tolerance', 'unit', 'time_limit', 'timelimit', 'time', 'points', 'explanation', 'concepts', 'notes', 'presenter', 'cues', 'body', 'min', 'max', 'min_label', 'max_label', 'multiple'];
 const optionCol = (h: string) => /^option[ _-]?([a-f]|[1-6])$/.exec(h);
 const split = (v: string) => v.split('|').map((x) => x.trim()).filter(Boolean);
 const yes = (v: string | undefined) => !!v && /^(y|yes|true|1|x)$/i.test(v.trim());
@@ -80,6 +80,9 @@ function rowToSlide(get: (k: string) => string | undefined, options: string[], i
   const time = Number(get('time_limit') ?? get('timelimit') ?? get('time') ?? '');
   if ('timeLimitSec' in base && Number.isFinite(time) && time > 0) base.timeLimitSec = Math.round(time);
   if (get('notes')) base.notes = get('notes')!.trim();
+  if (get('presenter')?.trim()) base.presenter = get('presenter')!.trim();
+  const cues = (get('cues') ?? '').split('|').map((c) => c.trim()).filter(Boolean);
+  if (cues.length) base.cues = cues;
   const opts = options.map((text, i) => ({ id: String.fromCharCode(97 + i), text }));
 
   if (t === 'content') {

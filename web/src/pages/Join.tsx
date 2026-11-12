@@ -86,13 +86,20 @@ export default function JoinPage() {
       else if (ask) setStep({ kind: 'consent', pin: p, title: info.title });
       else await joinWith(p);
     } catch (e) {
-      // not a join code? It may be a presenter's projector code, which turns this screen into the projector
+      // not a join code? It may be a projector code (this screen becomes the projector) or a presenter code
+      // (this phone becomes a presenter phone, exactly as if the Presenter QR had been scanned)
       if (e instanceof ApiError && e.status === 404) {
         try {
           const claim = await api.claimProjector(p);
           navigate(`/project/${claim.sessionId}?k=${encodeURIComponent(claim.projectorKey)}`, { replace: true });
           return;
-        } catch { /* neither: fall through to the usual message */ }
+        } catch { /* not a projector code */ }
+        try {
+          const claim = await api.claimSpeaker(p);
+          // a full load, so the token in the fragment is read by the presenter phone page
+          window.location.assign(claim.path);
+          return;
+        } catch { /* none of them: fall through to the usual message */ }
       }
       setError(e instanceof ApiError ? e.message : 'Something went wrong. Try again.');
       setStep({ kind: 'pin' });

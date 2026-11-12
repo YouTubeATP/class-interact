@@ -20,7 +20,7 @@ const FINAL: ConnectionStatus[] = ['denied', 'notfound', 'removed', 'revoked'];
  * One persistent, authenticated socket per screen. The server is authoritative: every (re)connect
  * delivers a complete snapshot, so a phone that slept or a projector whose Wi-Fi dropped just catches up.
  */
-export function useSession<T extends Snapshot>(auth: SocketAuth | null) {
+export function useSession<T extends { serverNow: number } = Snapshot>(auth: SocketAuth | null) {
   const [snapshot, setSnapshot] = useState<T | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const offset = useRef(0);

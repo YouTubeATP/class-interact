@@ -8,6 +8,7 @@ import { Field } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SwitchRow } from '@/components/ui/switch';
 import { ImageField, NumberField, OptionsEditor, OrderItemsEditor, PairsEditor, Section, SelectField, StepsEditor, TextField, TimerField, errorAt, type FieldIssue } from './fields';
+import { PresenterFields } from './PresenterFields';
 import { AcceptedAnswersEditor, BranchField, ConceptsField, ConfidenceForField, MediaField, MisconceptionsEditor, NumericEditor, RegionEditor } from './advanced';
 
 type Patch<S extends Slide> = (p: Partial<S>) => void;
@@ -21,7 +22,7 @@ interface FormProps<S extends Slide> {
 
 const LAYOUT_LABELS: Record<string, string> = { title: 'Title', text: 'Text', 'image-text': 'Image and text', 'full-image': 'Full image', instructions: 'Instructions' };
 
-function Common({ slide, patch, issues, image = true }: { slide: Slide; patch: Patch<any>; issues: FieldIssue[]; image?: boolean }) {
+function Common({ slide, patch, issues, slides, image = true }: { slide: Slide; patch: Patch<any>; issues: FieldIssue[]; slides: Slide[]; image?: boolean }) {
   return (
     <>
       {image && (
@@ -35,6 +36,7 @@ function Common({ slide, patch, issues, image = true }: { slide: Slide; patch: P
       <Section title="Speaker notes" hint="Private. Only you see these on the presenter dashboard.">
         <TextField label="Notes" value={slide.notes} onChange={(notes) => patch({ notes })} issues={issues} path="notes" multiline rows={3} maxLength={4000} />
       </Section>
+      <PresenterFields slide={slide} patch={patch} issues={issues} slides={slides} />
     </>
   );
 }
@@ -52,7 +54,7 @@ function Behaviour({ slide, patch, issues, live = true, share = true }: { slide:
 
 // ------------------------------------------------------------------------------------
 
-function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'content' }>>) {
+function ContentForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'content' }>>) {
   const c = slide as ContentConfig & { id: string };
   // title slides are just a big heading (and optional subtitle), so there is nowhere to show a callout
   const isTitle = resolveContentLayout(c) === 'title';
@@ -82,7 +84,7 @@ function ContentForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 
           </div>
         )}
       </Section>
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
       {errorAt(issues, '') && <p className="text-sm text-bad" role="alert">{errorAt(issues, '')}</p>}
     </div>
   );
@@ -160,12 +162,12 @@ function QuizForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { t
           <BranchField slide={slide} slides={slides} onChange={(branch) => patch({ branch })} issues={issues} />
         </div>
       </details>
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }
 
-function PollForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'poll' }>>) {
+function PollForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'poll' }>>) {
   const c = slide as PollConfig & { id: string };
   return (
     <div className="grid gap-6">
@@ -181,12 +183,12 @@ function PollForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'po
         <SwitchRow label="Anonymous" hint="Names are left out of the CSV export for this poll." checked={c.anonymous} onChange={(anonymous) => patch({ anonymous })} />
       </Section>
       <Behaviour slide={slide} patch={patch} issues={issues} />
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }
 
-function WordcloudForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'wordcloud' }>>) {
+function WordcloudForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'wordcloud' }>>) {
   const c = slide as WordcloudConfig & { id: string };
   return (
     <div className="grid gap-6">
@@ -202,12 +204,12 @@ function WordcloudForm({ slide, patch, issues }: FormProps<Extract<Slide, { type
         <SelectField label="Moderation" value={c.moderation} onChange={(moderation) => patch({ moderation })} options={[{ value: 'off', label: 'Show answers immediately' }, { value: 'premoderate', label: 'Approve each answer before it appears' }]} hint="Offensive language is always blocked. You can hide any term while presenting." />
       </Section>
       <Behaviour slide={slide} patch={patch} issues={issues} />
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }
 
-function OpenForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'open' }>>) {
+function OpenForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'open' }>>) {
   const c = slide as OpenConfig & { id: string };
   return (
     <div className="grid gap-6">
@@ -223,7 +225,7 @@ function OpenForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'op
         <SelectField label="Moderation" value={c.moderation} onChange={(moderation) => patch({ moderation })} options={[{ value: 'off', label: 'Show answers immediately' }, { value: 'premoderate', label: 'Approve each answer before it appears' }]} />
       </Section>
       <Behaviour slide={slide} patch={patch} issues={issues} />
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }
@@ -250,7 +252,7 @@ function RatingForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, {
         <div className="pt-3"><ConfidenceForField value={c.confidenceFor} slides={slides} onChange={(confidenceFor) => patch({ confidenceFor })} /></div>
       </details>
       <Behaviour slide={slide} patch={patch} issues={issues} />
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }
@@ -266,7 +268,7 @@ function newQuestion(kind: SurveyQuestion['kind'], existing: string[]): SurveyQu
   return { id, kind, question: 'New question', mode: 'short', required: false };
 }
 
-function SurveyForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: 'survey' }>>) {
+function SurveyForm({ slide, patch, issues, slides }: FormProps<Extract<Slide, { type: 'survey' }>>) {
   const c = slide as SurveyConfig & { id: string };
   const setQ = (i: number, q: SurveyQuestion) => patch({ questions: c.questions.map((x, k) => (k === i ? q : x)) });
   const move = (i: number, d: -1 | 1) => {
@@ -330,7 +332,7 @@ function SurveyForm({ slide, patch, issues }: FormProps<Extract<Slide, { type: '
         </div>
       </Section>
       <Behaviour slide={slide} patch={patch} issues={issues} />
-      <Common slide={slide} patch={patch} issues={issues} />
+      <Common slide={slide} patch={patch} issues={issues} slides={slides} />
     </div>
   );
 }

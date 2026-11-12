@@ -1,6 +1,7 @@
 /** Wire types shared by server and clients: snapshots, socket commands, REST payloads. */
 import { z } from 'zod';
-import type { ActionType, SessionState } from './session';
+import type { ActionType, Phase, SessionState } from './session';
+import type { Turn } from './presenters';
 import type { Behavior, Results, SubmissionStatus } from './activities';
 import type { AnyConfig, SlideType, Theme } from './schema';
 import type { Standing } from './standings';
@@ -327,9 +328,45 @@ export interface PresenterSnapshot extends BaseSnapshot {
   /** What Next will do when the current quiz has a branch rule. */
   branch: (BranchDecision & { targetIndex: number | null }) | null;
   grants: AccessGrantInfo[];
+  /** Phones joined through the Presenter QR (empty for screens that may not manage access). */
+  speakers: SpeakerInfo[];
   selfPaced: SelfPacedProgress | null;
   /** Version of the state this snapshot was built from: send it with commands so stale clicks are refused. */
   version: number;
+}
+
+/** A phone connected through the Presenter QR, as the people running the session see it. */
+export interface SpeakerInfo {
+  id: string;
+  name: string;
+  /** The typed name matches a presenter assigned to slides. */
+  matched: boolean;
+}
+
+/**
+ * What a presenter phone receives. Deliberately small: who is on, cue points for the current slide only (never the
+ * speaker notes or answers), and the title of the next slide. The whole run of show is only sent before the
+ * presentation starts, for rehearsal, so the phone cannot become a script to read ahead from.
+ */
+export interface SpeakerSnapshot {
+  role: 'speaker';
+  sessionId: string;
+  serverNow: number;
+  title: string;
+  status: 'live' | 'ended';
+  phase: Phase;
+  /** Slide on screen; -1 before the first one. */
+  activityIndex: number;
+  total: number;
+  version: number;
+  /** The name this phone joined with, and whether it matches a presenter on the slides. */
+  me: { name: string; matched: boolean };
+  roster: string[];
+  turns: Turn[];
+  current: { title: string; presenter: string | null; cues: string[] } | null;
+  next: { title: string; presenter: string | null } | null;
+  /** Only before anything has been shown. */
+  outline: { title: string; presenter: string | null; cues: string[] }[] | null;
 }
 
 export type Snapshot = PresenterSnapshot | ProjectorSnapshot | ParticipantSnapshot;
@@ -349,7 +386,7 @@ export const socketAuthSchema = z.discriminatedUnion('role', [
   z.object({ role: z.literal('projector'), sessionId: z.string().min(1).max(64), key: z.string().min(1).max(200) }),
   z.object({ role: z.literal('participant'), sessionId: z.string().min(1).max(64), token: z.string().min(1).max(200) }),
   /** A teaching assistant's revocable access link. */
-  z.object({ role: z.literal('delegate'), sessionId: z.string().min(1).max(64), token: z.string().min(1).max(200) }),
+  z.object({ role: z.literal('delegate'), sessionId: z.string().min(1).max(64), token: z.string().min(1).max(200), name: z.string().max(60).optional() }),
 ]);
 export type SocketAuth = z.infer<typeof socketAuthSchema>;
 
@@ -404,6 +441,8 @@ export const presenterCommandSchema = z.discriminatedUnion('cmd', [
     key: z.string().max(200).optional(),
   }),
   z.object({ cmd: z.literal('kick'), participantId: z.string().min(1).max(64) }),
+  /** Disconnect one presenter phone (they can scan the QR again unless it is reset). */
+  z.object({ cmd: z.literal('kickSpeaker'), id: z.string().min(1).max(64) }),
   z.object({ cmd: z.literal('setMode'), mode: z.enum(['standalone', 'companion']) }),
 ]);
 
@@ -497,6 +536,17 @@ export interface SessionControlInfo {
   projectorKey: string;
   /** Six digits that turn another computer into this session's projector; null once the session has ended. */
   projectorCode: string | null;
+  /** Presenter phones: the presenter names on the slides, to pick from. */
+  roster?: string[];
+}
+
+/** The Presenter QR: one shared link that any presenter's phone can open. */
+export interface SpeakerLink {
+  id: string;
+  path: string;
+  /** Six digits typed on the join page instead of scanning; null once the session has ended. */
+  code: string | null;
+  roster: string[];
 }
 
 export interface ProjectorClaim {

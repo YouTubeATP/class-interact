@@ -53,6 +53,8 @@ model Session {
   /// Six digits typed on a screen-side computer to turn it into this session's projector. Separate from `pin`
   /// (which only lets people join), and NULL once the session has ended.
   liveProjectorCode String?        @unique
+  /// Six digits that open the presenter phone (like the Presenter QR); null once the session has ended.
+  liveSpeakerCode   String?        @unique
   /// JSON: SessionState (phase, activity index, visibility flags, timer)
   state          String
   /// JSON: SessionFeatures (Q&A, pulse, teams, projector look and sound, self-paced, …). '{}' = defaults.

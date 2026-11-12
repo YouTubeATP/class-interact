@@ -103,6 +103,19 @@
                 "maxLength": 4000,
                 "default": ""
               },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
+              },
               "image": {
                 "type": "object",
                 "properties": {
@@ -238,6 +251,19 @@
                 "type": "string",
                 "maxLength": 4000,
                 "default": ""
+              },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
               },
               "image": {
                 "type": "object",
@@ -698,6 +724,19 @@
                 "maxLength": 4000,
                 "default": ""
               },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
+              },
               "image": {
                 "type": "object",
                 "properties": {
@@ -857,6 +896,19 @@
                 "maxLength": 4000,
                 "default": ""
               },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
+              },
               "image": {
                 "type": "object",
                 "properties": {
@@ -996,6 +1048,19 @@
                 "type": "string",
                 "maxLength": 4000,
                 "default": ""
+              },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
               },
               "image": {
                 "type": "object",
@@ -1137,6 +1202,19 @@
                 "type": "string",
                 "maxLength": 4000,
                 "default": ""
+              },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
               },
               "image": {
                 "type": "object",
@@ -1283,6 +1361,19 @@
                 "type": "string",
                 "maxLength": 4000,
                 "default": ""
+              },
+              "presenter": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "cues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 5
               },
               "image": {
                 "type": "object",

@@ -275,6 +275,8 @@ answer colours.
 | `id` | string | no on import | `slide-N` | `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`. Unique in the document. **Set it yourself** whenever another slide refers to this one (branches, confidence checks); generated ids depend on position. |
 | `type` | enum | yes | — | `content`, `quiz`, `poll`, `wordcloud`, `open`, `rating`, `survey`. |
 | `notes` | string | no | `""` | ≤ 4000. Private speaker notes, shown only on the presenter's dashboard (plain text). |
+| `presenter` | string | no | — | ≤ 60. Who presents this slide in a group presentation. Consecutive slides with the same name are one turn. |
+| `cues` | string[] | no | — | ≤ 5 items, each 1–80 characters. Keyword prompts for the presenter's phone during their own slide. Write keywords ("Erosion data"), never sentences: the full text belongs in `notes`. |
 | `image` | object | no | — | Section 5.3. |
 | `media` | object | no | — | Section 5.4. |
 

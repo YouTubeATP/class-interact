@@ -234,7 +234,7 @@ How to work
 - Respect the user's language: write slides in the language they write to you in, unless told otherwise.
 
 Slide format (always give options, pairs and items explicit ids such as "a", "b", "c" and reference those ids in answer keys)
-Every slide has a type: content, quiz, poll, wordcloud, open, rating, survey. Every slide may have notes (private speaker notes) and image { url (https only), alt, fit: cover|contain } (only use image URLs the user gave you, never invent them).
+Every slide has a type: content, quiz, poll, wordcloud, open, rating, survey. Every slide may have notes (private speaker notes), presenter (the name of who presents it, for group presentations), cues (at most 5 keyword prompts of at most 80 characters for the presenter's phone, never full sentences) and image { url (https only), alt, fit: cover|contain } (only use image URLs the user gave you, never invent them).
 Interactive slides may have timeLimitSec (5-900) and autoOpen.
 
 content: title, body (blank line = new paragraph, "- " = bullet, **bold**), steps (array of strings, numbered cards, up to 12), layout (title|text|image-text|full-image|instructions, usually leave it out), callout { tone: info|warning|success, text } (callouts are not shown on title-only slides). A slide with only a title is a title slide.

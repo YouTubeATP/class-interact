@@ -8,7 +8,7 @@ import type { PrismaClient } from '@prisma/client';
 import { Server as IOServer } from 'socket.io';
 import {
   TEMPLATES, exportPresentationJson, featuresPatchSchema, importJsonSlides, joinRequestSchema, presentationJsonSchema, suggestMerges,
-  type ClientConfig, type ProjectorClaim, type SessionControlInfo,
+  type ClientConfig, type ProjectorClaim, type SessionControlInfo, type SpeakerLink,
 } from '@classinteract/shared';
 import { z } from 'zod';
 import { createAuth } from './auth';
@@ -114,6 +114,17 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     res.json(body);
   });
 
+  // A presenter types the presenter code on the join page: exchanged for the same link the Presenter QR holds.
+  // Like the projector code, it is separate from the join PIN, only shown on the dashboard, and guessing is rate limited.
+  api.post('/speaker/claim', limit(60_000, 30, 'Too many attempts. Wait a minute and try again.'), async (req, res) => {
+    const code = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
+    if (!/^\d{6}$/.test(code)) throw badRequest('The code is 6 digits.');
+    const id = await sessions.sessionForSpeakerCode(code);
+    if (!id) throw notFound('No live session with that code. Check the digits and try again.');
+    const g = await sessions.speakerGrant(id, (gen) => auth.speakerToken(id, gen));
+    res.json({ sessionId: id, path: `/speak/${id}#g=${encodeURIComponent(g.token)}` });
+  });
+
   // A teaching assistant opens their access link: the token is checked and exchanged for control credentials.
   api.post('/delegate/claim', limit(60_000, 30, 'Too many attempts. Wait a minute and try again.'), async (req, res) => {
     const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId : '';
@@ -121,6 +132,7 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     const g = sessionId && token ? await sessions.authDelegate(sessionId, token) : null;
     if (!g) throw new AppError(401, 'UNAUTHORIZED', 'This access link is not valid or was revoked. Ask the presenter for a new one.');
     const body: SessionControlInfo = { sessionId, presenterToken: token, role: g.role, projectorKey: g.role === 'copresenter' ? auth.projectorKey(sessionId) : '', projectorCode: null };
+    if (g.role === 'speaker') body.roster = await sessions.speakerRoster(sessionId);
     res.json(body);
   });
 
@@ -246,6 +258,16 @@ export function createApp(opts: { prisma: PrismaClient; config: Config }) {
     // the token is shown once, inside the link; only its hash is stored
     res.status(201).json({ id: g.id, token: g.token, path: `/remote/${req.params.id}#g=${encodeURIComponent(g.token)}` });
   });
+  // The Presenter QR. Shown again on demand (the token is derived, not stored); POST …/reset invalidates every phone.
+  const speakerLink = async (id: string, reset: boolean): Promise<SpeakerLink> => {
+    if (!(await sessions.sessionExists(id))) throw notFound('Session not found');
+    const g = await sessions.speakerGrant(id, (gen) => auth.speakerToken(id, gen), reset);
+    // resetting cuts off the typed code as well as the QR
+    const code = await sessions.speakerCodeFor(id, reset);
+    return { id: g.id, path: `/speak/${id}#g=${encodeURIComponent(g.token)}`, code, roster: await sessions.speakerRoster(id) };
+  };
+  studio.get('/sessions/:id/speaker-link', async (req, res) => res.json(await speakerLink(String(req.params.id), false)));
+  studio.post('/sessions/:id/speaker-link/reset', async (req, res) => res.json(await speakerLink(String(req.params.id), true)));
   studio.delete('/sessions/:id/grants/:grantId', async (req, res) => {
     await sessions.revokeGrant(String(req.params.id), String(req.params.grantId));
     res.status(204).end();

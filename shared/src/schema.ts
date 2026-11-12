@@ -195,8 +195,19 @@ const quizViewSchema = z.object({
   unit: z.string().optional(),
 });
 
+/** Most cue points a slide may carry for a presenter phone, and the longest one. Cues are prompts, not a script. */
+export const MAX_CUES = 5;
+export const MAX_CUE_LENGTH = 80;
+
 const base = {
   notes: optionalText(4000, 'Speaker notes'),
+  /** Who presents this slide. Consecutive slides with the same name form one turn on the presenter phones. */
+  presenter: z.string({ invalid_type_error: 'Presenter must be text' }).trim().max(60, 'Presenter is too long (maximum 60 characters)').optional(),
+  /** Short cue points shown on the presenter's phone. Keywords, not lines to read aloud. */
+  cues: z
+    .array(text(1, MAX_CUE_LENGTH, 'Cue'), { invalid_type_error: 'Cues must be a list of short texts' })
+    .max(MAX_CUES, `At most ${MAX_CUES} cues per slide - keep them to keywords`)
+    .optional(),
   image: imageSchema.optional(),
   media: mediaSchema.optional(),
 };

@@ -345,3 +345,6 @@
 .hljs-type, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--hl-type); }
 .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-params, .hljs-property { color: var(--hl-attr); }
 .hljs-tag, .hljs-name { color: var(--hl-title); }
+
+/* Presenter phone: the "Confirm?" bar on a nav button runs out. */
+@keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }

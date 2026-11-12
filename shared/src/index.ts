@@ -12,6 +12,7 @@ export * from './aiTools';
 export * from './runs';
 export * from './qa';
 export * from './permissions';
+export * from './presenters';
 export * from './branching';
 export * from './pulse';
 export * from './grouping';

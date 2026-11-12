@@ -398,7 +398,11 @@ export function gradeQuiz(c: QuizLike, payload: any, seed = ''): number {
   return payload?.optionId !== undefined && payload.optionId === c.correctOptionId ? 1 : 0;
 }
 
-const strip = <T extends AnyConfig>(c: T): T => ({ ...c, notes: '' });
+const strip = <T extends AnyConfig>(c: T): T => {
+  // Speaker notes, presenter names and phone cues are for the people presenting, never the room.
+  const { presenter: _p, cues: _c, ...rest } = c as T & { presenter?: string; cues?: string[] };
+  return { ...rest, notes: '' } as T;
+};
 
 // ---------------------------------------------------------------------------------------
 // Survey (composes poll / rating / open logic per question)

@@ -13,7 +13,7 @@ import {
   type SelfPacedView, type SessionFeatures, type SessionInfo, type SessionMode, type SessionState, type SessionSummary, type SlideType,
   type StaffRole, type Standing, type SubmissionStatus, type TeamInfo, type TeamStanding, type Theme,
 } from '@classinteract/shared';
-import { permissionsOf } from '@classinteract/shared';
+import { permissionsOf, rosterOf, sameName, turnsOf, type SpeakerSnapshot } from '@classinteract/shared';
 import type { Auth } from '../auth';
 import { hashToken, newToken } from '../auth';
 import type { Config } from '../config';
@@ -112,6 +112,8 @@ export interface Snapshots {
   projector: ProjectorSnapshot;
   /** Per-participant snapshot (null if the participant is not in this session). */
   forParticipant(participantId: string): ParticipantSnapshot | null;
+  /** What a presenter phone that joined as `name` sees. */
+  forSpeaker(name: string): SpeakerSnapshot;
   /** True when a new submission changes what participants see (live results are shared with them). */
   participantsSeeLiveData: boolean;
   /** The projector shows Q&A or the pulse right now. */
@@ -262,8 +264,8 @@ export class SessionService {
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const pin = String(randomInt(100000, 1000000));
-      // one box on the join page accepts both kinds of code, so they may never collide
-      if (await this.prisma.session.findUnique({ where: { liveProjectorCode: pin }, select: { id: true } })) continue;
+      // one box on the join page accepts every kind of code, so they may never collide
+      if (await this.codeTaken(pin)) continue;
       try {
         const s = await this.prisma.session.create({
           data: {
@@ -297,21 +299,41 @@ export class SessionService {
    * Allocated on first use, so sessions that predate the feature get one too; null once the session has ended.
    */
   async projectorCodeFor(sessionId: string): Promise<string | null> {
-    const s = await this.prisma.session.findUnique({ where: { id: sessionId }, select: { status: true, liveProjectorCode: true } });
+    return this.liveCodeFor(sessionId, 'liveProjectorCode', false);
+  }
+
+  /** The six digits that open a presenter phone, the typed twin of the Presenter QR. `rotate` replaces it (on reset). */
+  async speakerCodeFor(sessionId: string, rotate = false): Promise<string | null> {
+    return this.liveCodeFor(sessionId, 'liveSpeakerCode', rotate);
+  }
+
+  /** Whether any live session uses these digits as its join PIN, projector code or presenter code. */
+  private async codeTaken(code: string): Promise<boolean> {
+    return !!(await this.prisma.session.findFirst({ where: { OR: [{ livePin: code }, { liveProjectorCode: code }, { liveSpeakerCode: code }] }, select: { id: true } }));
+  }
+
+  private async liveCodeFor(sessionId: string, field: 'liveProjectorCode' | 'liveSpeakerCode', rotate: boolean): Promise<string | null> {
+    const s = await this.prisma.session.findUnique({ where: { id: sessionId }, select: { status: true, liveProjectorCode: true, liveSpeakerCode: true } });
     if (!s || s.status !== 'live') return null;
-    if (s.liveProjectorCode) return s.liveProjectorCode;
+    if (s[field] && !rotate) return s[field];
     for (let attempt = 0; attempt < 30; attempt++) {
       const code = String(randomInt(100000, 1000000));
-      if (await this.prisma.session.findUnique({ where: { livePin: code }, select: { id: true } })) continue;
+      if (await this.codeTaken(code)) continue;
       try {
-        await this.prisma.session.update({ where: { id: sessionId }, data: { liveProjectorCode: code } });
+        await this.prisma.session.update({ where: { id: sessionId }, data: { [field]: code } });
         return code;
       } catch (e) {
         if (isUnique(e)) continue;
         throw e;
       }
     }
-    throw new AppError(503, 'NO_CODE', 'Could not allocate a projector code. Try again.');
+    throw new AppError(503, 'NO_CODE', 'Could not allocate a code. Try again.');
+  }
+
+  /** Resolve a presenter code to its live session, or null. */
+  async sessionForSpeakerCode(code: string): Promise<string | null> {
+    const s = await this.prisma.session.findUnique({ where: { liveSpeakerCode: code }, select: { id: true } });
+    return s?.id ?? null;
   }
 
   /** Resolve a projector code to its live session, or null. */
@@ -501,7 +523,7 @@ export class SessionService {
         data: {
           state: JSON.stringify(r.state),
           lastActivityAt: new Date(now),
-          ...(ending ? { status: 'ended', endedAt: new Date(now), livePin: null, liveProjectorCode: null } : {}),
+          ...(ending ? { status: 'ended', endedAt: new Date(now), livePin: null, liveProjectorCode: null, liveSpeakerCode: null } : {}),
         },
       }),
     ];
@@ -988,11 +1010,11 @@ export class SessionService {
   // Access links for co-presenters and moderators
   // ---------------------------------------------------------------------------------
 
-  async createGrant(sessionId: string, role: DelegateRole, label: string): Promise<{ id: string; token: string }> {
+  async createGrant(sessionId: string, role: DelegateRole, label: string, token = newToken()): Promise<{ id: string; token: string }> {
     const rt = await this.runtime(sessionId);
     if (rt.status !== 'live') throw new AppError(409, 'SESSION_ENDED', 'This session has ended.');
-    const token = newToken();
-    const g = await this.prisma.accessGrant.create({ data: { sessionId, role, label: cleanText(label).slice(0, 60) || (role === 'moderator' ? 'Moderator' : 'Co-presenter'), tokenHash: hashToken(token) } });
+    const fallback = role === 'moderator' ? 'Moderator' : role === 'speaker' ? 'Presenter phones' : 'Co-presenter';
+    const g = await this.prisma.accessGrant.create({ data: { sessionId, role, label: cleanText(label).slice(0, 60) || fallback, tokenHash: hashToken(token) } });
     this.emit(sessionId, 'control');
     return { id: g.id, token };
   }
@@ -1010,8 +1032,27 @@ export class SessionService {
     return { grantId: g.id, role: g.role as DelegateRole, label: g.label };
   }
 
+  /**
+   * The one shared link behind the Presenter QR. Its token is derived from the session and a generation number, so the
+   * QR can be shown again at any time without storing the token; resetting revokes it and moves to the next generation.
+   */
+  async speakerGrant(sessionId: string, tokenFor: (generation: number) => string, reset = false): Promise<{ id: string; token: string }> {
+    const rows = await this.prisma.accessGrant.findMany({ where: { sessionId, role: 'speaker' }, orderBy: { createdAt: 'asc' } });
+    const live = rows.findIndex((g) => !g.revokedAt);
+    if (live >= 0 && !reset) return { id: rows[live].id, token: tokenFor(live) };
+    if (live >= 0) await this.revokeGrant(sessionId, rows[live].id);
+    return this.createGrant(sessionId, 'speaker', 'Presenter phones', tokenFor(rows.length));
+  }
+
+  /** Presenter names on the slides of a session, in order. */
+  async speakerRoster(sessionId: string): Promise<string[]> {
+    const rt = await this.runtime(sessionId);
+    return rosterOf(rt.activities.map((a) => ({ presenter: (a.config as any).presenter as string | undefined })));
+  }
+
   private async grantList(rt: Runtime, online: Map<string, number>): Promise<AccessGrantInfo[]> {
-    const rows = await this.prisma.accessGrant.findMany({ where: { sessionId: rt.id }, orderBy: { createdAt: 'asc' } });
+    // Presenter phones have their own card; they are not listed with the access links.
+    const rows = await this.prisma.accessGrant.findMany({ where: { sessionId: rt.id, role: { not: 'speaker' } }, orderBy: { createdAt: 'asc' } });
     return rows.map((g) => ({ id: g.id, role: g.role as DelegateRole, label: g.label, createdAt: g.createdAt.getTime(), revokedAt: g.revokedAt?.getTime() ?? null, online: online.get(g.id) ?? 0 }));
   }
 
@@ -1288,7 +1329,7 @@ export class SessionService {
       .map((p) => ({ id: p.id, name: p.name, online: online.has(p.id) || p.simulated, joinedAt: p.joinedAt, responses: selfPaced ? (selfPacedProgress?.perParticipant.find((x) => x.participantId === p.id)?.answered ?? 0) : perPerson.get(p.id) ?? 0, teamId: p.teamId, simulated: p.simulated }));
     const ownerGrants = await this.grantList(rt, staffOnline);
     const presenter: PresenterSnapshot = {
-      role: 'presenter', ...presenterBase, participants: participantsInfo, grants: ownerGrants,
+      role: 'presenter', ...presenterBase, participants: participantsInfo, grants: ownerGrants, speakers: [],
       staff: { role: 'owner', permissions: permissionsOf('owner'), label: 'Presenter' },
     };
 
@@ -1347,12 +1388,30 @@ export class SessionService {
       };
     };
 
-    return { presenter, projector, forParticipant, participantsSeeLiveData: !!audienceResults && participantResultsOk, projectorShowsQa, projectorShowsPulse };
+    const slides = rt.activities.map((a) => ({ title: (definitions[a.type] as any).titleOf(a.config) as string, presenter: ((a.config as any).presenter as string | undefined)?.trim() || null, cues: ((a.config as any).cues as string[] | undefined) ?? [] }));
+    const roster = rosterOf(slides.map((x) => ({ presenter: x.presenter ?? undefined })));
+    const turns = turnsOf(slides.map((x) => ({ presenter: x.presenter ?? undefined })));
+    const forSpeaker = (name: string): SpeakerSnapshot => {
+      const i = state.phase === 'lobby' || selfPaced ? -1 : state.activityIndex;
+      const cur = i >= 0 ? slides[i] : undefined;
+      const nxt = slides[i + 1];
+      const matched = roster.some((r) => sameName(r, name));
+      return {
+        role: 'speaker', sessionId: rt.id, serverNow: now, title: rt.title, status: rt.status, phase: state.phase, activityIndex: i, total: slides.length, version: state.version,
+        me: { name, matched }, roster, turns,
+        // Cue points belong to the person presenting: other phones only see whose slide it is.
+        current: cur ? { title: cur.title, presenter: cur.presenter, cues: sameName(cur.presenter, name) ? cur.cues : [] } : null,
+        next: nxt ? { title: nxt.title, presenter: nxt.presenter } : null,
+        outline: i < 0 && rt.status === 'live' ? slides.map((x) => ({ ...x, cues: sameName(x.presenter, name) ? x.cues : [] })) : null,
+      };
+    };
+
+    return { presenter, projector, forParticipant, forSpeaker, participantsSeeLiveData: !!audienceResults && participantResultsOk, projectorShowsQa, projectorShowsPulse };
   }
 
   /** The presenter snapshot narrowed to what a co-presenter or moderator may see. */
   delegateView(snap: PresenterSnapshot, role: StaffRole, label: string): PresenterSnapshot {
-    return { ...snap, grants: [], staff: { role, permissions: permissionsOf(role), label } };
+    return { ...snap, grants: [], speakers: [], staff: { role, permissions: permissionsOf(role), label } };
   }
 
   // ---------------------------------------------------------------------------------

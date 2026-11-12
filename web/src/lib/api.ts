@@ -1,5 +1,5 @@
 import type {
-  ClientConfig, JoinLookup, JoinResponse, PresentationDoc, PresentationSummary, ProjectorClaim, SessionControlInfo, SessionMode,
+  ClientConfig, JoinLookup, JoinResponse, PresentationDoc, PresentationSummary, ProjectorClaim, SessionControlInfo, SessionMode, SpeakerLink,
   SessionResultsView, SessionSummary, DocIssue, FeaturesPatch, PresentationTemplate, ImportResult, TermGroupSuggestion, SessionAnalytics, SessionRecap, DelegateRole,
 } from '@classinteract/shared';
 import type { LearnerReport } from './learners';
@@ -70,6 +70,7 @@ export const api = {
   login: (password: string) => request<{ token: string }>('/api/auth/login', { body: { password } }),
   lookup: (pin: string) => request<JoinLookup>(`/api/join/${pin}`),
   claimProjector: (code: string) => request<ProjectorClaim>('/api/projector/claim', { body: { code } }),
+  claimSpeaker: (code: string) => request<{ sessionId: string; path: string }>('/api/speaker/claim', { body: { code } }),
   join: (body: { pin: string; name?: string; token?: string; learnerKey?: string; remember?: boolean; shareProgress?: boolean }) => request<JoinResponse>('/api/join', { body }),
 
   presentations: {
@@ -103,6 +104,8 @@ export const api = {
     analytics: (id: string) => request<{ analytics: SessionAnalytics; recap: SessionRecap; rehearsal: boolean }>(`/api/studio/sessions/${id}/analytics`),
     createGrant: (id: string, role: DelegateRole, label: string) => request<{ id: string; token: string; path: string }>(`/api/studio/sessions/${id}/grants`, { body: { role, label } }),
     revokeGrant: (id: string, grantId: string) => request<void>(`/api/studio/sessions/${id}/grants/${grantId}`, { method: 'DELETE' }),
+    speakerLink: (id: string) => request<SpeakerLink>(`/api/studio/sessions/${id}/speaker-link`),
+    resetSpeakerLink: (id: string) => request<SpeakerLink>(`/api/studio/sessions/${id}/speaker-link/reset`, { method: 'POST' }),
   },
   delegate: {
     claim: (sessionId: string, token: string) => request<SessionControlInfo>('/api/delegate/claim', { body: { sessionId, token } }),
