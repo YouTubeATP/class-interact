@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Eye, EyeOff, KeyRound, ShieldOff, Vibrate, VibrateOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -156,6 +157,7 @@ function SpeakerLive({ info, name, onRename }: { info: SessionControlInfo; name:
   const [hideCues, setHideCues] = useState(false);
   const [busy, setBusy] = useState(false);
   const prev = useRef<number | null>(null);
+  const reduce = useReducedMotion();
 
   const live = !!s && s.status === 'live' && s.phase !== 'ended' && s.phase !== 'lobby';
   const mine = !!s && live && isMine(s.activityIndex, name, s.turns);
@@ -219,10 +221,18 @@ function SpeakerLive({ info, name, onRename }: { info: SessionControlInfo; name:
   return (
     <div data-appearance="dark" className="relative min-h-dvh bg-paper text-ink" data-testid="speaker" data-turn={mine ? 'mine' : 'other'} onPointerDown={() => mine && poke()}>
       <ConnectionBanner status={status} className="sticky top-0 z-30" />
-      {flash && (
-        <div aria-hidden data-testid="speaker-flash" data-cue={flash}
-          className={cn('pointer-events-none fixed inset-0 z-40 rounded-[28px] ring-[14px] ring-inset motion-safe:animate-pulse', flash === 'start' ? 'ring-accent' : flash === 'ready' ? 'ring-warn' : 'ring-line-2')} />
-      )}
+      <AnimatePresence>
+        {flash && (
+          // The visual twin of the buzz (and the only cue on phones that cannot vibrate): the screen edge pulses in
+          // the cue's rhythm. Reduced motion gets a steady ring instead.
+          <motion.div key={flash} aria-hidden data-testid="speaker-flash" data-cue={flash}
+            className={cn('pointer-events-none fixed inset-0 z-40 rounded-[28px] ring-[14px] ring-inset', flash === 'start' ? 'ring-accent' : flash === 'ready' ? 'ring-warn' : 'ring-line-2')}
+            initial={{ opacity: 0 }}
+            animate={reduce ? { opacity: 1 } : { opacity: flash === 'ready' ? [0, 1, 0.2, 1, 0.6] : flash === 'start' ? [0, 1, 0.7, 1] : [0, 0.8] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduce ? 0 : flash === 'start' ? 1.2 : 0.8, ease: 'easeOut' }} />
+        )}
+      </AnimatePresence>
       <div role="status" aria-live="assertive" className="sr-only">{flash ? CUE_TEXT[flash] : ''}</div>
 
       <div className="mx-auto grid min-h-dvh max-w-xl grid-rows-[auto_1fr_auto] gap-3 p-4">
@@ -245,8 +255,12 @@ function SpeakerLive({ info, name, onRename }: { info: SessionControlInfo; name:
           ) : (
             <>
               {mine && s.current && (
-                <section aria-label="Your cues" data-testid="speaker-cues" data-lit={lit}
-                  className={cn('grid gap-3 rounded-3xl border border-line p-5 transition-opacity duration-700 motion-reduce:transition-none', lit ? 'opacity-100' : 'opacity-10')}>
+                <motion.section aria-label="Your cues" data-testid="speaker-cues" data-lit={lit}
+                  className="grid gap-3 rounded-3xl border border-line p-5"
+                  initial={false}
+                  // fades out slowly (it should not grab attention) and back in quickly (a peek must be instant)
+                  animate={{ opacity: lit ? 1 : 0.1 }}
+                  transition={{ duration: reduce ? 0 : lit ? 0.15 : 1.2, ease: 'easeOut' }}>
                   <p className="text-sm font-semibold text-ink-3">{s.current.title}</p>
                   {s.current.cues.length ? (
                     <ul className="grid gap-2.5">
@@ -254,7 +268,7 @@ function SpeakerLive({ info, name, onRename }: { info: SessionControlInfo; name:
                     </ul>
                   ) : <p className="text-lg text-ink-2">No cues on this slide. You know this one.</p>}
                   {!lit && <p className="text-xs text-ink-3">Tap anywhere to peek.</p>}
-                </section>
+                </motion.section>
               )}
               {!mine && (
                 <section className="grid gap-1 rounded-3xl border border-line p-5" data-testid="speaker-waiting">
@@ -292,6 +306,7 @@ function SpeakerLive({ info, name, onRename }: { info: SessionControlInfo; name:
 
 /** Next / Previous. Out of turn, the first tap turns the button itself into a confirmation; no dialog covers the screen. */
 function NavButton({ kind, armed, disabled, onTap }: { kind: 'next' | 'previous'; armed: boolean; disabled: boolean; onTap: () => void }) {
+  const reduce = useReducedMotion();
   const label = kind === 'next' ? 'Next' : 'Back';
   return (
     <button type="button" disabled={disabled} onClick={onTap} data-testid={`speaker-${kind}`} data-armed={armed}
@@ -299,7 +314,8 @@ function NavButton({ kind, armed, disabled, onTap }: { kind: 'next' | 'previous'
       className={cn('relative flex h-20 items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 text-lg font-extrabold disabled:opacity-40',
         armed ? 'border-warn bg-warn-soft text-warn-ink' : kind === 'next' ? 'border-transparent bg-surface text-ink' : 'border-line bg-transparent text-ink-2')}>
       {armed ? <span>Confirm {kind === 'next' ? 'next' : 'back'}?</span> : <>{kind === 'previous' && <ChevronLeft className="size-6" aria-hidden />}{label}{kind === 'next' && <ChevronRight className="size-6" aria-hidden />}</>}
-      {armed && <span aria-hidden className="absolute inset-x-0 bottom-0 h-1 origin-left bg-warn motion-safe:animate-[shrink_linear_forwards]" style={{ animationDuration: `${CONFIRM_MS}ms` }} />}
+      {/* the bar runs out with the confirmation window */}
+      {armed && <motion.span aria-hidden className="absolute inset-x-0 bottom-0 h-1 origin-left bg-warn" initial={{ scaleX: 1 }} animate={{ scaleX: reduce ? 1 : 0 }} transition={{ duration: CONFIRM_MS / 1000, ease: 'linear' }} />}
     </button>
   );
 }

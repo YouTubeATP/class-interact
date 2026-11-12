@@ -227,7 +227,8 @@ class AudioEngine {
   /** The style in force on this device (or, on the projector, the presenter's choice). */
   style(): SoundStyle {
     const st = this.settings().style;
-    return st in STYLES ? st : 'bright';
+    // HKUST is not a band style (it is not in STYLES) but is just as valid: only unknown values fall back.
+    return st in STYLES || st === 'hkust' ? st : 'bright';
   }
 
   /** Plays a few bars of a piece in a style, for the settings page. Stops any preview already playing. */
